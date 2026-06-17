@@ -34,11 +34,19 @@ const sb = {
     });
     return res.json();
   },
+  async patch(table, id, data, token) {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?id=eq.${id}`, {
+      method: "PATCH", headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${token || SUPABASE_KEY}`, "Content-Type": "application/json", Prefer: "return=representation" },
+      body: JSON.stringify(data),
+    });
+    return res.json();
+  },
 };
 
 const today = () => new Date().toISOString().split("T")[0];
 const nowTime = () => new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—";
+const fmtDateTime = (d) => d ? new Date(d).toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "—";
 
 const ROLE_CONFIG = {
   president:       { label: "President",            color: "#7C3AED", bg: "#F5F3FF", canAddCandidate: false, canAddMember: false, canViewAll: true,  isAdmin: true  },
@@ -49,16 +57,30 @@ const ROLE_CONFIG = {
   interview_coord: { label: "Interview Coordinator", color: "#DC2626", bg: "#FEF2F2", canAddCandidate: false, canAddMember: false, canViewAll: false, isAdmin: false },
 };
 
+const ENTRY_TYPES = {
+  screening_call:    { label: "Screening Call",      icon: "📞", color: "#2563EB" },
+  interview_round1:  { label: "Interview Round 1",   icon: "🎯", color: "#7C3AED" },
+  interview_round2:  { label: "Interview Round 2",   icon: "🎯", color: "#7C3AED" },
+  interview_round3:  { label: "Interview Round 3",   icon: "🎯", color: "#7C3AED" },
+  vendor_mock:       { label: "Vendor Mock",         icon: "🏢", color: "#D97706" },
+  interview_mock:    { label: "Interview Mock",      icon: "🎤", color: "#DC2626" },
+  pipeline_update:   { label: "Pipeline Update",     icon: "📋", color: "#0F766E" },
+  offer:             { label: "Offer",               icon: "🎉", color: "#16A34A" },
+  placement:         { label: "Placement",           icon: "✅", color: "#16A34A" },
+  dropped:           { label: "Dropped",             icon: "❌", color: "#DC2626" },
+};
+
+// ─── UI COMPONENTS ─────────────────────────────────────────────────────────
 function RoleBadge({ role }) {
   const rc = ROLE_CONFIG[role] || { label: role, color: "#475569", bg: "#F1F5F9" };
   return <span style={{ background: rc.bg, color: rc.color, fontSize: 11, padding: "2px 8px", borderRadius: 99, fontWeight: 600 }}>{rc.label}</span>;
 }
 function StatusBadge({ status }) {
-  const map = { solved:["#16A34A","#F0FDF4"], pending:["#D97706","#FFFBEB"], waiting:["#2563EB","#EFF6FF"], none:["#94A3B8","#F1F5F9"], Active:["#16A34A","#F0FDF4"], Inactive:["#94A3B8","#F1F5F9"], Placed:["#7C3AED","#F5F3FF"], Dropped:["#DC2626","#FEF2F2"] };
-  const [c,b] = map[status]||["#94A3B8","#F1F5F9"];
+  const map = { solved:["#16A34A","#F0FDF4"], pending:["#D97706","#FFFBEB"], waiting:["#2563EB","#EFF6FF"], none:["#94A3B8","#F1F5F9"], Active:["#16A34A","#F0FDF4"], Inactive:["#94A3B8","#F1F5F9"], Placed:["#7C3AED","#F5F3FF"], Dropped:["#DC2626","#FEF2F2"], passed:["#16A34A","#F0FDF4"], failed:["#DC2626","#FEF2F2"], pending_:["#D97706","#FFFBEB"], scheduled:["#2563EB","#EFF6FF"] };
+  const [c,b] = map[status] || ["#94A3B8","#F1F5F9"];
   return <span style={{ background:b, color:c, fontSize:11, padding:"2px 8px", borderRadius:99, fontWeight:600 }}>{status}</span>;
 }
-function Card({ children, style }) { return <div style={{ background:"#fff", border:"1px solid #E2E8F0", borderRadius:10, ...style }}>{children}</div>; }
+function Card({ children, style, onClick }) { return <div onClick={onClick} style={{ background:"#fff", border:"1px solid #E2E8F0", borderRadius:10, cursor: onClick ? "pointer" : "default", ...style }}>{children}</div>; }
 function CardHeader({ title, action }) {
   return <div style={{ padding:"14px 18px", borderBottom:"1px solid #E2E8F0", display:"flex", alignItems:"center", justifyContent:"space-between" }}><span style={{ fontWeight:600, fontSize:14 }}>{title}</span>{action}</div>;
 }
@@ -75,24 +97,37 @@ function Textarea({ label, ...props }) {
   return <div style={{ marginBottom:14 }}>{label&&<label style={{ display:"block", fontSize:12, fontWeight:500, color:"#475569", marginBottom:5 }}>{label}</label>}<textarea style={{ width:"100%", border:"1px solid #E2E8F0", borderRadius:8, padding:"8px 12px", fontSize:14, outline:"none", resize:"vertical", boxSizing:"border-box" }} rows={3} {...props}/></div>;
 }
 function Btn({ children, variant="primary", onClick, style, disabled }) {
-  const s = { primary:{background:disabled?"#94A3B8":"#2563EB",color:"#fff",border:"none"}, outline:{background:"#fff",color:"#475569",border:"1px solid #E2E8F0"}, danger:{background:"#DC2626",color:"#fff",border:"none"} };
+  const s = { primary:{background:disabled?"#94A3B8":"#2563EB",color:"#fff",border:"none"}, outline:{background:"#fff",color:"#475569",border:"1px solid #E2E8F0"}, danger:{background:"#DC2626",color:"#fff",border:"none"}, success:{background:"#16A34A",color:"#fff",border:"none"} };
   return <button disabled={disabled} onClick={onClick} style={{ padding:"8px 16px", borderRadius:8, fontSize:13, fontWeight:600, cursor:disabled?"not-allowed":"pointer", ...s[variant], ...style }}>{children}</button>;
 }
-function Modal({ open, onClose, title, children }) {
+function Modal({ open, onClose, title, children, wide }) {
   if (!open) return null;
-  return <div onClick={e=>e.target===e.currentTarget&&onClose()} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.45)", zIndex:1000, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}><div style={{ background:"#fff", borderRadius:14, padding:28, width:520, maxWidth:"100%", maxHeight:"85vh", overflowY:"auto" }}><div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:20 }}><span style={{ fontSize:17, fontWeight:700 }}>{title}</span><button onClick={onClose} style={{ background:"none", border:"none", fontSize:20, cursor:"pointer", color:"#94A3B8" }}>×</button></div>{children}</div></div>;
+  return <div onClick={e=>e.target===e.currentTarget&&onClose()} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.45)", zIndex:1000, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+    <div style={{ background:"#fff", borderRadius:14, padding:28, width:wide?700:520, maxWidth:"100%", maxHeight:"90vh", overflowY:"auto" }}>
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:20 }}>
+        <span style={{ fontSize:17, fontWeight:700 }}>{title}</span>
+        <button onClick={onClose} style={{ background:"none", border:"none", fontSize:20, cursor:"pointer", color:"#94A3B8" }}>×</button>
+      </div>
+      {children}
+    </div>
+  </div>;
 }
 function Toast({ msg, type="success", onDone }) {
   useEffect(()=>{ const t=setTimeout(onDone,3500); return()=>clearTimeout(t); },[onDone]);
   return <div style={{ position:"fixed", bottom:24, right:24, background:type==="error"?"#DC2626":"#16A34A", color:"#fff", padding:"12px 20px", borderRadius:10, fontSize:14, fontWeight:500, zIndex:9999, maxWidth:340 }}>{type==="success"?"✓":"✗"} {msg}</div>;
 }
 function Av({ name, role, size=32 }) {
-  const rc=ROLE_CONFIG[role]||{color:"#2563EB",bg:"#EFF6FF"};
-  const ini=name?.split(" ").map(w=>w[0]).join("").substring(0,2).toUpperCase()||"?";
+  const rc = ROLE_CONFIG[role]||{color:"#2563EB",bg:"#EFF6FF"};
+  const ini = name?.split(" ").map(w=>w[0]).join("").substring(0,2).toUpperCase()||"?";
   return <div style={{ width:size, height:size, borderRadius:"50%", background:rc.bg, color:rc.color, display:"inline-flex", alignItems:"center", justifyContent:"center", fontSize:size*0.33, fontWeight:700, flexShrink:0 }}>{ini}</div>;
 }
+function Tabs({ tabs, active, onChange }) {
+  return <div style={{ display:"flex", gap:4, marginBottom:20, borderBottom:"1px solid #E2E8F0", paddingBottom:0 }}>
+    {tabs.map(t => <button key={t.id} onClick={()=>onChange(t.id)} style={{ padding:"8px 16px", fontSize:13, fontWeight:600, cursor:"pointer", background:"none", border:"none", borderBottom:`2px solid ${active===t.id?"#2563EB":"transparent"}`, color:active===t.id?"#2563EB":"#94A3B8", marginBottom:-1 }}>{t.label}</button>)}
+  </div>;
+}
 
-// LOGIN
+// ─── LOGIN ──────────────────────────────────────────────────────────────────
 function LoginPage({ onLogin }) {
   const [email,setEmail]=useState(""); const [pass,setPass]=useState(""); const [loading,setLoading]=useState(false); const [err,setErr]=useState(""); const [show,setShow]=useState(false);
   const login = async () => {
@@ -122,33 +157,38 @@ function LoginPage({ onLogin }) {
         </div>
         {err&&<div style={{ background:"#FEF2F2", border:"1px solid #FECACA", borderRadius:8, padding:"10px 14px", fontSize:13, color:"#DC2626", marginBottom:16 }}>⚠️ {err}</div>}
         <button onClick={login} disabled={loading} style={{ width:"100%", background:loading?"#94A3B8":"#2563EB", color:"#fff", border:"none", borderRadius:10, padding:13, fontSize:15, fontWeight:700, cursor:loading?"not-allowed":"pointer" }}>{loading?"Signing in...":"Sign in →"}</button>
-        <div style={{ marginTop:20, padding:"12px 14px", background:"#F8FAFC", borderRadius:8, fontSize:12, color:"#94A3B8" }}>Default password: <strong style={{ color:"#475569" }}>VARS@2026</strong> — Contact your manager if you need help.</div>
+        <div style={{ marginTop:20, padding:"12px 14px", background:"#F8FAFC", borderRadius:8, fontSize:12, color:"#94A3B8" }}>Default password: <strong style={{ color:"#475569" }}>VARS@2026</strong></div>
       </div>
     </div>
   );
 }
 
-// MAIN APP
+// ─── MAIN APP ──────────────────────────────────────────────────────────────
 export default function VARSPortal() {
   const [user,setUser]=useState(null); const [page,setPage]=useState("dashboard");
   const [members,setMembers]=useState([]); const [candidates,setCandidates]=useState([]);
   const [logs,setLogs]=useState([]); const [notifications,setNotifications]=useState([]);
+  const [timeline,setTimeline]=useState([]);
   const [toast,setToast]=useState(null); const [loading,setLoading]=useState(false); const [showN,setShowN]=useState(false);
   const showToast=(msg,type="success")=>setToast({msg,type});
+
   const loadData=useCallback(async(token)=>{
     const t=token||user?.token; if(!t)return; setLoading(true);
     try {
-      const [m,c,l,n]=await Promise.all([
+      const [m,c,l,n,tl]=await Promise.all([
         sb.get("team_members","select=*&order=role.asc,name.asc",t),
         sb.get("candidates","select=*&order=created_at.desc",t),
         sb.get("daily_logs","select=*&order=created_at.desc",t),
         sb.get("notifications","select=*&order=created_at.desc&limit=30",t),
+        sb.get("candidate_timeline","select=*&order=created_at.desc",t),
       ]);
       if(Array.isArray(m))setMembers(m); if(Array.isArray(c))setCandidates(c);
       if(Array.isArray(l))setLogs(l); if(Array.isArray(n))setNotifications(n);
+      if(Array.isArray(tl))setTimeline(tl);
     } catch { showToast("Failed to load data.","error"); }
     setLoading(false);
   },[user]);
+
   useEffect(()=>{ if(user)loadData(user.token); },[user]);
   const rc=user?ROLE_CONFIG[user.role]:null;
   const getMember=id=>members.find(m=>m.id===id);
@@ -163,9 +203,10 @@ export default function VARSPortal() {
       const cand=candidates.find(c=>c.id===data.candidate_id);
       await sb.post("notifications",{message:`${user.name} submitted ${rc?.label} log for ${cand?.name||"candidate"}`,candidate_id:data.candidate_id,triggered_by:user.id},user.token);
       await loadData(); showToast("Daily log submitted!");
-    } catch { showToast("Error saving log.","error"); }
+    } catch { showToast("Error.","error"); }
     setLoading(false);
   };
+
   const addCandidate=async(data)=>{
     setLoading(true);
     try {
@@ -175,6 +216,7 @@ export default function VARSPortal() {
     } catch { showToast("Error.","error"); }
     setLoading(false);
   };
+
   const addMember=async(data)=>{
     setLoading(true);
     try {
@@ -186,16 +228,29 @@ export default function VARSPortal() {
     } catch { showToast("Error adding member.","error"); }
     setLoading(false);
   };
-  const logout=async()=>{ await sb.signOut(user.token); setUser(null); setPage("dashboard"); setMembers([]); setCandidates([]); setLogs([]); setNotifications([]); };
+
+  const addTimeline=async(data)=>{
+    setLoading(true);
+    try {
+      const r=await sb.post("candidate_timeline",{...data,user_id:user.id},user.token);
+      if(r?.error){showToast("Failed: "+r.error.message,"error");setLoading(false);return;}
+      await loadData(); showToast("Entry added!");
+    } catch { showToast("Error.","error"); }
+    setLoading(false);
+  };
+
+  const logout=async()=>{ await sb.signOut(user.token); setUser(null); setPage("dashboard"); setMembers([]); setCandidates([]); setLogs([]); setNotifications([]); setTimeline([]); };
 
   if(!user)return <LoginPage onLogin={u=>setUser(u)} />;
+
   const navItems=[
     {id:"dashboard",icon:"📊",label:"Dashboard",always:true},
     {id:"daily_log",icon:"📝",label:"Daily Log",always:true},
     {id:"candidates",icon:"👤",label:"Candidates",always:true},
+    {id:"my_recruiters",icon:"👥",label:"My Recruiters",show:user.role==="r_lead"},
     {id:"logs_history",icon:"📅",label:"Log History",always:true},
     {id:"stats",icon:"📈",label:"Stats & Reports",show:rc.canViewAll},
-    {id:"team",icon:"👥",label:"Team",show:rc.isAdmin||user.role==="r_lead"||user.role==="c_lead"},
+    {id:"team",icon:"🏢",label:"Team",show:rc.isAdmin||user.role==="r_lead"||user.role==="c_lead"},
     {id:"notifications",icon:"🔔",label:`Alerts${unread>0?` (${unread})`:""}`,show:rc.isAdmin},
   ].filter(n=>n.always||n.show);
 
@@ -208,13 +263,14 @@ export default function VARSPortal() {
           <button onClick={()=>setShowN(!showN)} style={{ background:"none", border:"none", color:"#93C5FD", cursor:"pointer", fontSize:18, position:"relative" }}>🔔{unread>0&&<span style={{ position:"absolute", top:-4, right:-4, background:"#DC2626", color:"#fff", fontSize:10, borderRadius:99, padding:"1px 5px" }}>{unread}</span>}</button>
           {showN&&<div style={{ position:"absolute", right:0, top:38, background:"#fff", border:"1px solid #E2E8F0", borderRadius:10, width:320, zIndex:200, boxShadow:"0 8px 30px rgba(0,0,0,0.15)" }}>
             <div style={{ padding:"12px 16px", borderBottom:"1px solid #E2E8F0", fontWeight:600, fontSize:13 }}>Notifications</div>
-            {notifications.slice(0,8).map(n=><div key={n.id} style={{ padding:"10px 16px", borderBottom:"1px solid #F1F5F9" }}><div style={{ fontSize:12 }}>{n.message}</div><div style={{ fontSize:11, color:"#94A3B8", marginTop:2 }}>{fmtDate(n.created_at?.split("T")[0])}</div></div>)}
+            {notifications.slice(0,8).map(n=><div key={n.id} style={{ padding:"10px 16px", borderBottom:"1px solid #F1F5F9" }}><div style={{ fontSize:12 }}>{n.message}</div><div style={{ fontSize:11, color:"#94A3B8", marginTop:2 }}>{fmtDateTime(n.created_at)}</div></div>)}
             {notifications.length===0&&<div style={{ padding:20, textAlign:"center", fontSize:13, color:"#94A3B8" }}>No notifications yet.</div>}
           </div>}
         </div>}
         <div style={{ display:"flex", alignItems:"center", gap:8 }}><Av name={user.name} role={user.role} size={30}/><div><div style={{ fontSize:12, fontWeight:600, color:"#fff" }}>{user.name}</div><div style={{ fontSize:10, color:"#93C5FD" }}>{rc.label}</div></div></div>
         <button onClick={logout} style={{ background:"rgba(255,255,255,0.1)", border:"1px solid rgba(255,255,255,0.2)", color:"#fff", borderRadius:6, padding:"4px 10px", fontSize:12, cursor:"pointer" }}>Sign out</button>
       </div>
+
       <div style={{ display:"flex", flex:1 }}>
         <div style={{ width:190, background:"#fff", borderRight:"1px solid #E2E8F0", padding:"12px 0", flexShrink:0 }}>
           {navItems.map(n=><div key={n.id} onClick={()=>setPage(n.id)} style={{ display:"flex", alignItems:"center", gap:10, padding:"9px 18px", fontSize:13, cursor:"pointer", borderLeft:`3px solid ${page===n.id?"#2563EB":"transparent"}`, color:page===n.id?"#2563EB":"#475569", background:page===n.id?"#EFF6FF":"transparent", fontWeight:page===n.id?600:400 }}><span>{n.icon}</span>{n.label}</div>)}
@@ -223,11 +279,13 @@ export default function VARSPortal() {
             <div style={{ fontSize:10, color:"#94A3B8", marginTop:2 }}>{rc.canViewAll?"Full view access":"Limited to assigned"}</div>
           </div>
         </div>
+
         <div style={{ flex:1, padding:22, overflowY:"auto" }}>
           {loading&&<div style={{ position:"fixed", top:60, right:20, background:"#0F1F3D", color:"#fff", padding:"5px 14px", borderRadius:8, fontSize:12, zIndex:500 }}>Syncing...</div>}
           {page==="dashboard"&&<DashPage user={user} rc={rc} candidates={myCands} logs={logs} getMember={getMember} onNav={setPage} onRefresh={()=>loadData()}/>}
           {page==="daily_log"&&<LogPage user={user} rc={rc} candidates={myCands} onSubmit={addLog} loading={loading}/>}
-          {page==="candidates"&&<CandPage user={user} rc={rc} candidates={myCands} members={members} onAdd={addCandidate} logs={logs} getMember={getMember} loading={loading}/>}
+          {page==="candidates"&&<CandPage user={user} rc={rc} candidates={myCands} members={members} onAdd={addCandidate} onAddMember={addMember} logs={logs} getMember={getMember} loading={loading} timeline={timeline} onAddTimeline={addTimeline}/>}
+          {page==="my_recruiters"&&<MyRecruitersPage user={user} members={members} candidates={candidates} logs={logs} timeline={timeline} getMember={getMember} onAddTimeline={addTimeline} loading={loading}/>}
           {page==="logs_history"&&<HistPage user={user} rc={rc} candidates={myCands} logs={logs} getMember={getMember} allCands={candidates}/>}
           {page==="stats"&&<StatsPage candidates={candidates} logs={logs} members={members}/>}
           {page==="team"&&<TeamPage user={user} rc={rc} members={members} candidates={candidates} logs={logs} onAddMember={addMember} loading={loading}/>}
@@ -239,6 +297,7 @@ export default function VARSPortal() {
   );
 }
 
+// ─── DASHBOARD ─────────────────────────────────────────────────────────────
 function DashPage({user,rc,candidates,logs,getMember,onNav,onRefresh}){
   const myLogs=rc.canViewAll?logs:logs.filter(l=>l.user_id===user.id);
   const todayLogs=myLogs.filter(l=>l.log_date===today());
@@ -266,6 +325,352 @@ function DashPage({user,rc,candidates,logs,getMember,onNav,onRefresh}){
   </div>;
 }
 
+// ─── CANDIDATES PAGE (Manager view with tabs) ───────────────────────────────
+function CandPage({user,rc,candidates,members,onAdd,onAddMember,logs,getMember,loading,timeline,onAddTimeline}){
+  const [tab,setTab]=useState(user.role==="manager"||user.role==="president"?"candidates":"candidates");
+  const [selectedCand,setSelectedCand]=useState(null);
+
+  const tabs=[];
+  tabs.push({id:"candidates",label:"Candidates"});
+  if(user.role==="manager"||user.role==="president") tabs.push({id:"recruiters",label:"Recruiters"});
+
+  return <div>
+    <div style={{ fontSize:20, fontWeight:700, marginBottom:4 }}>
+      {selectedCand ? <span style={{ cursor:"pointer", color:"#94A3B8", fontSize:14 }} onClick={()=>setSelectedCand(null)}>← Back</span> : "Candidates & Recruiters"}
+    </div>
+    {selectedCand ? (
+      <CandidateProfile candidate={selectedCand} members={members} logs={logs} timeline={timeline} getMember={getMember} onAddTimeline={onAddTimeline} loading={loading} user={user} onBack={()=>setSelectedCand(null)}/>
+    ) : (
+      <>
+        <Tabs tabs={tabs} active={tab} onChange={setTab}/>
+        {tab==="candidates"&&<CandidatesTab candidates={candidates} members={members} onAdd={onAdd} logs={logs} getMember={getMember} loading={loading} rc={rc} onSelectCand={setSelectedCand}/>}
+        {tab==="recruiters"&&<RecruitersTab members={members} candidates={candidates} logs={logs} onAddMember={onAddMember} loading={loading} getMember={getMember} onSelectCand={setSelectedCand}/>}
+      </>
+    )}
+  </div>;
+}
+
+// ─── CANDIDATES TAB ─────────────────────────────────────────────────────────
+function CandidatesTab({candidates,members,onAdd,logs,getMember,loading,rc,onSelectCand}){
+  const [showAdd,setShowAdd]=useState(false); const [form,setForm]=useState({});
+  const set=(k,v)=>setForm(p=>({...p,[k]:v}));
+  const byRole=role=>members.filter(m=>m.role===role);
+  const submit=()=>{if(!form.name?.trim()||!form.tech?.trim())return alert("Name and tech required");if(!form.recruiter_id||!form.r_lead_id||!form.c_lead_id||!form.interview_coord_id)return alert("Assign all 4 team members");onAdd(form);setForm({});setShowAdd(false);};
+  return <div>
+    <div style={{ display:"flex", justifyContent:"flex-end", marginBottom:16 }}>
+      {rc.canAddCandidate&&<Btn onClick={()=>setShowAdd(true)}>+ Add Candidate</Btn>}
+    </div>
+    {candidates.length===0&&<div style={{ textAlign:"center", padding:60, color:"#94A3B8", fontSize:14 }}>{rc.canAddCandidate?"No candidates yet.":"No candidates assigned."}</div>}
+    <div style={{ display:"grid", gap:12 }}>
+      {candidates.map(c=>{
+        const cLogs=logs.filter(l=>l.candidate_id===c.id); const lastLog=cLogs[0];
+        return <Card key={c.id} style={{ padding:18 }} onClick={()=>onSelectCand(c)}>
+          <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", marginBottom:12 }}>
+            <div style={{ display:"flex", alignItems:"center", gap:12 }}><Av name={c.name} role="president" size={44}/><div><div style={{ fontSize:16, fontWeight:700 }}>{c.name}</div><div style={{ fontSize:12, color:"#94A3B8" }}>{c.tech} · Added {fmtDate(c.added_on)}</div></div></div>
+            <div style={{ display:"flex", gap:8, alignItems:"center" }}><StatusBadge status={c.status}/><span style={{ fontSize:11, color:"#94A3B8" }}>👁 View Profile</span></div>
+          </div>
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(160px,1fr))", gap:8, marginBottom:lastLog?10:0 }}>
+            {[["Recruiter",c.recruiter_id,"recruiter"],["R Lead",c.r_lead_id,"r_lead"],["C Lead",c.c_lead_id,"c_lead"],["IC",c.interview_coord_id,"interview_coord"]].map(([lbl,id,role])=>{
+              const m=getMember(id);const rc2=ROLE_CONFIG[role];
+              return <div key={lbl} style={{ display:"flex", alignItems:"center", gap:8, padding:"6px 10px", background:rc2.bg, borderRadius:8 }}><Av name={m?.name||"?"} role={role} size={26}/><div><div style={{ fontSize:10, color:"#94A3B8", fontWeight:600 }}>{lbl}</div><div style={{ fontSize:12, fontWeight:600, color:rc2.color }}>{m?.name||"Unassigned"}</div></div></div>;
+            })}
+          </div>
+          {lastLog&&<div style={{ fontSize:11, color:"#94A3B8", background:"#F8FAFC", padding:"6px 10px", borderRadius:6 }}>Last log: {fmtDate(lastLog.log_date)} · {cLogs.length} total logs</div>}
+        </Card>;
+      })}
+    </div>
+    <Modal open={showAdd} onClose={()=>setShowAdd(false)} title="Add New Candidate">
+      <Input label="Full name *" value={form.name||""} onChange={e=>set("name",e.target.value)} placeholder="e.g. Arjun Sharma"/>
+      <Input label="Tech stack *" value={form.tech||""} onChange={e=>set("tech",e.target.value)} placeholder="e.g. Java Full Stack"/>
+      <Select label="Assign Recruiter *" value={form.recruiter_id||""} onChange={e=>set("recruiter_id",e.target.value)}><option value="">-- Select --</option>{byRole("recruiter").map(m=><option key={m.id} value={m.id}>{m.name}</option>)}</Select>
+      <Select label="Assign R Lead *" value={form.r_lead_id||""} onChange={e=>set("r_lead_id",e.target.value)}><option value="">-- Select --</option>{byRole("r_lead").map(m=><option key={m.id} value={m.id}>{m.name}</option>)}</Select>
+      <Select label="Assign C Lead *" value={form.c_lead_id||""} onChange={e=>set("c_lead_id",e.target.value)}><option value="">-- Select --</option>{byRole("c_lead").map(m=><option key={m.id} value={m.id}>{m.name}</option>)}</Select>
+      <Select label="Assign IC *" value={form.interview_coord_id||""} onChange={e=>set("interview_coord_id",e.target.value)}><option value="">-- Select --</option>{byRole("interview_coord").map(m=><option key={m.id} value={m.id}>{m.name}</option>)}</Select>
+      <Textarea label="Notes (optional)" value={form.notes||""} onChange={e=>set("notes",e.target.value)}/>
+      <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}><Btn variant="outline" onClick={()=>setShowAdd(false)}>Cancel</Btn><Btn onClick={submit} disabled={loading}>{loading?"Adding...":"Add Candidate"}</Btn></div>
+    </Modal>
+  </div>;
+}
+
+// ─── RECRUITERS TAB (Manager only) ──────────────────────────────────────────
+function RecruitersTab({members,candidates,logs,onAddMember,loading,getMember,onSelectCand}){
+  const [showAdd,setShowAdd]=useState(false); const [form,setForm]=useState({});
+  const set=(k,v)=>setForm(p=>({...p,[k]:v}));
+  const rLeads=members.filter(m=>m.role==="r_lead");
+  const recruiters=members.filter(m=>m.role==="recruiter");
+  const submit=()=>{
+    if(!form.name?.trim()||!form.email?.trim())return alert("Name and email required");
+    if(!form.r_lead_team)return alert("Assign R Lead team");
+    onAddMember({...form,role:"recruiter"});setForm({});setShowAdd(false);
+  };
+  return <div>
+    <div style={{ display:"flex", justifyContent:"flex-end", marginBottom:16 }}>
+      <Btn onClick={()=>setShowAdd(true)}>+ Add Recruiter</Btn>
+    </div>
+    {recruiters.length===0&&<div style={{ textAlign:"center", padding:60, color:"#94A3B8", fontSize:14 }}>No recruiters yet. Add your first recruiter!</div>}
+    <div style={{ display:"grid", gap:12 }}>
+      {recruiters.map(r=>{
+        const rCands=candidates.filter(c=>c.recruiter_id===r.id);
+        const rLead=getMember(r.r_lead_team);
+        const weekAgo=new Date();weekAgo.setDate(weekAgo.getDate()-7);
+        const wLogs=logs.filter(l=>l.user_id===r.id&&l.type==="recruiter"&&new Date(l.log_date)>=weekAgo);
+        const emails=wLogs.reduce((s,l)=>s+(l.emails_sent||0),0);
+        const subs=wLogs.reduce((s,l)=>s+(l.submissions||0),0);
+        return <Card key={r.id} style={{ padding:18 }}>
+          <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", marginBottom:12 }}>
+            <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+              <Av name={r.name} role="recruiter" size={44}/>
+              <div>
+                <div style={{ fontSize:16, fontWeight:700 }}>{r.name}</div>
+                <div style={{ fontSize:12, color:"#94A3B8" }}>{r.email}</div>
+                {rLead&&<div style={{ fontSize:11, color:"#2563EB", marginTop:2 }}>Team: {rLead.name}</div>}
+              </div>
+            </div>
+            <div style={{ background:"#EFF6FF", border:"1px solid #BFDBFE", borderRadius:8, padding:"8px 14px", fontSize:12 }}>
+              <div style={{ color:"#94A3B8", fontSize:10, fontWeight:600 }}>LOGIN</div>
+              <div style={{ fontWeight:600, color:"#2563EB" }}>{r.email}</div>
+              <div style={{ color:"#94A3B8" }}>Password: VARS@2026</div>
+            </div>
+          </div>
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:8, marginBottom:12 }}>
+            <div style={{ background:"#F8FAFC", borderRadius:8, padding:"10px", textAlign:"center" }}><div style={{ fontSize:10, color:"#94A3B8", fontWeight:600 }}>CANDIDATES</div><div style={{ fontSize:20, fontWeight:800, color:"#2563EB" }}>{rCands.length}</div></div>
+            <div style={{ background:"#F8FAFC", borderRadius:8, padding:"10px", textAlign:"center" }}><div style={{ fontSize:10, color:"#94A3B8", fontWeight:600 }}>LOGS (WEEK)</div><div style={{ fontSize:20, fontWeight:800, color:"#7C3AED" }}>{wLogs.length}</div></div>
+            <div style={{ background:"#F8FAFC", borderRadius:8, padding:"10px", textAlign:"center" }}><div style={{ fontSize:10, color:"#94A3B8", fontWeight:600 }}>EMAILS (WEEK)</div><div style={{ fontSize:20, fontWeight:800, color:"#0F766E" }}>{emails}</div></div>
+            <div style={{ background:"#F8FAFC", borderRadius:8, padding:"10px", textAlign:"center" }}><div style={{ fontSize:10, color:"#94A3B8", fontWeight:600 }}>SUBS (WEEK)</div><div style={{ fontSize:20, fontWeight:800, color:"#D97706" }}>{subs}</div></div>
+          </div>
+          <div style={{ fontSize:12, fontWeight:600, color:"#475569", marginBottom:8 }}>Assigned Candidates:</div>
+          <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+            {rCands.map(c=><span key={c.id} onClick={()=>onSelectCand(c)} style={{ background:"#EFF6FF", color:"#2563EB", fontSize:12, padding:"4px 10px", borderRadius:6, cursor:"pointer", fontWeight:500 }}>{c.name} · {c.tech}</span>)}
+            {rCands.length===0&&<span style={{ fontSize:12, color:"#94A3B8" }}>No candidates assigned yet.</span>}
+          </div>
+        </Card>;
+      })}
+    </div>
+    <Modal open={showAdd} onClose={()=>setShowAdd(false)} title="Add New Recruiter">
+      <div style={{ background:"#EFF6FF", border:"1px solid #BFDBFE", borderRadius:8, padding:"10px 14px", fontSize:12, color:"#2563EB", marginBottom:16 }}>🔐 Login credentials auto-created. Default password: <strong>VARS@2026</strong></div>
+      <Input label="Full name *" value={form.name||""} onChange={e=>set("name",e.target.value)} placeholder="e.g. John Smith"/>
+      <Input label="Work email *" type="email" value={form.email||""} onChange={e=>set("email",e.target.value)} placeholder="john@varsconsultinginc.com"/>
+      <Select label="Assign to R Lead team *" value={form.r_lead_team||""} onChange={e=>set("r_lead_team",e.target.value)}><option value="">-- Select R Lead --</option>{rLeads.map(m=><option key={m.id} value={m.id}>{m.name}</option>)}</Select>
+      <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}><Btn variant="outline" onClick={()=>setShowAdd(false)}>Cancel</Btn><Btn onClick={submit} disabled={loading}>{loading?"Adding...":"Add Recruiter"}</Btn></div>
+    </Modal>
+  </div>;
+}
+
+// ─── CANDIDATE PROFILE (360° view) ─────────────────────────────────────────
+function CandidateProfile({candidate,members,logs,timeline,getMember,onAddTimeline,loading,user,onBack}){
+  const [tab,setTab]=useState("overview");
+  const [showAdd,setShowAdd]=useState(false); const [form,setForm]=useState({});
+  const set=(k,v)=>setForm(p=>({...p,[k]:v}));
+  const candTimeline=timeline.filter(t=>t.candidate_id===candidate.id).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
+  const candLogs=logs.filter(l=>l.candidate_id===candidate.id).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
+  const canAddTimeline=["r_lead","manager","president","interview_coord","c_lead"].includes(user.role);
+
+  const submit=()=>{
+    if(!form.entry_type)return alert("Select entry type");
+    if(!form.title?.trim())return alert("Title required");
+    onAddTimeline({...form,candidate_id:candidate.id});
+    setForm({});setShowAdd(false);
+  };
+
+  const tabs=[
+    {id:"overview",label:"Overview"},
+    {id:"timeline",label:`Timeline (${candTimeline.length})`},
+    {id:"daily_logs",label:`Daily Logs (${candLogs.length})`},
+  ];
+
+  return <div>
+    <button onClick={onBack} style={{ background:"none", border:"none", color:"#2563EB", cursor:"pointer", fontSize:13, fontWeight:600, marginBottom:16, padding:0 }}>← Back to candidates</button>
+    <div style={{ display:"flex", alignItems:"center", gap:16, marginBottom:20, padding:"20px", background:"#fff", border:"1px solid #E2E8F0", borderRadius:12 }}>
+      <Av name={candidate.name} role="president" size={56}/>
+      <div style={{ flex:1 }}>
+        <div style={{ fontSize:22, fontWeight:800 }}>{candidate.name}</div>
+        <div style={{ fontSize:14, color:"#94A3B8" }}>{candidate.tech} · Added {fmtDate(candidate.added_on)}</div>
+        <div style={{ display:"flex", gap:8, marginTop:8, flexWrap:"wrap" }}>
+          {[["Recruiter",candidate.recruiter_id,"recruiter"],["R Lead",candidate.r_lead_id,"r_lead"],["C Lead",candidate.c_lead_id,"c_lead"],["IC",candidate.interview_coord_id,"interview_coord"]].map(([lbl,id,role])=>{
+            const m=getMember(id);const rc2=ROLE_CONFIG[role];
+            return <span key={lbl} style={{ background:rc2.bg, color:rc2.color, fontSize:11, padding:"3px 10px", borderRadius:99, fontWeight:600 }}>{lbl}: {m?.name||"?"}</span>;
+          })}
+        </div>
+      </div>
+      <StatusBadge status={candidate.status}/>
+    </div>
+
+    <Tabs tabs={tabs} active={tab} onChange={setTab}/>
+
+    {tab==="overview"&&<div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14 }}>
+      <Card style={{ padding:16 }}>
+        <div style={{ fontWeight:600, fontSize:14, marginBottom:12 }}>📋 Latest Pipeline Status</div>
+        {candTimeline.filter(t=>t.entry_type==="pipeline_update").slice(0,1).map(t=><div key={t.id} style={{ background:"#F8FAFC", borderRadius:8, padding:12 }}><div style={{ fontSize:13, fontWeight:600 }}>{t.title}</div><div style={{ fontSize:12, color:"#475569", marginTop:4 }}>{t.details}</div><div style={{ fontSize:11, color:"#94A3B8", marginTop:4 }}>{fmtDateTime(t.created_at)}</div></div>)}
+        {candTimeline.filter(t=>t.entry_type==="pipeline_update").length===0&&<div style={{ fontSize:13, color:"#94A3B8" }}>No pipeline updates yet.</div>}
+      </Card>
+      <Card style={{ padding:16 }}>
+        <div style={{ fontWeight:600, fontSize:14, marginBottom:12 }}>🎯 Latest Interview</div>
+        {candTimeline.filter(t=>["interview_round1","interview_round2","interview_round3"].includes(t.entry_type)).slice(0,1).map(t=>{const et=ENTRY_TYPES[t.entry_type];return<div key={t.id} style={{ background:"#F8FAFC", borderRadius:8, padding:12 }}><div style={{ fontSize:13, fontWeight:600 }}>{et.icon} {et.label}</div><div style={{ fontSize:12, color:"#475569", marginTop:4 }}>{t.title}</div>{t.outcome&&<div style={{ marginTop:6 }}><StatusBadge status={t.outcome}/></div>}<div style={{ fontSize:11, color:"#94A3B8", marginTop:4 }}>{fmtDateTime(t.created_at)}</div></div>;})}
+        {candTimeline.filter(t=>["interview_round1","interview_round2","interview_round3"].includes(t.entry_type)).length===0&&<div style={{ fontSize:13, color:"#94A3B8" }}>No interviews yet.</div>}
+      </Card>
+      <Card style={{ padding:16 }}>
+        <div style={{ fontWeight:600, fontSize:14, marginBottom:12 }}>🎤 Latest Mock Feedback</div>
+        {candTimeline.filter(t=>["vendor_mock","interview_mock"].includes(t.entry_type)).slice(0,1).map(t=>{const et=ENTRY_TYPES[t.entry_type];return<div key={t.id} style={{ background:"#F8FAFC", borderRadius:8, padding:12 }}><div style={{ fontSize:13, fontWeight:600 }}>{et.icon} {et.label}</div><div style={{ fontSize:12, color:"#475569", marginTop:4 }}>{t.feedback}</div><div style={{ fontSize:11, color:"#94A3B8", marginTop:4 }}>{fmtDateTime(t.created_at)}</div></div>;})}
+        {candTimeline.filter(t=>["vendor_mock","interview_mock"].includes(t.entry_type)).length===0&&<div style={{ fontSize:13, color:"#94A3B8" }}>No mock feedback yet.</div>}
+      </Card>
+      <Card style={{ padding:16 }}>
+        <div style={{ fontWeight:600, fontSize:14, marginBottom:12 }}>📞 Screening Calls</div>
+        {candTimeline.filter(t=>t.entry_type==="screening_call").slice(0,2).map(t=><div key={t.id} style={{ background:"#F8FAFC", borderRadius:8, padding:10, marginBottom:8 }}><div style={{ fontSize:13, fontWeight:600 }}>{t.title}</div>{t.outcome&&<div style={{ marginTop:4 }}><StatusBadge status={t.outcome}/></div>}<div style={{ fontSize:11, color:"#94A3B8", marginTop:4 }}>{fmtDateTime(t.created_at)}</div></div>)}
+        {candTimeline.filter(t=>t.entry_type==="screening_call").length===0&&<div style={{ fontSize:13, color:"#94A3B8" }}>No screening calls yet.</div>}
+      </Card>
+    </div>}
+
+    {tab==="timeline"&&<div>
+      {canAddTimeline&&<div style={{ display:"flex", justifyContent:"flex-end", marginBottom:16 }}><Btn onClick={()=>setShowAdd(true)}>+ Add Entry</Btn></div>}
+      <div style={{ position:"relative" }}>
+        <div style={{ position:"absolute", left:20, top:0, bottom:0, width:2, background:"#E2E8F0" }}/>
+        {candTimeline.map(t=>{const et=ENTRY_TYPES[t.entry_type]||{label:t.entry_type,icon:"📌",color:"#94A3B8"};const addedBy=getMember(t.user_id);return<div key={t.id} style={{ display:"flex", gap:16, marginBottom:20, position:"relative" }}>
+          <div style={{ width:42, height:42, borderRadius:"50%", background:et.color+"20", border:`2px solid ${et.color}`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:18, flexShrink:0, zIndex:1 }}>{et.icon}</div>
+          <Card style={{ flex:1, padding:16 }}>
+            <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", marginBottom:8 }}>
+              <div><div style={{ fontSize:14, fontWeight:700 }}>{t.title}</div><div style={{ fontSize:11, color:et.color, fontWeight:600 }}>{et.label}</div></div>
+              <div style={{ textAlign:"right" }}>{t.outcome&&<StatusBadge status={t.outcome}/>}<div style={{ fontSize:11, color:"#94A3B8", marginTop:4 }}>{fmtDateTime(t.created_at)}</div></div>
+            </div>
+            {t.details&&<div style={{ fontSize:13, color:"#475569", marginBottom:8 }}>{t.details}</div>}
+            {t.feedback&&<div style={{ background:"#F8FAFC", borderRadius:8, padding:"10px 12px", fontSize:13, color:"#475569", marginBottom:8 }}><strong>Feedback:</strong> {t.feedback}</div>}
+            {t.scheduled_date&&<div style={{ fontSize:12, color:"#2563EB" }}>🗓️ Scheduled: {fmtDate(t.scheduled_date)}</div>}
+            <div style={{ fontSize:11, color:"#94A3B8", marginTop:8 }}>Added by {addedBy?.name||"?"}</div>
+          </Card>
+        </div>;})}
+        {candTimeline.length===0&&<div style={{ textAlign:"center", padding:60, color:"#94A3B8", fontSize:14, paddingLeft:60 }}>No timeline entries yet. Click '+ Add Entry' to start.</div>}
+      </div>
+      <Modal open={showAdd} onClose={()=>setShowAdd(false)} title={`Add Timeline Entry — ${candidate.name}`}>
+        <Select label="Entry type *" value={form.entry_type||""} onChange={e=>set("entry_type",e.target.value)}>
+          <option value="">-- Select type --</option>
+          {Object.entries(ENTRY_TYPES).map(([k,v])=><option key={k} value={k}>{v.icon} {v.label}</option>)}
+        </Select>
+        <Input label="Title *" value={form.title||""} onChange={e=>set("title",e.target.value)} placeholder="e.g. First screening call with client"/>
+        <Textarea label="Details" value={form.details||""} onChange={e=>set("details",e.target.value)} placeholder="What happened? Any updates?"/>
+        <Textarea label="Feedback" value={form.feedback||""} onChange={e=>set("feedback",e.target.value)} placeholder="Candidate feedback, strengths, weaknesses..."/>
+        <Select label="Outcome" value={form.outcome||""} onChange={e=>set("outcome",e.target.value)}>
+          <option value="">-- Select outcome --</option>
+          <option value="passed">✅ Passed</option>
+          <option value="failed">❌ Failed</option>
+          <option value="pending">⏳ Pending</option>
+          <option value="scheduled">🗓️ Scheduled</option>
+        </Select>
+        <Input label="Scheduled date (if any)" type="date" value={form.scheduled_date||""} onChange={e=>set("scheduled_date",e.target.value)}/>
+        <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}><Btn variant="outline" onClick={()=>setShowAdd(false)}>Cancel</Btn><Btn onClick={submit} disabled={loading}>{loading?"Adding...":"Add Entry"}</Btn></div>
+      </Modal>
+    </div>}
+
+    {tab==="daily_logs"&&<div>
+      {candLogs.map(l=>{const m=getMember(l.user_id);const roleMap={recruiter:"recruiter",r_lead:"r_lead",c_lead:"c_lead",interview_coord:"interview_coord",manager_feedback:"manager"};return<Card key={l.id} style={{ padding:16, marginBottom:10 }}>
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
+          <div style={{ display:"flex", alignItems:"center", gap:10 }}><Av name={m?.name} role={m?.role} size={34}/><div><div style={{ fontSize:13, fontWeight:700 }}>{m?.name||"?"}</div><div style={{ fontSize:11, color:"#94A3B8" }}>📅 {fmtDate(l.log_date)} · ⏰ {l.log_time}</div></div></div>
+          <RoleBadge role={roleMap[l.type]||"recruiter"}/>
+        </div>
+        <div style={{ background:"#F8FAFC", borderRadius:8, padding:"10px 14px" }}>
+          {l.type==="recruiter"&&<div style={{ fontSize:13 }}>📧 <strong>{l.emails_sent}</strong> emails · 📤 <strong>{l.submissions}</strong> submissions{l.notes&&<div style={{ fontSize:12, color:"#94A3B8", marginTop:4 }}>{l.notes}</div>}</div>}
+          {l.type==="r_lead"&&<><div style={{ fontSize:13 }}>📋 {l.interview_stage||"—"}</div>{l.scheduled_date&&<div style={{ fontSize:12, marginTop:3 }}>🗓️ {fmtDate(l.scheduled_date)}</div>}{l.vendor_issue&&<div style={{ fontSize:12, color:"#DC2626", marginTop:3 }}>⚠️ {l.vendor_feedback}</div>}{l.notes&&<div style={{ fontSize:12, color:"#94A3B8", marginTop:3 }}>{l.notes}</div>}</>}
+          {l.type==="c_lead"&&<><div style={{ fontSize:13 }}>🖥️ {l.floor_issues}</div>{l.resolution_status&&<div style={{ marginTop:6 }}><StatusBadge status={l.resolution_status}/></div>}</>}
+          {l.type==="interview_coord"&&<><div style={{ fontSize:13 }}>🎤 <strong>{l.session_type}</strong> · {l.sessions_done} sessions</div>{l.feedback&&<div style={{ fontSize:12, color:"#475569", marginTop:4 }}>{l.feedback}</div>}</>}
+          {l.type==="manager_feedback"&&<><div style={{ fontSize:13 }}>💬 {l.manager_feedback}</div>{l.action_items&&<div style={{ fontSize:12, color:"#94A3B8", marginTop:4 }}>Action: {l.action_items}</div>}</>}
+        </div>
+      </Card>;})}
+      {candLogs.length===0&&<div style={{ textAlign:"center", padding:60, color:"#94A3B8", fontSize:14 }}>No daily logs yet.</div>}
+    </div>}
+  </div>;
+}
+
+// ─── MY RECRUITERS (R Lead view) ────────────────────────────────────────────
+function MyRecruitersPage({user,members,candidates,logs,timeline,getMember,onAddTimeline,loading}){
+  const [selectedRec,setSelectedRec]=useState(null);
+  const [selectedCand,setSelectedCand]=useState(null);
+  const myRecruiters=members.filter(m=>m.role==="recruiter"&&m.r_lead_team===user.id);
+
+  if(selectedCand) return <CandidateProfile candidate={selectedCand} members={members} logs={logs} timeline={timeline} getMember={getMember} onAddTimeline={onAddTimeline} loading={loading} user={user} onBack={()=>setSelectedCand(null)}/>;
+
+  return <div>
+    <div style={{ fontSize:20, fontWeight:700, marginBottom:4 }}>My Recruiters</div>
+    <div style={{ fontSize:13, color:"#94A3B8", marginBottom:20 }}>{myRecruiters.length} recruiters in your team</div>
+
+    {myRecruiters.length===0&&<div style={{ textAlign:"center", padding:60, color:"#94A3B8", fontSize:14 }}>No recruiters assigned to your team yet. Ask your manager to assign recruiters.</div>}
+
+    <div style={{ display:"grid", gap:16 }}>
+      {myRecruiters.map(rec=>{
+        const recCands=candidates.filter(c=>c.recruiter_id===rec.id);
+        const weekAgo=new Date();weekAgo.setDate(weekAgo.getDate()-7);
+        const wLogs=logs.filter(l=>l.user_id===rec.id&&l.type==="recruiter"&&new Date(l.log_date)>=weekAgo);
+        const emails=wLogs.reduce((s,l)=>s+(l.emails_sent||0),0);
+        const subs=wLogs.reduce((s,l)=>s+(l.submissions||0),0);
+        const todayLog=logs.filter(l=>l.user_id===rec.id&&l.log_date===today());
+        const isExpanded=selectedRec===rec.id;
+
+        return <Card key={rec.id} style={{ overflow:"hidden" }}>
+          <div onClick={()=>setSelectedRec(isExpanded?null:rec.id)} style={{ padding:"16px 18px", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+            <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+              <Av name={rec.name} role="recruiter" size={44}/>
+              <div>
+                <div style={{ fontSize:16, fontWeight:700 }}>{rec.name}</div>
+                <div style={{ fontSize:12, color:"#94A3B8" }}>{rec.email}</div>
+                <div style={{ display:"flex", gap:8, marginTop:4 }}>
+                  <span style={{ fontSize:11, background:"#EFF6FF", color:"#2563EB", padding:"2px 8px", borderRadius:99, fontWeight:600 }}>{recCands.length} candidates</span>
+                  {todayLog.length>0?<span style={{ fontSize:11, background:"#F0FDF4", color:"#16A34A", padding:"2px 8px", borderRadius:99, fontWeight:600 }}>✅ Log submitted today</span>:<span style={{ fontSize:11, background:"#FFFBEB", color:"#D97706", padding:"2px 8px", borderRadius:99, fontWeight:600 }}>⏳ Log pending today</span>}
+                </div>
+              </div>
+            </div>
+            <div style={{ display:"flex", gap:10, alignItems:"center" }}>
+              <div style={{ textAlign:"center", padding:"8px 12px", background:"#F8FAFC", borderRadius:8 }}><div style={{ fontSize:10, color:"#94A3B8", fontWeight:600 }}>EMAILS/WEEK</div><div style={{ fontSize:18, fontWeight:800, color:"#2563EB" }}>{emails}</div></div>
+              <div style={{ textAlign:"center", padding:"8px 12px", background:"#F8FAFC", borderRadius:8 }}><div style={{ fontSize:10, color:"#94A3B8", fontWeight:600 }}>SUBS/WEEK</div><div style={{ fontSize:18, fontWeight:800, color:"#7C3AED" }}>{subs}</div></div>
+              <span style={{ fontSize:18, color:"#94A3B8" }}>{isExpanded?"▲":"▼"}</span>
+            </div>
+          </div>
+
+          {isExpanded&&<div style={{ borderTop:"1px solid #E2E8F0", padding:"16px 18px" }}>
+            <div style={{ fontSize:13, fontWeight:600, marginBottom:12, color:"#475569" }}>Assigned Candidates — click to view full profile:</div>
+            {recCands.length===0&&<div style={{ fontSize:13, color:"#94A3B8" }}>No candidates assigned yet.</div>}
+            <div style={{ display:"grid", gap:10 }}>
+              {recCands.map(c=>{
+                const candLogs=logs.filter(l=>l.candidate_id===c.id);
+                const candTimeline=timeline.filter(t=>t.candidate_id===c.id);
+                const lastLog=candLogs[0];
+                return <div key={c.id} onClick={()=>setSelectedCand(c)} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"12px 14px", background:"#F8FAFC", borderRadius:10, cursor:"pointer", border:"1px solid #E2E8F0" }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                    <Av name={c.name} role="president" size={36}/>
+                    <div>
+                      <div style={{ fontSize:14, fontWeight:600 }}>{c.name}</div>
+                      <div style={{ fontSize:11, color:"#94A3B8" }}>{c.tech}</div>
+                    </div>
+                  </div>
+                  <div style={{ display:"flex", gap:8, alignItems:"center" }}>
+                    <span style={{ fontSize:11, background:"#EFF6FF", color:"#2563EB", padding:"2px 8px", borderRadius:99 }}>{candTimeline.length} timeline entries</span>
+                    <span style={{ fontSize:11, background:"#F5F3FF", color:"#7C3AED", padding:"2px 8px", borderRadius:99 }}>{candLogs.length} logs</span>
+                    <StatusBadge status={c.status}/>
+                    <span style={{ fontSize:12, color:"#2563EB", fontWeight:600 }}>View →</span>
+                  </div>
+                </div>;
+              })}
+            </div>
+
+            {/* Recent daily logs */}
+            <div style={{ marginTop:16 }}>
+              <div style={{ fontSize:13, fontWeight:600, marginBottom:10, color:"#475569" }}>Recent Daily Logs:</div>
+              {logs.filter(l=>l.user_id===rec.id).slice(0,3).map(l=>{
+                const cand=candidates.find(c=>c.id===l.candidate_id);
+                return <div key={l.id} style={{ padding:"10px 12px", background:"#fff", border:"1px solid #E2E8F0", borderRadius:8, marginBottom:8 }}>
+                  <div style={{ display:"flex", justifyContent:"space-between", marginBottom:4 }}>
+                    <span style={{ fontSize:12, fontWeight:600 }}>{cand?.name||"?"}</span>
+                    <span style={{ fontSize:11, color:"#94A3B8" }}>{fmtDate(l.log_date)} · {l.log_time}</span>
+                  </div>
+                  {l.type==="recruiter"&&<div style={{ fontSize:12, color:"#475569" }}>📧 {l.emails_sent} emails · 📤 {l.submissions} submissions</div>}
+                </div>;
+              })}
+              {logs.filter(l=>l.user_id===rec.id).length===0&&<div style={{ fontSize:12, color:"#94A3B8" }}>No logs yet.</div>}
+            </div>
+          </div>}
+        </Card>;
+      })}
+    </div>
+  </div>;
+}
+
+// ─── DAILY LOG ──────────────────────────────────────────────────────────────
 function LogPage({user,rc,candidates,onSubmit,loading}){
   const [form,setForm]=useState({});
   const set=(k,v)=>setForm(p=>({...p,[k]:v}));
@@ -274,7 +679,7 @@ function LogPage({user,rc,candidates,onSubmit,loading}){
   return <div>
     <div style={{ fontSize:20, fontWeight:700, marginBottom:4 }}>Daily Log</div>
     <div style={{ fontSize:13, color:"#94A3B8", marginBottom:20 }}>Submit your end-of-day update · Due by 6:00 PM EST</div>
-    {candidates.length===0&&<div style={{ background:"#FFFBEB", border:"1px solid #FDE68A", borderRadius:10, padding:"14px 18px", fontSize:13, color:"#D97706", marginBottom:16 }}>⚠️ No candidates assigned yet. Ask your Manager.</div>}
+    {candidates.length===0&&<div style={{ background:"#FFFBEB", border:"1px solid #FDE68A", borderRadius:10, padding:"14px 18px", fontSize:13, color:"#D97706", marginBottom:16 }}>⚠️ No candidates assigned yet.</div>}
     <Card style={{ padding:22, maxWidth:520 }}>
       {user.role==="recruiter"&&<><div style={{ fontSize:15, fontWeight:700, marginBottom:16 }}>📝 Recruiter Daily Log</div><CS/><Input label="Emails sent today *" type="number" min={0} value={form.emails_sent||""} onChange={e=>set("emails_sent",+e.target.value)} placeholder="e.g. 15"/><Input label="Submissions done today *" type="number" min={0} value={form.submissions||""} onChange={e=>set("submissions",+e.target.value)} placeholder="e.g. 3"/><Textarea label="Notes (optional)" value={form.notes||""} onChange={e=>set("notes",e.target.value)}/><Btn onClick={()=>sub("recruiter")} disabled={loading||!form.candidate_id}>{loading?"Saving...":"Submit Daily Log"}</Btn></>}
       {user.role==="r_lead"&&<><div style={{ fontSize:15, fontWeight:700, marginBottom:16 }}>📋 R Lead Daily Log</div><CS/><Input label="Interview stage" value={form.interview_stage||""} onChange={e=>set("interview_stage",e.target.value)} placeholder="e.g. Client Interview Scheduled"/><Input label="Scheduled date" type="date" value={form.scheduled_date||""} onChange={e=>set("scheduled_date",e.target.value)}/><div style={{ marginBottom:14 }}><label style={{ display:"flex", alignItems:"center", gap:8, fontSize:13, cursor:"pointer" }}><input type="checkbox" checked={form.vendor_issue||false} onChange={e=>set("vendor_issue",e.target.checked)}/>Vendor mock issue today?</label></div>{form.vendor_issue&&<Textarea label="Vendor issue details" value={form.vendor_feedback||""} onChange={e=>set("vendor_feedback",e.target.value)}/>}<Textarea label="Notes" value={form.notes||""} onChange={e=>set("notes",e.target.value)}/><Btn onClick={()=>sub("r_lead")} disabled={loading||!form.candidate_id}>{loading?"Saving...":"Submit Daily Log"}</Btn></>}
@@ -285,47 +690,7 @@ function LogPage({user,rc,candidates,onSubmit,loading}){
   </div>;
 }
 
-function CandPage({user,rc,candidates,members,onAdd,logs,getMember,loading}){
-  const [showAdd,setShowAdd]=useState(false);const [form,setForm]=useState({});const set=(k,v)=>setForm(p=>({...p,[k]:v}));
-  const byRole=role=>members.filter(m=>m.role===role);
-  const submit=()=>{if(!form.name?.trim()||!form.tech?.trim())return alert("Name and tech required");if(!form.recruiter_id||!form.r_lead_id||!form.c_lead_id||!form.interview_coord_id)return alert("Assign all 4 team members");onAdd(form);setForm({});setShowAdd(false);};
-  return <div>
-    <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:20 }}>
-      <div><div style={{ fontSize:20, fontWeight:700 }}>Candidates</div><div style={{ fontSize:13, color:"#94A3B8" }}>{candidates.length} total</div></div>
-      {rc.canAddCandidate&&<Btn onClick={()=>setShowAdd(true)}>+ Add Candidate</Btn>}
-    </div>
-    {candidates.length===0&&!loading&&<div style={{ textAlign:"center", padding:60, color:"#94A3B8", fontSize:14 }}>{rc.canAddCandidate?"No candidates yet. Click '+ Add Candidate'.":"No candidates assigned to you yet."}</div>}
-    <div style={{ display:"grid", gap:12 }}>
-      {candidates.map(c=>{
-        const cLogs=logs.filter(l=>l.candidate_id===c.id);const lastLog=cLogs[0];
-        return <Card key={c.id} style={{ padding:18 }}>
-          <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", marginBottom:12 }}>
-            <div style={{ display:"flex", alignItems:"center", gap:12 }}><Av name={c.name} role="president" size={44}/><div><div style={{ fontSize:16, fontWeight:700 }}>{c.name}</div><div style={{ fontSize:12, color:"#94A3B8" }}>{c.tech} · Added {fmtDate(c.added_on)}</div></div></div>
-            <StatusBadge status={c.status}/>
-          </div>
-          <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(160px,1fr))", gap:8, marginBottom:lastLog?10:0 }}>
-            {[["Recruiter",c.recruiter_id,"recruiter"],["R Lead",c.r_lead_id,"r_lead"],["C Lead",c.c_lead_id,"c_lead"],["IC",c.interview_coord_id,"interview_coord"]].map(([lbl,id,role])=>{
-              const m=getMember(id);const rc2=ROLE_CONFIG[role];
-              return <div key={lbl} style={{ display:"flex", alignItems:"center", gap:8, padding:"6px 10px", background:rc2.bg, borderRadius:8 }}><Av name={m?.name||"?"} role={role} size={26}/><div><div style={{ fontSize:10, color:"#94A3B8", fontWeight:600 }}>{lbl}</div><div style={{ fontSize:12, fontWeight:600, color:rc2.color }}>{m?.name||"Unassigned"}</div></div></div>;
-            })}
-          </div>
-          {lastLog&&<div style={{ fontSize:11, color:"#94A3B8", background:"#F8FAFC", padding:"6px 10px", borderRadius:6 }}>Last log: {fmtDate(lastLog.log_date)} · {lastLog.log_time} · {cLogs.length} total logs</div>}
-        </Card>;
-      })}
-    </div>
-    <Modal open={showAdd} onClose={()=>setShowAdd(false)} title="Add New Candidate">
-      <Input label="Full name *" value={form.name||""} onChange={e=>set("name",e.target.value)} placeholder="e.g. Arjun Sharma"/>
-      <Input label="Tech stack *" value={form.tech||""} onChange={e=>set("tech",e.target.value)} placeholder="e.g. Java Full Stack"/>
-      <Select label="Assign Recruiter *" value={form.recruiter_id||""} onChange={e=>set("recruiter_id",e.target.value)}><option value="">-- Select recruiter --</option>{byRole("recruiter").map(m=><option key={m.id} value={m.id}>{m.name}</option>)}</Select>
-      <Select label="Assign R Lead *" value={form.r_lead_id||""} onChange={e=>set("r_lead_id",e.target.value)}><option value="">-- Select R Lead --</option>{byRole("r_lead").map(m=><option key={m.id} value={m.id}>{m.name}</option>)}</Select>
-      <Select label="Assign C Lead *" value={form.c_lead_id||""} onChange={e=>set("c_lead_id",e.target.value)}><option value="">-- Select C Lead --</option>{byRole("c_lead").map(m=><option key={m.id} value={m.id}>{m.name}</option>)}</Select>
-      <Select label="Assign IC *" value={form.interview_coord_id||""} onChange={e=>set("interview_coord_id",e.target.value)}><option value="">-- Select IC --</option>{byRole("interview_coord").map(m=><option key={m.id} value={m.id}>{m.name}</option>)}</Select>
-      <Textarea label="Notes (optional)" value={form.notes||""} onChange={e=>set("notes",e.target.value)}/>
-      <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}><Btn variant="outline" onClick={()=>setShowAdd(false)}>Cancel</Btn><Btn onClick={submit} disabled={loading}>{loading?"Adding...":"Add Candidate"}</Btn></div>
-    </Modal>
-  </div>;
-}
-
+// ─── LOG HISTORY ────────────────────────────────────────────────────────────
 function HistPage({user,rc,candidates,logs,getMember,allCands}){
   const [ft,setFt]=useState("all");const [fc,setFc]=useState("all");const [fp,setFp]=useState("all");
   const myLogs=rc.canViewAll?logs:logs.filter(l=>l.user_id===user.id);
@@ -357,7 +722,7 @@ function HistPage({user,rc,candidates,logs,getMember,allCands}){
           <div style={{ background:"#F8FAFC", borderRadius:8, padding:"10px 14px" }}>
             <div style={{ fontSize:12, fontWeight:600, color:"#475569", marginBottom:6 }}>Candidate: {cand?.name||"?"} · {cand?.tech}</div>
             {l.type==="recruiter"&&<div style={{ fontSize:13 }}>📧 <strong>{l.emails_sent}</strong> emails · 📤 <strong>{l.submissions}</strong> submissions{l.notes&&<div style={{ fontSize:12, color:"#94A3B8", marginTop:4 }}>{l.notes}</div>}</div>}
-            {l.type==="r_lead"&&<><div style={{ fontSize:13 }}>📋 {l.interview_stage||"—"}</div>{l.scheduled_date&&<div style={{ fontSize:12, marginTop:3 }}>🗓️ {fmtDate(l.scheduled_date)}</div>}{l.vendor_issue&&<div style={{ fontSize:12, color:"#DC2626", marginTop:3 }}>⚠️ {l.vendor_feedback}</div>}{l.notes&&<div style={{ fontSize:12, color:"#94A3B8", marginTop:3 }}>{l.notes}</div>}</>}
+            {l.type==="r_lead"&&<><div style={{ fontSize:13 }}>📋 {l.interview_stage||"—"}</div>{l.scheduled_date&&<div style={{ fontSize:12, marginTop:3 }}>🗓️ {fmtDate(l.scheduled_date)}</div>}{l.vendor_issue&&<div style={{ fontSize:12, color:"#DC2626", marginTop:3 }}>⚠️ {l.vendor_feedback}</div>}</>}
             {l.type==="c_lead"&&<><div style={{ fontSize:13 }}>🖥️ {l.floor_issues}</div>{l.resolution_status&&<div style={{ marginTop:6 }}><StatusBadge status={l.resolution_status}/></div>}</>}
             {l.type==="interview_coord"&&<><div style={{ fontSize:13 }}>🎤 <strong>{l.session_type}</strong> · {l.sessions_done} sessions</div>{l.feedback&&<div style={{ fontSize:12, color:"#475569", marginTop:4 }}>{l.feedback}</div>}</>}
             {l.type==="manager_feedback"&&<><div style={{ fontSize:13 }}>💬 {l.manager_feedback}</div>{l.action_items&&<div style={{ fontSize:12, color:"#94A3B8", marginTop:4 }}>Action: {l.action_items}</div>}</>}
@@ -369,6 +734,7 @@ function HistPage({user,rc,candidates,logs,getMember,allCands}){
   </div>;
 }
 
+// ─── STATS ──────────────────────────────────────────────────────────────────
 function StatsPage({candidates,logs,members}){
   const [period,setPeriod]=useState("week");
   const days=period==="week"?7:30;const cutoff=new Date();cutoff.setDate(cutoff.getDate()-days);
@@ -391,14 +757,18 @@ function StatsPage({candidates,logs,members}){
       <div style={{ overflowX:"auto" }}>
         <table style={{ width:"100%", borderCollapse:"collapse" }}>
           <thead><tr style={{ background:"#F8FAFC" }}>{["Recruiter","Candidates","Logs","Emails","Submissions","Avg Emails/Day","Avg Subs/Day"].map(h=><th key={h} style={{ padding:"10px 16px", textAlign:"left", fontSize:11, fontWeight:700, textTransform:"uppercase", color:"#94A3B8", borderBottom:"1px solid #E2E8F0", whiteSpace:"nowrap" }}>{h}</th>)}</tr></thead>
-          <tbody>{stats.map(r=><tr key={r.id} style={{ borderBottom:"1px solid #F1F5F9" }}>
-            <td style={{ padding:"12px 16px" }}><div style={{ display:"flex", alignItems:"center", gap:8 }}><Av name={r.name} role="recruiter" size={28}/><span style={{ fontSize:13, fontWeight:600 }}>{r.name}</span></div></td>
-            <td style={{ padding:"12px 16px", fontSize:13 }}>{r.cc}</td><td style={{ padding:"12px 16px", fontSize:13 }}>{r.lc}</td>
-            <td style={{ padding:"12px 16px" }}><span style={{ fontSize:16, fontWeight:800, color:"#2563EB" }}>{r.emails}</span></td>
-            <td style={{ padding:"12px 16px" }}><span style={{ fontSize:16, fontWeight:800, color:"#7C3AED" }}>{r.subs}</span></td>
-            <td style={{ padding:"12px 16px", fontSize:13 }}>{(r.emails/days).toFixed(1)}</td>
-            <td style={{ padding:"12px 16px", fontSize:13 }}>{(r.subs/days).toFixed(1)}</td>
-          </tr>)}{stats.length===0&&<tr><td colSpan={7} style={{ padding:40, textAlign:"center", color:"#94A3B8" }}>No recruiter data yet.</td></tr>}</tbody>
+          <tbody>
+            {stats.map(r=><tr key={r.id} style={{ borderBottom:"1px solid #F1F5F9" }}>
+              <td style={{ padding:"12px 16px" }}><div style={{ display:"flex", alignItems:"center", gap:8 }}><Av name={r.name} role="recruiter" size={28}/><span style={{ fontSize:13, fontWeight:600 }}>{r.name}</span></div></td>
+              <td style={{ padding:"12px 16px", fontSize:13 }}>{r.cc}</td>
+              <td style={{ padding:"12px 16px", fontSize:13 }}>{r.lc}</td>
+              <td style={{ padding:"12px 16px" }}><span style={{ fontSize:16, fontWeight:800, color:"#2563EB" }}>{r.emails}</span></td>
+              <td style={{ padding:"12px 16px" }}><span style={{ fontSize:16, fontWeight:800, color:"#7C3AED" }}>{r.subs}</span></td>
+              <td style={{ padding:"12px 16px", fontSize:13 }}>{(r.emails/days).toFixed(1)}</td>
+              <td style={{ padding:"12px 16px", fontSize:13 }}>{(r.subs/days).toFixed(1)}</td>
+            </tr>)}
+            {stats.length===0&&<tr><td colSpan={7} style={{ padding:40, textAlign:"center", color:"#94A3B8" }}>No recruiter data yet.</td></tr>}
+          </tbody>
         </table>
       </div>
     </Card>
@@ -420,6 +790,7 @@ function StatsPage({candidates,logs,members}){
   </div>;
 }
 
+// ─── TEAM ────────────────────────────────────────────────────────────────────
 function TeamPage({user,rc,members,candidates,logs,onAddMember,loading}){
   const [showAdd,setShowAdd]=useState(false);const [form,setForm]=useState({});const set=(k,v)=>setForm(p=>({...p,[k]:v}));
   const rLeads=members.filter(m=>m.role==="r_lead");
@@ -431,37 +802,32 @@ function TeamPage({user,rc,members,candidates,logs,onAddMember,loading}){
       {rc.canAddMember&&<Btn onClick={()=>setShowAdd(true)}>+ Add Member</Btn>}
     </div>
     {groups.map(role=>{
-      const grp=members.filter(m=>m.role===role);if(!grp.length)return null;
-      const rConf=ROLE_CONFIG[role];
+      const grp=members.filter(m=>m.role===role);if(!grp.length)return null;const rConf=ROLE_CONFIG[role];
       return <div key={role} style={{ marginBottom:20 }}>
         <div style={{ fontSize:12, fontWeight:700, color:rConf.color, marginBottom:10, textTransform:"uppercase", letterSpacing:"0.06em" }}>{rConf.label}s · {grp.length}</div>
         <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(210px,1fr))", gap:10 }}>
-          {grp.map(m=>{
-            const mL=logs.filter(l=>l.user_id===m.id);
-            const mC=candidates.filter(c=>[c.recruiter_id,c.r_lead_id,c.c_lead_id,c.interview_coord_id].includes(m.id));
-            const rln=m.r_lead_team?members.find(x=>x.id===m.r_lead_team)?.name:null;
+          {grp.map(m=>{const mL=logs.filter(l=>l.user_id===m.id);const mC=candidates.filter(c=>[c.recruiter_id,c.r_lead_id,c.c_lead_id,c.interview_coord_id].includes(m.id));const rln=m.r_lead_team?members.find(x=>x.id===m.r_lead_team)?.name:null;
             return <Card key={m.id} style={{ padding:16 }}>
               <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:10 }}><Av name={m.name} role={m.role} size={40}/><div><div style={{ fontSize:14, fontWeight:700 }}>{m.name}</div><RoleBadge role={m.role}/>{rln&&<div style={{ fontSize:10, color:"#94A3B8", marginTop:3 }}>Team: {rln}</div>}</div></div>
               <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
                 <div style={{ background:"#F8FAFC", borderRadius:6, padding:"6px 10px" }}><div style={{ fontSize:10, color:"#94A3B8", fontWeight:600 }}>CANDIDATES</div><div style={{ fontWeight:800, fontSize:18, color:rConf.color }}>{mC.length}</div></div>
                 <div style={{ background:"#F8FAFC", borderRadius:6, padding:"6px 10px" }}><div style={{ fontSize:10, color:"#94A3B8", fontWeight:600 }}>LOGS</div><div style={{ fontWeight:800, fontSize:18, color:rConf.color }}>{mL.length}</div></div>
               </div>
-            </Card>;
-          })}
+            </Card>;})}
         </div>
-      </div>;
-    })}
+      </div>;})}
     <Modal open={showAdd} onClose={()=>setShowAdd(false)} title="Add New Team Member">
-      <div style={{ background:"#EFF6FF", border:"1px solid #BFDBFE", borderRadius:8, padding:"10px 14px", fontSize:12, color:"#2563EB", marginBottom:16 }}>🔐 Login account auto-created. Default password: <strong>VARS@2026</strong></div>
-      <Input label="Full name *" value={form.name||""} onChange={e=>set("name",e.target.value)} placeholder="e.g. John Smith"/>
-      <Input label="Work email *" type="email" value={form.email||""} onChange={e=>set("email",e.target.value)} placeholder="john@varsconsultinginc.com"/>
-      <Select label="Role *" value={form.role||""} onChange={e=>set("role",e.target.value)}><option value="">-- Select role --</option><option value="recruiter">Recruiter</option><option value="r_lead">R Lead</option><option value="c_lead">C Lead</option><option value="interview_coord">Interview Coordinator</option><option value="manager">Manager</option></Select>
+      <div style={{ background:"#EFF6FF", border:"1px solid #BFDBFE", borderRadius:8, padding:"10px 14px", fontSize:12, color:"#2563EB", marginBottom:16 }}>🔐 Login auto-created. Default password: <strong>VARS@2026</strong></div>
+      <Input label="Full name *" value={form.name||""} onChange={e=>set("name",e.target.value)}/>
+      <Input label="Work email *" type="email" value={form.email||""} onChange={e=>set("email",e.target.value)}/>
+      <Select label="Role *" value={form.role||""} onChange={e=>set("role",e.target.value)}><option value="">-- Select --</option><option value="recruiter">Recruiter</option><option value="r_lead">R Lead</option><option value="c_lead">C Lead</option><option value="interview_coord">Interview Coordinator</option><option value="manager">Manager</option></Select>
       {form.role==="recruiter"&&<Select label="Assign to R Lead team *" value={form.r_lead_team||""} onChange={e=>set("r_lead_team",e.target.value)}><option value="">-- Select R Lead --</option>{rLeads.map(m=><option key={m.id} value={m.id}>{m.name}</option>)}</Select>}
       <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}><Btn variant="outline" onClick={()=>setShowAdd(false)}>Cancel</Btn><Btn onClick={submit} disabled={loading}>{loading?"Adding...":"Add Member"}</Btn></div>
     </Modal>
   </div>;
 }
 
+// ─── NOTIFICATIONS ──────────────────────────────────────────────────────────
 function NotifsPage({notifications,onRefresh}){
   return <div>
     <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:20 }}>
@@ -469,7 +835,7 @@ function NotifsPage({notifications,onRefresh}){
       <Btn variant="outline" onClick={onRefresh}>↻ Refresh</Btn>
     </div>
     <div style={{ display:"grid", gap:8 }}>
-      {notifications.map(n=><Card key={n.id} style={{ padding:"12px 16px", display:"flex", alignItems:"center", gap:12 }}><div style={{ fontSize:20 }}>🔔</div><div style={{ flex:1 }}><div style={{ fontSize:13 }}>{n.message}</div><div style={{ fontSize:11, color:"#94A3B8", marginTop:2 }}>{fmtDate(n.created_at?.split("T")[0])}</div></div></Card>)}
+      {notifications.map(n=><Card key={n.id} style={{ padding:"12px 16px", display:"flex", alignItems:"center", gap:12 }}><div style={{ fontSize:20 }}>🔔</div><div style={{ flex:1 }}><div style={{ fontSize:13 }}>{n.message}</div><div style={{ fontSize:11, color:"#94A3B8", marginTop:2 }}>{fmtDateTime(n.created_at)}</div></div></Card>)}
       {notifications.length===0&&<div style={{ textAlign:"center", padding:60, color:"#94A3B8" }}>No notifications yet.</div>}
     </div>
   </div>;
