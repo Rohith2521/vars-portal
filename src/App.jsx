@@ -200,6 +200,10 @@ export default function VARSPortal() {
     try {
       const r=await sb.post("daily_logs",{...data,user_id:user.id,log_date:today(),log_time:nowTime()},user.token);
       if(r?.error){showToast("Failed: "+r.error.message,"error");setLoading(false);return;}
+      if(data.type==="manager_feedback"&&(data.feedback_to_president||data.feedback_to_team)){
+        const weekStart=new Date();weekStart.setDate(weekStart.getDate()-weekStart.getDay());
+        await sb.post("manager_feedbacks",{manager_id:user.id,candidate_id:data.candidate_id,feedback_to_president:data.feedback_to_president||"",feedback_to_team:data.feedback_to_team||"",week_start:weekStart.toISOString().split("T")[0]},user.token);
+      }
       const cand=candidates.find(c=>c.id===data.candidate_id);
       await sb.post("notifications",{message:`${user.name} submitted ${rc?.label} log for ${cand?.name||"candidate"}`,candidate_id:data.candidate_id,triggered_by:user.id},user.token);
       await loadData(); showToast("Daily log submitted!");
@@ -570,7 +574,11 @@ function CandidateProfile({candidate,members,logs,timeline,getMember,onAddTimeli
           {l.type==="r_lead"&&<><div style={{ fontSize:13 }}>📋 {l.interview_stage||"—"}</div>{l.scheduled_date&&<div style={{ fontSize:12, marginTop:3 }}>🗓️ {fmtDate(l.scheduled_date)}</div>}{l.vendor_issue&&<div style={{ fontSize:12, color:"#DC2626", marginTop:3 }}>⚠️ {l.vendor_feedback}</div>}{l.notes&&<div style={{ fontSize:12, color:"#94A3B8", marginTop:3 }}>{l.notes}</div>}</>}
           {l.type==="c_lead"&&<><div style={{ fontSize:13 }}>🖥️ {l.floor_issues}</div>{l.resolution_status&&<div style={{ marginTop:6 }}><StatusBadge status={l.resolution_status}/></div>}</>}
           {l.type==="interview_coord"&&<><div style={{ fontSize:13 }}>🎤 <strong>{l.session_type}</strong> · {l.sessions_done} sessions</div>{l.feedback&&<div style={{ fontSize:12, color:"#475569", marginTop:4 }}>{l.feedback}</div>}</>}
-          {l.type==="manager_feedback"&&<><div style={{ fontSize:13 }}>💬 {l.manager_feedback}</div>{l.action_items&&<div style={{ fontSize:12, color:"#94A3B8", marginTop:4 }}>Action: {l.action_items}</div>}</>}
+          {l.type==="manager_feedback"&&<>
+            <div style={{ fontSize:13, background:"#F0FDFA", padding:"8px 10px", borderRadius:6, marginBottom:6 }}>💬 <strong>Team:</strong> {l.feedback_to_team||l.manager_feedback||"—"}</div>
+            {user.role==="president"&&l.feedback_to_president&&<div style={{ fontSize:13, background:"#F5F3FF", padding:"8px 10px", borderRadius:6, marginBottom:6 }}>🔒 <strong>President only:</strong> {l.feedback_to_president}</div>}
+            {l.action_items&&<div style={{ fontSize:12, color:"#94A3B8", marginTop:4 }}>Action: {l.action_items}</div>}
+          </>}
         </div>
       </Card>;})}
       {candLogs.length===0&&<div style={{ textAlign:"center", padding:60, color:"#94A3B8", fontSize:14 }}>No daily logs yet.</div>}
@@ -685,7 +693,24 @@ function LogPage({user,rc,candidates,onSubmit,loading}){
       {user.role==="r_lead"&&<><div style={{ fontSize:15, fontWeight:700, marginBottom:16 }}>📋 R Lead Daily Log</div><CS/><Input label="Interview stage" value={form.interview_stage||""} onChange={e=>set("interview_stage",e.target.value)} placeholder="e.g. Client Interview Scheduled"/><Input label="Scheduled date" type="date" value={form.scheduled_date||""} onChange={e=>set("scheduled_date",e.target.value)}/><div style={{ marginBottom:14 }}><label style={{ display:"flex", alignItems:"center", gap:8, fontSize:13, cursor:"pointer" }}><input type="checkbox" checked={form.vendor_issue||false} onChange={e=>set("vendor_issue",e.target.checked)}/>Vendor mock issue today?</label></div>{form.vendor_issue&&<Textarea label="Vendor issue details" value={form.vendor_feedback||""} onChange={e=>set("vendor_feedback",e.target.value)}/>}<Textarea label="Notes" value={form.notes||""} onChange={e=>set("notes",e.target.value)}/><Btn onClick={()=>sub("r_lead")} disabled={loading||!form.candidate_id}>{loading?"Saving...":"Submit Daily Log"}</Btn></>}
       {user.role==="c_lead"&&<><div style={{ fontSize:15, fontWeight:700, marginBottom:16 }}>🖥️ C Lead Daily Log</div><CS/><Textarea label="Floor issues / observations" value={form.floor_issues||""} onChange={e=>set("floor_issues",e.target.value)}/><Select label="Resolution status" value={form.resolution_status||""} onChange={e=>set("resolution_status",e.target.value)}><option value="">-- Select --</option><option value="solved">✅ Solved</option><option value="pending">⏳ Pending</option><option value="waiting">🔄 Waiting for decision</option><option value="none">✔️ No issues today</option></Select><Textarea label="Notes" value={form.notes||""} onChange={e=>set("notes",e.target.value)}/><Btn onClick={()=>sub("c_lead")} disabled={loading||!form.candidate_id}>{loading?"Saving...":"Submit Daily Log"}</Btn></>}
       {user.role==="interview_coord"&&<><div style={{ fontSize:15, fontWeight:700, marginBottom:16 }}>🎤 IC Daily Log</div><CS/><Select label="Session type" value={form.session_type||""} onChange={e=>set("session_type",e.target.value)}><option value="">-- Select --</option><option value="Lip Sync">Lip Sync Session</option><option value="Turbo Prompt">Turbo Prompt Session</option><option value="Mock Interview">Mock Interview</option><option value="Mixed">Mixed Session</option></Select><Input label="Sessions conducted" type="number" min={0} value={form.sessions_done||""} onChange={e=>set("sessions_done",+e.target.value)}/><Textarea label="Candidate feedback" value={form.feedback||""} onChange={e=>set("feedback",e.target.value)}/><Textarea label="Notes" value={form.notes||""} onChange={e=>set("notes",e.target.value)}/><Btn onClick={()=>sub("interview_coord")} disabled={loading||!form.candidate_id}>{loading?"Saving...":"Submit Daily Log"}</Btn></>}
-      {(user.role==="manager"||user.role==="president")&&<><div style={{ fontSize:15, fontWeight:700, marginBottom:16 }}>👔 Manager Feedback</div><CS/><Textarea label="Feedback / Comments" value={form.manager_feedback||""} onChange={e=>set("manager_feedback",e.target.value)}/><Textarea label="Action items" value={form.action_items||""} onChange={e=>set("action_items",e.target.value)}/><Btn onClick={()=>sub("manager_feedback")} disabled={loading||!form.candidate_id}>{loading?"Saving...":"Post Feedback"}</Btn></>}
+      {(user.role==="manager"||user.role==="president")&&<>
+        <div style={{ fontSize:15, fontWeight:700, marginBottom:4 }}>👔 Manager Feedback</div>
+        <div style={{ fontSize:12, color:"#94A3B8", marginBottom:16 }}>Add feedback for this candidate's progress</div>
+        <CS/>
+        <div style={{ background:"#F0FDFA", border:"1px solid #99F6E4", borderRadius:10, padding:"14px 16px", marginBottom:14 }}>
+          <div style={{ fontSize:12, fontWeight:700, color:"#0F766E", marginBottom:6 }}>💬 Feedback to Team <span style={{ fontWeight:400, color:"#94A3B8" }}>(R Lead, C Lead, Recruiter can see)</span></div>
+          <textarea value={form.feedback_to_team||""} onChange={e=>set("feedback_to_team",e.target.value)} placeholder="Write feedback visible to R Lead, C Lead and Recruiter..." style={{ width:"100%", border:"1px solid #99F6E4", borderRadius:8, padding:"8px 12px", fontSize:14, outline:"none", resize:"vertical", boxSizing:"border-box", background:"#fff" }} rows={3}/>
+        </div>
+        <div style={{ background:"#F5F3FF", border:"1px solid #C4B5FD", borderRadius:10, padding:"14px 16px", marginBottom:14 }}>
+          <div style={{ fontSize:12, fontWeight:700, color:"#7C3AED", marginBottom:6 }}>🔒 Feedback to President <span style={{ fontWeight:400, color:"#94A3B8" }}>(Only President can see)</span></div>
+          <textarea value={form.feedback_to_president||""} onChange={e=>set("feedback_to_president",e.target.value)} placeholder="Confidential feedback for President only..." style={{ width:"100%", border:"1px solid #C4B5FD", borderRadius:8, padding:"8px 12px", fontSize:14, outline:"none", resize:"vertical", boxSizing:"border-box", background:"#fff" }} rows={3}/>
+        </div>
+        <Textarea label="Action items" value={form.action_items||""} onChange={e=>set("action_items",e.target.value)} placeholder="Any action items for the team..."/>
+        <Btn onClick={()=>{
+          if(!form.candidate_id)return alert("Select a candidate");
+          sub("manager_feedback");
+        }} disabled={loading||!form.candidate_id}>{loading?"Saving...":"Post Feedback"}</Btn>
+      </>}
     </Card>
   </div>;
 }
@@ -725,7 +750,11 @@ function HistPage({user,rc,candidates,logs,getMember,allCands}){
             {l.type==="r_lead"&&<><div style={{ fontSize:13 }}>📋 {l.interview_stage||"—"}</div>{l.scheduled_date&&<div style={{ fontSize:12, marginTop:3 }}>🗓️ {fmtDate(l.scheduled_date)}</div>}{l.vendor_issue&&<div style={{ fontSize:12, color:"#DC2626", marginTop:3 }}>⚠️ {l.vendor_feedback}</div>}</>}
             {l.type==="c_lead"&&<><div style={{ fontSize:13 }}>🖥️ {l.floor_issues}</div>{l.resolution_status&&<div style={{ marginTop:6 }}><StatusBadge status={l.resolution_status}/></div>}</>}
             {l.type==="interview_coord"&&<><div style={{ fontSize:13 }}>🎤 <strong>{l.session_type}</strong> · {l.sessions_done} sessions</div>{l.feedback&&<div style={{ fontSize:12, color:"#475569", marginTop:4 }}>{l.feedback}</div>}</>}
-            {l.type==="manager_feedback"&&<><div style={{ fontSize:13 }}>💬 {l.manager_feedback}</div>{l.action_items&&<div style={{ fontSize:12, color:"#94A3B8", marginTop:4 }}>Action: {l.action_items}</div>}</>}
+            {l.type==="manager_feedback"&&<>
+            <div style={{ fontSize:13, background:"#F0FDFA", padding:"8px 10px", borderRadius:6, marginBottom:6 }}>💬 <strong>Team:</strong> {l.feedback_to_team||l.manager_feedback||"—"}</div>
+            {user.role==="president"&&l.feedback_to_president&&<div style={{ fontSize:13, background:"#F5F3FF", padding:"8px 10px", borderRadius:6, marginBottom:6 }}>🔒 <strong>President only:</strong> {l.feedback_to_president}</div>}
+            {l.action_items&&<div style={{ fontSize:12, color:"#94A3B8", marginTop:4 }}>Action: {l.action_items}</div>}
+          </>}
           </div>
         </Card>;
       })}
