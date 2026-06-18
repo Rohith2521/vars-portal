@@ -1450,6 +1450,7 @@ function OverallStatusPage({user,members,candidates,logs,token}){
   const [managerFeedbacks,setManagerFeedbacks]=useState([]);
   const [loading,setLoading]=useState(false);
   const [showNoteInput,setShowNoteInput]=useState(false);
+  const [expandedSection,setExpandedSection]=useState(null);
 
   const rLeads=members.filter(m=>m.role==="r_lead");
   const recruitersUnder=selRLead?members.filter(m=>m.role==="recruiter"&&m.r_lead_team===selRLead):[];
@@ -1598,107 +1599,189 @@ function OverallStatusPage({user,members,candidates,logs,token}){
         </div>
       </div>
 
-      {/* STATS SUMMARY */}
+      {/* STATS SUMMARY — clickable cards */}
       <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(130px,1fr))",gap:10,marginBottom:16}}>
-        <Card style={{padding:"14px 16px"}}><div style={{fontSize:11,fontWeight:600,textTransform:"uppercase",color:"#94A3B8",marginBottom:4}}>Emails Sent</div><div style={{fontSize:26,fontWeight:800,color:"#2563EB"}}>{totalEmails}</div></Card>
-        <Card style={{padding:"14px 16px"}}><div style={{fontSize:11,fontWeight:600,textTransform:"uppercase",color:"#94A3B8",marginBottom:4}}>Submissions</div><div style={{fontSize:26,fontWeight:800,color:"#7C3AED"}}>{totalSubs}</div></Card>
-        <Card style={{padding:"14px 16px"}}><div style={{fontSize:11,fontWeight:600,textTransform:"uppercase",color:"#94A3B8",marginBottom:4}}>Interviews</div><div style={{fontSize:26,fontWeight:800,color:"#16A34A"}}>{candSessions.length}</div></Card>
-        <Card style={{padding:"14px 16px"}}><div style={{fontSize:11,fontWeight:600,textTransform:"uppercase",color:"#94A3B8",marginBottom:4}}>Pipeline</div><div style={{fontSize:26,fontWeight:800,color:"#D97706"}}>{candPipeline.filter(p=>p.status==="active").length}</div></Card>
-        <Card style={{padding:"14px 16px"}}><div style={{fontSize:11,fontWeight:600,textTransform:"uppercase",color:"#94A3B8",marginBottom:4}}>Daily Logs</div><div style={{fontSize:26,fontWeight:800,color:"#0F766E"}}>{candLogs.length}</div></Card>
+        {[
+          {id:"emails",label:"Emails Sent",val:totalEmails,color:"#2563EB",bg:"#EFF6FF"},
+          {id:"submissions",label:"Submissions",val:totalSubs,color:"#7C3AED",bg:"#F5F3FF"},
+          {id:"interviews",label:"Interviews",val:candSessions.length,color:"#16A34A",bg:"#F0FDF4"},
+          {id:"pipeline",label:"Pipeline",val:candPipeline.filter(p=>p.status==="active").length,color:"#D97706",bg:"#FFFBEB"},
+          {id:"mocks",label:"Mock Sessions",val:candLogs.filter(l=>l.type==="interview_coord").length,color:"#DC2626",bg:"#FEF2F2"},
+          {id:"manager",label:"Mgr Feedback",val:candLogs.filter(l=>l.type==="manager_feedback").length,color:"#0F766E",bg:"#F0FDFA"},
+        ].map(s=><div key={s.id} onClick={()=>setExpandedSection(expandedSection===s.id?null:s.id)} style={{background:expandedSection===s.id?s.bg:"#fff",border:`2px solid ${expandedSection===s.id?s.color:"#E2E8F0"}`,borderRadius:10,padding:"14px 16px",cursor:"pointer",transition:"all .15s"}}>
+          <div style={{fontSize:11,fontWeight:600,textTransform:"uppercase",color:"#94A3B8",marginBottom:4}}>{s.label}</div>
+          <div style={{fontSize:26,fontWeight:800,color:s.color}}>{s.val}</div>
+          <div style={{fontSize:10,color:expandedSection===s.id?s.color:"#94A3B8",marginTop:2,fontWeight:600}}>{expandedSection===s.id?"▲ Hide details":"▼ Click to expand"}</div>
+        </div>)}
       </div>
 
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:14}}>
-        {/* DAY WISE BREAKDOWN */}
-        <Card>
-          <CardHeader title="📧 Day-wise Emails & Submissions"/>
-          <div style={{padding:"0 0 8px"}}>
-            {dayBreakdown.length===0&&<div style={{padding:"16px",fontSize:13,color:"#94A3B8"}}>No recruiter logs for this period.</div>}
-            {dayBreakdown.map(([date,data])=><div key={date} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 16px",borderBottom:"1px solid #F1F5F9"}}>
-              <div style={{fontSize:13,fontWeight:600}}>{fmtDate(date)}</div>
-              <div style={{display:"flex",gap:12}}>
-                <span style={{fontSize:12,color:"#2563EB",fontWeight:600}}>📧 {data.emails}</span>
-                <span style={{fontSize:12,color:"#7C3AED",fontWeight:600}}>📤 {data.subs}</span>
-              </div>
-            </div>)}
-            {dayBreakdown.length>0&&<div style={{display:"flex",justifyContent:"space-between",padding:"10px 16px",background:"#F8FAFC",fontWeight:700,fontSize:13}}>
-              <span>Total</span>
-              <div style={{display:"flex",gap:12}}>
-                <span style={{color:"#2563EB"}}>📧 {totalEmails}</span>
-                <span style={{color:"#7C3AED"}}>📤 {totalSubs}</span>
-              </div>
-            </div>}
-          </div>
-        </Card>
+      {/* EXPANDABLE DETAIL SECTIONS */}
 
-        {/* INTERVIEWS */}
-        <Card>
-          <CardHeader title="🎯 Interviews This Period"/>
-          <div style={{padding:"0 0 8px"}}>
-            {candSessions.length===0&&<div style={{padding:"16px",fontSize:13,color:"#94A3B8"}}>No interviews this period.</div>}
-            {candSessions.map(s=><div key={s.id} style={{padding:"10px 16px",borderBottom:"1px solid #F1F5F9"}}>
-              <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
-                <span style={{fontSize:12,fontWeight:600}}>{ROUNDS_MAP[s.round]||s.round} · {DURATION_MAP[s.duration]||s.duration}</span>
-                <span style={{fontSize:11,background:s.overall_feedback==="went_well"?"#F0FDF4":s.overall_feedback==="okay"?"#FFFBEB":"#FEF2F2",color:s.overall_feedback==="went_well"?"#16A34A":s.overall_feedback==="okay"?"#D97706":"#DC2626",padding:"1px 7px",borderRadius:99,fontWeight:600}}>{s.overall_feedback==="went_well"?"✅ Went Well":s.overall_feedback==="okay"?"👍 Okay":"❌ Not Went Well"}</span>
-              </div>
-              <div style={{fontSize:12,color:"#475569"}}>{s.detailed_feedback?.substring(0,80)}...</div>
-              <div style={{fontSize:11,color:"#94A3B8",marginTop:3}}>{fmtDate(s.interview_date)} · {s.interview_mode==="virtual"?"Virtual":"In-person"}</div>
-            </div>)}
-          </div>
-        </Card>
-      </div>
-
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:14}}>
-        {/* PIPELINE */}
-        <Card>
-          <CardHeader title="📋 Pipeline Interviews"/>
-          <div style={{padding:"0 0 8px"}}>
-            {candPipeline.length===0&&<div style={{padding:"16px",fontSize:13,color:"#94A3B8"}}>No pipeline interviews.</div>}
-            {candPipeline.map(p=>{
-              const updates=pipelineUpdates.filter(u=>u.pipeline_id===p.id);
-              return <div key={p.id} style={{padding:"10px 16px",borderBottom:"1px solid #F1F5F9"}}>
-                <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
-                  <span style={{fontSize:12,fontWeight:600}}>{p.interview_with} · {p.round}</span>
-                  <span style={{fontSize:11,background:p.status==="active"?"#F0FDF4":"#FEF2F2",color:p.status==="active"?"#16A34A":"#DC2626",padding:"1px 7px",borderRadius:99,fontWeight:600}}>{p.status==="active"?"Active":"Removed"}</span>
-                </div>
-                {p.status==="deleted"&&<div style={{fontSize:11,color:"#DC2626",marginBottom:4}}>Reason: {p.delete_reason}</div>}
-                {updates.slice(0,2).map(u=><div key={u.id} style={{fontSize:11,color:"#475569",background:"#F8FAFC",borderRadius:6,padding:"4px 8px",marginTop:4}}>{u.update_text} <span style={{color:"#94A3B8"}}>· {fmtDate(u.created_at?.split("T")[0])}</span></div>)}
-              </div>;
-            })}
-          </div>
-        </Card>
-
-        {/* MOCK SESSIONS */}
-        <Card>
-          <CardHeader title="🎤 Mock Sessions This Period"/>
-          <div style={{padding:"0 0 8px"}}>
-            {candLogs.filter(l=>l.type==="interview_coord").length===0&&<div style={{padding:"16px",fontSize:13,color:"#94A3B8"}}>No mock sessions this period.</div>}
-            {candLogs.filter(l=>l.type==="interview_coord").map(l=><div key={l.id} style={{padding:"10px 16px",borderBottom:"1px solid #F1F5F9"}}>
-              <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
-                <span style={{fontSize:12,fontWeight:600}}>{l.session_type} · {l.sessions_done} sessions</span>
-                <span style={{fontSize:11,color:"#94A3B8"}}>{fmtDate(l.log_date)}</span>
-              </div>
-              {l.feedback&&<div style={{fontSize:12,color:"#475569"}}>{l.feedback?.substring(0,80)}</div>}
-            </div>)}
-          </div>
-        </Card>
-      </div>
-
-      {/* MANAGER FEEDBACKS */}
-      <Card style={{marginBottom:14}}>
-        <CardHeader title="👔 Manager Feedback & Notes"/>
+      {/* EMAILS EXPANDED */}
+      {expandedSection==="emails"&&<Card style={{marginBottom:14,border:"2px solid #2563EB"}}>
+        <CardHeader title="📧 Day-wise Emails & Submissions — Full Detail"/>
         <div style={{padding:"0 0 8px"}}>
-          {candMgrFeedbacks.length===0&&candLogs.filter(l=>l.type==="manager_feedback").length===0&&<div style={{padding:"16px",fontSize:13,color:"#94A3B8"}}>No manager feedback for this period.</div>}
-          {candLogs.filter(l=>l.type==="manager_feedback").map(l=><div key={l.id} style={{padding:"14px 16px",borderBottom:"1px solid #F1F5F9"}}>
-            <div style={{fontSize:12,fontWeight:600,color:"#475569",marginBottom:8}}>{getMember(l.user_id)?.name} · {fmtDate(l.log_date)}</div>
-            {(l.feedback_to_team||l.manager_feedback)&&<div style={{background:"#F0FDFA",border:"1px solid #99F6E4",borderRadius:8,padding:"10px 12px",marginBottom:8,fontSize:13}}>
-              💬 <strong>Public:</strong> {l.feedback_to_team||l.manager_feedback}
+          {dayBreakdown.length===0&&<div style={{padding:"16px",fontSize:13,color:"#94A3B8"}}>No recruiter logs for this period.</div>}
+          {dayBreakdown.map(([date,data])=>{
+            const dayLogs=recLogs.filter(l=>l.log_date===date);
+            return <div key={date} style={{padding:"12px 16px",borderBottom:"1px solid #F1F5F9"}}>
+              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
+                <div style={{fontSize:13,fontWeight:700}}>{fmtDate(date)}</div>
+                <div style={{display:"flex",gap:12}}>
+                  <span style={{fontSize:13,color:"#2563EB",fontWeight:700}}>📧 {data.emails} emails</span>
+                  <span style={{fontSize:13,color:"#7C3AED",fontWeight:700}}>📤 {data.subs} submissions</span>
+                </div>
+              </div>
+              {dayLogs.map(l=><div key={l.id} style={{background:"#F8FAFC",borderRadius:8,padding:"10px 12px",marginBottom:6}}>
+                {l.reason_less_emails&&<div style={{fontSize:12,color:"#D97706",marginBottom:4}}>⚠️ Less emails reason: {l.reason_less_emails}</div>}
+                {l.reason_zero_subs&&<div style={{fontSize:12,color:"#DC2626",marginBottom:4}}>⚠️ Zero subs reason: {l.reason_zero_subs}</div>}
+                {l.issue_description&&<div style={{fontSize:12,color:"#475569",marginBottom:4}}>🚨 Issue: {l.issue_description}</div>}
+                {l.issue_status&&<div style={{fontSize:11,marginBottom:4}}><span style={{background:l.issue_status==="solved"?"#F0FDF4":"#FFFBEB",color:l.issue_status==="solved"?"#16A34A":"#D97706",padding:"1px 7px",borderRadius:99,fontWeight:600}}>Status: {l.issue_status}</span></div>}
+                {l.notes&&<div style={{fontSize:12,color:"#94A3B8"}}>Notes: {l.notes}</div>}
+              </div>)}
+            </div>;
+          })}
+          {dayBreakdown.length>0&&<div style={{display:"flex",justifyContent:"space-between",padding:"12px 16px",background:"#EFF6FF",fontWeight:700,fontSize:14}}>
+            <span>Total for period</span>
+            <div style={{display:"flex",gap:16}}>
+              <span style={{color:"#2563EB"}}>📧 {totalEmails} emails</span>
+              <span style={{color:"#7C3AED"}}>📤 {totalSubs} submissions</span>
+            </div>
+          </div>}
+        </div>
+      </Card>}
+
+      {/* SUBMISSIONS EXPANDED */}
+      {expandedSection==="submissions"&&<Card style={{marginBottom:14,border:"2px solid #7C3AED"}}>
+        <CardHeader title="📤 Submissions — Full Detail"/>
+        <div style={{padding:"0 0 8px"}}>
+          {recLogs.length===0&&<div style={{padding:"16px",fontSize:13,color:"#94A3B8"}}>No submissions data for this period.</div>}
+          {recLogs.map(l=><div key={l.id} style={{padding:"12px 16px",borderBottom:"1px solid #F1F5F9"}}>
+            <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
+              <span style={{fontSize:13,fontWeight:700}}>{fmtDate(l.log_date)} · {l.log_time}</span>
+              <div style={{display:"flex",gap:10}}>
+                <span style={{fontSize:13,color:"#2563EB",fontWeight:700}}>📧 {l.emails_sent}</span>
+                <span style={{fontSize:13,color:"#7C3AED",fontWeight:700}}>📤 {l.submissions}</span>
+              </div>
+            </div>
+            {l.reason_less_emails&&<div style={{fontSize:12,color:"#D97706",background:"#FFFBEB",padding:"6px 10px",borderRadius:6,marginBottom:4}}>⚠️ Less emails: {l.reason_less_emails}</div>}
+            {l.reason_zero_subs&&<div style={{fontSize:12,color:"#DC2626",background:"#FEF2F2",padding:"6px 10px",borderRadius:6,marginBottom:4}}>⚠️ Zero submissions: {l.reason_zero_subs}</div>}
+            {l.notes&&<div style={{fontSize:12,color:"#94A3B8"}}>Notes: {l.notes}</div>}
+          </div>)}
+        </div>
+      </Card>}
+
+      {/* INTERVIEWS EXPANDED */}
+      {expandedSection==="interviews"&&<Card style={{marginBottom:14,border:"2px solid #16A34A"}}>
+        <CardHeader title="🎯 Interviews — Full Detail"/>
+        <div style={{padding:"0 0 8px"}}>
+          {candSessions.length===0&&<div style={{padding:"16px",fontSize:13,color:"#94A3B8"}}>No interviews this period.</div>}
+          {candSessions.map(s=><div key={s.id} style={{padding:"16px",borderBottom:"1px solid #F1F5F9"}}>
+            <div style={{display:"flex",justifyContent:"space-between",marginBottom:10}}>
+              <div>
+                <div style={{fontSize:15,fontWeight:700}}>{ROUNDS_MAP[s.round]||s.round}</div>
+                <div style={{fontSize:12,color:"#94A3B8"}}>{fmtDate(s.interview_date)}</div>
+              </div>
+              <span style={{fontSize:12,background:s.overall_feedback==="went_well"?"#F0FDF4":s.overall_feedback==="okay"?"#FFFBEB":"#FEF2F2",color:s.overall_feedback==="went_well"?"#16A34A":s.overall_feedback==="okay"?"#D97706":"#DC2626",padding:"4px 12px",borderRadius:99,fontWeight:700,height:"fit-content"}}>{s.overall_feedback==="went_well"?"✅ Went Well":s.overall_feedback==="okay"?"👍 Okay":"❌ Not Went Well"}</span>
+            </div>
+            <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:10}}>
+              <span style={{background:"#F5F3FF",color:"#7C3AED",fontSize:11,padding:"2px 8px",borderRadius:99,fontWeight:600}}>⏱️ {DURATION_MAP[s.duration]||s.duration}</span>
+              <span style={{background:"#EFF6FF",color:"#2563EB",fontSize:11,padding:"2px 8px",borderRadius:99,fontWeight:600}}>📡 {s.interview_mode==="virtual"?"Virtual":"In-person"}</span>
+              {s.tech_support_name&&<span style={{background:"#F0FDF4",color:"#16A34A",fontSize:11,padding:"2px 8px",borderRadius:99,fontWeight:600}}>🛠️ {s.tech_support_name}</span>}
+              {s.support_mode&&<span style={{background:"#FFFBEB",color:"#D97706",fontSize:11,padding:"2px 8px",borderRadius:99,fontWeight:600}}>{s.support_mode}</span>}
+            </div>
+            <div style={{background:"#F8FAFC",borderRadius:8,padding:"12px"}}>
+              <div style={{fontSize:12,fontWeight:600,color:"#475569",marginBottom:4}}>Detailed Feedback:</div>
+              <div style={{fontSize:13,color:"#334155",lineHeight:1.6}}>{s.detailed_feedback}</div>
+            </div>
+          </div>)}
+        </div>
+      </Card>}
+
+      {/* PIPELINE EXPANDED */}
+      {expandedSection==="pipeline"&&<Card style={{marginBottom:14,border:"2px solid #D97706"}}>
+        <CardHeader title="📋 Pipeline Interviews — Full Detail"/>
+        <div style={{padding:"0 0 8px"}}>
+          {candPipeline.length===0&&<div style={{padding:"16px",fontSize:13,color:"#94A3B8"}}>No pipeline interviews.</div>}
+          {candPipeline.map(p=>{
+            const updates=pipelineUpdates.filter(u=>u.pipeline_id===p.id).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
+            return <div key={p.id} style={{padding:"16px",borderBottom:"1px solid #F1F5F9"}}>
+              <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
+                <div>
+                  <div style={{fontSize:14,fontWeight:700}}>{p.interview_with}</div>
+                  <div style={{fontSize:12,color:"#94A3B8"}}>{p.round} · Added {fmtDate(p.created_at?.split("T")[0])}</div>
+                </div>
+                <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                  <span style={{background:{"1_week":"#FFFBEB","2_weeks":"#EFF6FF","not_sure":"#F1F5F9"}[p.expecting]||"#F1F5F9",color:{"1_week":"#D97706","2_weeks":"#2563EB","not_sure":"#475569"}[p.expecting]||"#475569",fontSize:11,padding:"2px 8px",borderRadius:99,fontWeight:600}}>{{"1_week":"In 1 week","2_weeks":"In 2 weeks","not_sure":"Not sure"}[p.expecting]||p.expecting}</span>
+                  <span style={{background:p.status==="active"?"#F0FDF4":"#FEF2F2",color:p.status==="active"?"#16A34A":"#DC2626",fontSize:11,padding:"2px 8px",borderRadius:99,fontWeight:600}}>{p.status==="active"?"🟢 Active":"🔴 Removed"}</span>
+                </div>
+              </div>
+              {p.delete_reason&&<div style={{background:"#FEF2F2",borderRadius:8,padding:"8px 12px",marginBottom:8,fontSize:12,color:"#DC2626"}}>Removal reason: {p.delete_reason}</div>}
+              <div style={{fontSize:12,fontWeight:600,color:"#475569",marginBottom:8}}>Update History ({updates.length}):</div>
+              {updates.map((u,i)=><div key={u.id} style={{display:"flex",gap:10,marginBottom:8}}>
+                <div style={{width:6,borderRadius:99,background:i===0?"#2563EB":"#E2E8F0",flexShrink:0,minHeight:20}}/>
+                <div style={{flex:1,background:i===0?"#EFF6FF":"#F8FAFC",borderRadius:8,padding:"8px 12px"}}>
+                  <div style={{fontSize:13,color:"#334155"}}>{u.update_text}</div>
+                  <div style={{fontSize:11,color:"#94A3B8",marginTop:3}}>{fmtDateTime(u.created_at)}</div>
+                </div>
+              </div>)}
+              {updates.length===0&&<div style={{fontSize:12,color:"#94A3B8"}}>No updates yet.</div>}
+            </div>;
+          })}
+        </div>
+      </Card>}
+
+      {/* MOCKS EXPANDED */}
+      {expandedSection==="mocks"&&<Card style={{marginBottom:14,border:"2px solid #DC2626"}}>
+        <CardHeader title="🎤 Mock Sessions — Full Detail"/>
+        <div style={{padding:"0 0 8px"}}>
+          {candLogs.filter(l=>l.type==="interview_coord").length===0&&<div style={{padding:"16px",fontSize:13,color:"#94A3B8"}}>No mock sessions this period.</div>}
+          {candLogs.filter(l=>l.type==="interview_coord").map(l=><div key={l.id} style={{padding:"16px",borderBottom:"1px solid #F1F5F9"}}>
+            <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
+              <div>
+                <div style={{fontSize:14,fontWeight:700}}>{l.session_type}</div>
+                <div style={{fontSize:12,color:"#94A3B8"}}>{fmtDate(l.log_date)} · {l.sessions_done} sessions conducted</div>
+              </div>
+            </div>
+            {l.feedback&&<div style={{background:"#FEF2F2",borderRadius:8,padding:"12px",marginBottom:8}}>
+              <div style={{fontSize:12,fontWeight:600,color:"#DC2626",marginBottom:4}}>Session Feedback:</div>
+              <div style={{fontSize:13,color:"#334155",lineHeight:1.6}}>{l.feedback}</div>
             </div>}
-            {l.feedback_to_president&&<div style={{background:"#F5F3FF",border:"1px solid #DDD6FE",borderRadius:8,padding:"10px 12px",fontSize:13}}>
-              🔒 <strong>Confidential:</strong> {l.feedback_to_president}
+            {l.tmr_with_whom&&<div style={{background:"#EFF6FF",borderRadius:8,padding:"10px 12px"}}>
+              <div style={{fontSize:12,fontWeight:600,color:"#2563EB",marginBottom:6}}>🗓️ Tomorrow's Interview:</div>
+              <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                <span style={{fontSize:12,color:"#475569"}}>With: {l.tmr_with_whom}</span>
+                {l.tmr_time&&<span style={{fontSize:12,color:"#475569"}}>· Time: {l.tmr_time}</span>}
+                {l.tmr_mode&&<span style={{background:"#F0FDFA",color:"#0F766E",fontSize:11,padding:"2px 8px",borderRadius:99,fontWeight:600}}>{l.tmr_mode==="virtual"?"Virtual":"In-person"}</span>}
+                {l.tmr_support_mode&&<span style={{background:"#F5F3FF",color:"#7C3AED",fontSize:11,padding:"2px 8px",borderRadius:99,fontWeight:600}}>{l.tmr_support_mode}</span>}
+              </div>
             </div>}
           </div>)}
         </div>
-      </Card>
+      </Card>}
+
+      {/* MANAGER FEEDBACK EXPANDED */}
+      {expandedSection==="manager"&&<Card style={{marginBottom:14,border:"2px solid #0F766E"}}>
+        <CardHeader title="👔 Manager Feedback & Notes — Full Detail"/>
+        <div style={{padding:"0 0 8px"}}>
+          {candLogs.filter(l=>l.type==="manager_feedback").length===0&&<div style={{padding:"16px",fontSize:13,color:"#94A3B8"}}>No manager feedback for this period.</div>}
+          {candLogs.filter(l=>l.type==="manager_feedback").map(l=><div key={l.id} style={{padding:"16px",borderBottom:"1px solid #F1F5F9"}}>
+            <div style={{fontSize:13,fontWeight:700,color:"#475569",marginBottom:10}}>{getMember(l.user_id)?.name} · {fmtDate(l.log_date)} · {l.log_time}</div>
+            {(l.feedback_to_team||l.manager_feedback)&&<div style={{background:"#F0FDFA",border:"1px solid #99F6E4",borderRadius:8,padding:"12px 14px",marginBottom:10}}>
+              <div style={{fontSize:12,fontWeight:700,color:"#0F766E",marginBottom:6}}>💬 Public Feedback (visible to all team):</div>
+              <div style={{fontSize:13,color:"#334155",lineHeight:1.6}}>{l.feedback_to_team||l.manager_feedback}</div>
+            </div>}
+            {l.feedback_to_president&&<div style={{background:"#F5F3FF",border:"1px solid #DDD6FE",borderRadius:8,padding:"12px 14px"}}>
+              <div style={{fontSize:12,fontWeight:700,color:"#7C3AED",marginBottom:6}}>🔒 Confidential (President only):</div>
+              <div style={{fontSize:13,color:"#334155",lineHeight:1.6}}>{l.feedback_to_president}</div>
+            </div>}
+            {l.action_items&&<div style={{marginTop:10,background:"#FFFBEB",border:"1px solid #FDE68A",borderRadius:8,padding:"10px 12px"}}>
+              <div style={{fontSize:12,fontWeight:700,color:"#D97706",marginBottom:4}}>📌 Action Items:</div>
+              <div style={{fontSize:13,color:"#334155"}}>{l.action_items}</div>
+            </div>}
+          </div>)}
+        </div>
+      </Card>}
 
       {/* PRESIDENT PERSONAL NOTES */}
       <Card>
