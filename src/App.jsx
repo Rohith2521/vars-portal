@@ -401,10 +401,10 @@ export default function VARSPortal() {
     <div style={{ display:"flex", flexDirection:"column", minHeight:"100vh", fontFamily:"-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif", background:"#F8FAFC", color:"#0F172A" }}>
       <div style={{ background:"#0F1F3D", display:"flex", alignItems:"center", padding:"0 16px", height:60, gap:12, flexShrink:0 }}>
         {/* LEFT — Logos */}
-        <div style={{ display:"flex", alignItems:"center", gap:10, flexShrink:0 }}>
-          <img src="/mpower-logo_copy-2-removebg-preview.png" alt="Mpower Logic" style={{ height:38, objectFit:"contain", filter:"brightness(0) invert(1)" }}/>
-          <div style={{ width:1, height:30, background:"rgba(255,255,255,0.2)" }}/>
-          <img src="/IMG_8121-removebg-preview.png" alt="VARS Consulting" style={{ height:38, objectFit:"contain", filter:"brightness(0) invert(1)" }}/>
+        <div style={{ display:"flex", alignItems:"center", gap:12, flexShrink:0 }}>
+          <img src="/mpower-logo_copy-2-removebg-preview.png" alt="Mpower Logic" style={{ height:42, objectFit:"contain" }}/>
+          <div style={{ width:1, height:34, background:"rgba(255,255,255,0.25)" }}/>
+          <img src="/IMG_8121-removebg-preview.png" alt="VARS Consulting" style={{ height:42, objectFit:"contain" }}/>
         </div>
         {/* CENTER — Portal name */}
         <div style={{ flex:1, textAlign:"center" }}>
