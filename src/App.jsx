@@ -402,16 +402,9 @@ export default function VARSPortal() {
       <div style={{ background:"#0F1F3D", display:"flex", alignItems:"center", padding:"0 16px", height:60, gap:12, flexShrink:0 }}>
         {/* LEFT — Logos */}
         <div style={{ display:"flex", alignItems:"center", gap:10, flexShrink:0 }}>
-          <div style={{ display:"flex", alignItems:"center", gap:6, background:"rgba(255,255,255,0.1)", borderRadius:8, padding:"4px 10px" }}>
-            <span style={{ fontSize:16 }}>🌐</span>
-            <span style={{ fontSize:13, fontWeight:800, color:"#60A5FA" }}>Mpower</span>
-            <span style={{ fontSize:13, fontWeight:600, color:"#fff" }}>Logic</span>
-          </div>
+          <img src="/mpower-logo_copy-2-removebg-preview.png" alt="Mpower Logic" style={{ height:38, objectFit:"contain", filter:"brightness(0) invert(1)" }}/>
           <div style={{ width:1, height:30, background:"rgba(255,255,255,0.2)" }}/>
-          <div style={{ display:"flex", alignItems:"center", gap:6, background:"rgba(255,255,255,0.1)", borderRadius:8, padding:"4px 10px" }}>
-            <span style={{ fontSize:13, fontWeight:800, color:"#F87171" }}>VARS</span>
-            <span style={{ fontSize:11, fontWeight:500, color:"#fff" }}>Consulting</span>
-          </div>
+          <img src="/IMG_8121-removebg-preview.png" alt="VARS Consulting" style={{ height:38, objectFit:"contain", filter:"brightness(0) invert(1)" }}/>
         </div>
         {/* CENTER — Portal name */}
         <div style={{ flex:1, textAlign:"center" }}>
