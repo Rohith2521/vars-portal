@@ -1908,21 +1908,45 @@ function StatusMeetingPage({user,rc,members,candidates,allCandidates,logs,token,
 
     {/* FILTERS */}
     <Card style={{padding:20,marginBottom:20}}>
-      <div style={{display:"grid",gridTemplateColumns:"2fr 1fr 1fr",gap:12}}>
-        <div>
-          <label style={{display:"block",fontSize:12,fontWeight:600,color:"#475569",marginBottom:6}}>Select Candidate *</label>
-          <select value={selCand} onChange={e=>setSelCand(e.target.value)} style={{width:"100%",border:"1px solid #E2E8F0",borderRadius:8,padding:"8px 12px",fontSize:13,outline:"none",background:"#fff"}}>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr 1fr",gap:12}}>
+        {/* R Lead filter — only for admin/president/manager */}
+        {rc.canViewAll&&<div>
+          <label style={{display:"block",fontSize:12,fontWeight:600,color:"#475569",marginBottom:6}}>1. R Lead</label>
+          <select value={form.sel_rlead||""} onChange={e=>{set("sel_rlead",e.target.value);set("sel_rec","");setSelCand("");}} style={{width:"100%",border:"1px solid #E2E8F0",borderRadius:8,padding:"8px 10px",fontSize:12,outline:"none",background:"#fff"}}>
+            <option value="">-- All R Leads --</option>
+            {members.filter(m=>m.role==="r_lead").map(m=><option key={m.id} value={m.id}>{m.name}</option>)}
+          </select>
+        </div>}
+        {/* Recruiter filter */}
+        {rc.canViewAll&&<div>
+          <label style={{display:"block",fontSize:12,fontWeight:600,color:"#475569",marginBottom:6}}>2. Recruiter</label>
+          <select value={form.sel_rec||""} onChange={e=>{set("sel_rec",e.target.value);setSelCand("");}} disabled={!form.sel_rlead} style={{width:"100%",border:"1px solid #E2E8F0",borderRadius:8,padding:"8px 10px",fontSize:12,outline:"none",background:form.sel_rlead?"#fff":"#F8FAFC"}}>
+            <option value="">-- All Recruiters --</option>
+            {members.filter(m=>m.role==="recruiter"&&(!form.sel_rlead||m.r_lead_team===form.sel_rlead)).map(m=><option key={m.id} value={m.id}>{m.name}</option>)}
+          </select>
+        </div>}
+        {/* Candidate filter */}
+        <div style={{gridColumn:rc.canViewAll?"auto":"1 / span 3"}}>
+          <label style={{display:"block",fontSize:12,fontWeight:600,color:"#475569",marginBottom:6}}>{rc.canViewAll?"3. Candidate *":"Select Candidate *"}</label>
+          <select value={selCand} onChange={e=>setSelCand(e.target.value)} style={{width:"100%",border:"1px solid #E2E8F0",borderRadius:8,padding:"8px 10px",fontSize:12,outline:"none",background:"#fff"}}>
             <option value="">-- Select candidate --</option>
-            {(rc.canViewAll?allCandidates:candidates).map(c=><option key={c.id} value={c.id}>{c.name} · {c.tech}</option>)}
+            {(()=>{
+              let cands = rc.canViewAll ? allCandidates : candidates;
+              if(form.sel_rec) cands = cands.filter(c=>c.recruiter_id===form.sel_rec);
+              else if(form.sel_rlead) cands = cands.filter(c=>c.r_lead_id===form.sel_rlead);
+              return cands.map(c=><option key={c.id} value={c.id}>{c.name} · {c.tech}</option>);
+            })()}
           </select>
         </div>
+        {/* From date */}
         <div>
-          <label style={{display:"block",fontSize:12,fontWeight:600,color:"#475569",marginBottom:6}}>From Date</label>
-          <input type="date" value={fromDate} onChange={e=>setFromDate(e.target.value)} style={{width:"100%",border:"1px solid #E2E8F0",borderRadius:8,padding:"8px 12px",fontSize:13,outline:"none",boxSizing:"border-box"}}/>
+          <label style={{display:"block",fontSize:12,fontWeight:600,color:"#475569",marginBottom:6}}>{rc.canViewAll?"4. From":"From"}</label>
+          <input type="date" value={fromDate} onChange={e=>setFromDate(e.target.value)} style={{width:"100%",border:"1px solid #E2E8F0",borderRadius:8,padding:"8px 10px",fontSize:12,outline:"none",boxSizing:"border-box"}}/>
         </div>
+        {/* To date */}
         <div>
-          <label style={{display:"block",fontSize:12,fontWeight:600,color:"#475569",marginBottom:6}}>To Date</label>
-          <input type="date" value={toDate} onChange={e=>setToDate(e.target.value)} style={{width:"100%",border:"1px solid #E2E8F0",borderRadius:8,padding:"8px 12px",fontSize:13,outline:"none",boxSizing:"border-box"}}/>
+          <label style={{display:"block",fontSize:12,fontWeight:600,color:"#475569",marginBottom:6}}>{rc.canViewAll?"5. To":"To"}</label>
+          <input type="date" value={toDate} onChange={e=>setToDate(e.target.value)} style={{width:"100%",border:"1px solid #E2E8F0",borderRadius:8,padding:"8px 10px",fontSize:12,outline:"none",boxSizing:"border-box"}}/>
         </div>
       </div>
     </Card>
