@@ -224,12 +224,26 @@ export default function VARSPortal() {
   const addMember=async(data)=>{
     setLoading(true);
     try {
-      const authUser=await sb.createUser(data.email,"VARS@2026");
-      if(authUser?.error){showToast("Auth error: "+authUser.error.message,"error");setLoading(false);return;}
-      const r=await sb.post("team_members",{id:authUser.id,name:data.name,email:data.email,role:data.role,avatar:data.name.split(" ").map(w=>w[0]).join("").substring(0,2).toUpperCase(),r_lead_team:data.r_lead_team||null},user.token);
-      if(r?.error){showToast("Error: "+r.error.message,"error");setLoading(false);return;}
-      await loadData(); showToast(`${data.name} added! Password: VARS@2026`);
-    } catch { showToast("Error adding member.","error"); }
+      // Call Edge Function to create auth user + team member
+      const res=await fetch(`${SUPABASE_URL}/functions/v1/create-user`,{
+        method:"POST",
+        headers:{
+          "Content-Type":"application/json",
+          "Authorization":`Bearer ${user.token}`,
+          "apikey":SUPABASE_KEY,
+        },
+        body:JSON.stringify({
+          email:data.email,
+          name:data.name,
+          role:data.role,
+          r_lead_team:data.r_lead_team||null,
+        }),
+      });
+      const result=await res.json();
+      if(result.error){showToast("Error: "+result.error,"error");setLoading(false);return;}
+      await loadData();
+      showToast(`${data.name} added! Login: ${data.email} / VARS@2026`);
+    } catch(e){ showToast("Error adding member: "+e.message,"error"); }
     setLoading(false);
   };
 
