@@ -1338,7 +1338,7 @@ function InterviewsPage({user,rc,candidates,token,loading,setToast}){
           </div>
         </div>
         <Textarea label="Detailed Feedback *" value={form.detailed_feedback||""} onChange={e=>set("detailed_feedback",e.target.value)} placeholder="Detailed interview feedback — mandatory..."/>
-        <Input label="Tech support name" value={form.tech_support_name||""} onChange={e=>set("tech_support_name",e.target.value)} placeholder="Support person name (optional)"/>
+        <Input label="Tech support name *" value={form.tech_support_name||""} onChange={e=>set("tech_support_name",e.target.value)} placeholder="Support person name"/>
         <div style={{marginBottom:14}}>
           <label style={{display:"block",fontSize:12,fontWeight:500,color:"#475569",marginBottom:8}}>Interview mode *</label>
           <div style={{display:"flex",gap:8}}>
@@ -2139,6 +2139,10 @@ function StatusMeetingPage({user,rc,members,candidates,allCandidates,logs,token,
               <div>
                 <div style={{fontSize:20,fontWeight:800}}>{{round_1:"Round 1",round_2:"Round 2",round_3:"Round 3",round_4:"Round 4",round_5:"Round 5",round_6:"Round 6",final:"Final"}[selectedInterview.round]||selectedInterview.round}</div>
                 <div style={{fontSize:13,color:"#94A3B8"}}>{fmtDate(selectedInterview.interview_date)}</div>
+                {selectedInterview.tech_support_name&&<div style={{display:"flex",alignItems:"center",gap:6,marginTop:6}}>
+                  <span style={{background:"#F0FDF4",color:"#16A34A",fontSize:12,padding:"3px 10px",borderRadius:99,fontWeight:700}}>🛠️ Tech Support: {selectedInterview.tech_support_name}</span>
+                  {selectedInterview.support_mode&&<span style={{background:"#EFF6FF",color:"#2563EB",fontSize:12,padding:"3px 10px",borderRadius:99,fontWeight:600}}>Mode: {selectedInterview.support_mode}</span>}
+                </div>}
               </div>
               <span style={{fontSize:13,background:selectedInterview.overall_feedback==="went_well"?"#F0FDF4":selectedInterview.overall_feedback==="okay"?"#FFFBEB":"#FEF2F2",color:selectedInterview.overall_feedback==="went_well"?"#16A34A":selectedInterview.overall_feedback==="okay"?"#D97706":"#DC2626",padding:"6px 16px",borderRadius:99,fontWeight:700,height:"fit-content"}}>{selectedInterview.overall_feedback==="went_well"?"✅ Went Well":selectedInterview.overall_feedback==="okay"?"👍 Okay":"❌ Not Went Well"}</span>
             </div>
