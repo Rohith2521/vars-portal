@@ -261,21 +261,71 @@ function LoginPage({ onLogin }) {
     setLoading(false);
   };
   return (
-    <div style={{ minHeight:"100vh", background:"linear-gradient(135deg,#0F1F3D 0%,#1E3A6E 100%)", display:"flex", alignItems:"center", justifyContent:"center", fontFamily:"-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" }}>
-      <div style={{ background:"#fff", borderRadius:16, padding:"40px 36px", width:380, boxShadow:"0 24px 64px rgba(0,0,0,0.25)" }}>
-        <div style={{ fontSize:26, fontWeight:800, color:"#0F1F3D", marginBottom:2 }}>VARS <span style={{ color:"#2563EB" }}>Portal</span></div>
-        <div style={{ fontSize:12, color:"#94A3B8", marginBottom:32 }}>Internal Recruitment Management System</div>
-        <Input label="Work Email" type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="you@varsconsultinginc.com" onKeyDown={e=>e.key==="Enter"&&login()} />
-        <div style={{ marginBottom:14 }}>
-          <label style={{ display:"block", fontSize:12, fontWeight:500, color:"#475569", marginBottom:5 }}>Password</label>
-          <div style={{ position:"relative" }}>
-            <input type={show?"text":"password"} value={pass} onChange={e=>setPass(e.target.value)} onKeyDown={e=>e.key==="Enter"&&login()} placeholder="Enter your password" style={{ width:"100%", border:"1px solid #E2E8F0", borderRadius:8, padding:"8px 40px 8px 12px", fontSize:14, outline:"none", boxSizing:"border-box" }}/>
-            <button onClick={()=>setShow(!show)} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", background:"none", border:"none", cursor:"pointer", color:"#94A3B8", fontSize:12 }}>{show?"Hide":"Show"}</button>
+    <div style={{ minHeight:"100vh", background:"#0a0f1e", display:"flex", alignItems:"center", justifyContent:"center", fontFamily:"-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif", position:"relative", overflow:"hidden" }}>
+      {/* Background orbs */}
+      <div style={{ position:"absolute", width:500, height:500, borderRadius:"50%", background:"radial-gradient(circle, rgba(29,78,216,0.2) 0%, transparent 65%)", top:-150, left:-150 }}/>
+      <div style={{ position:"absolute", width:400, height:400, borderRadius:"50%", background:"radial-gradient(circle, rgba(139,27,45,0.18) 0%, transparent 65%)", bottom:-100, right:-100 }}/>
+      <div style={{ position:"absolute", inset:0, backgroundImage:"linear-gradient(rgba(59,130,246,0.04) 1px,transparent 1px),linear-gradient(90deg,rgba(59,130,246,0.04) 1px,transparent 1px)", backgroundSize:"44px 44px" }}/>
+
+      <div style={{ width:420, maxWidth:"calc(100vw - 32px)", position:"relative", zIndex:2 }}>
+        {/* Logo strip */}
+        <div style={{ display:"flex", alignItems:"stretch", borderRadius:14, overflow:"hidden", border:"1px solid rgba(255,255,255,0.08)", marginBottom:3 }}>
+          <div style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", gap:10, padding:"14px 16px", background:"linear-gradient(135deg,rgba(29,78,216,0.35),rgba(37,99,235,0.2))", borderRight:"1px solid rgba(255,255,255,0.08)" }}>
+            <div style={{ width:36, height:36, borderRadius:"50%", background:"rgba(59,130,246,0.25)", border:"1px solid rgba(59,130,246,0.4)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:18, flexShrink:0 }}>🌐</div>
+            <div><div style={{ fontSize:13, fontWeight:800, color:"#93C5FD", letterSpacing:-0.2 }}>Mpower Logic</div><div style={{ fontSize:9, color:"rgba(147,197,253,0.5)", letterSpacing:"0.1em", textTransform:"uppercase", marginTop:2 }}>Inc.</div></div>
+          </div>
+          <div style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", gap:10, padding:"14px 16px", background:"linear-gradient(135deg,rgba(100,10,20,0.4),rgba(139,27,45,0.25))" }}>
+            <div style={{ width:36, height:36, borderRadius:"50%", background:"rgba(139,27,45,0.3)", border:"1px solid rgba(185,28,28,0.4)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:18, flexShrink:0 }}>▲</div>
+            <div><div style={{ fontSize:13, fontWeight:800, color:"#FCA5A5", letterSpacing:-0.2 }}>VARS Consulting</div><div style={{ fontSize:9, color:"rgba(252,165,165,0.5)", letterSpacing:"0.1em", textTransform:"uppercase", marginTop:2 }}>Inc.</div></div>
           </div>
         </div>
-        {err&&<div style={{ background:"#FEF2F2", border:"1px solid #FECACA", borderRadius:8, padding:"10px 14px", fontSize:13, color:"#DC2626", marginBottom:16 }}>⚠️ {err}</div>}
-        <button onClick={login} disabled={loading} style={{ width:"100%", background:loading?"#94A3B8":"#2563EB", color:"#fff", border:"none", borderRadius:10, padding:13, fontSize:15, fontWeight:700, cursor:loading?"not-allowed":"pointer" }}>{loading?"Signing in...":"Sign in →"}</button>
-        <div style={{ marginTop:20, padding:"12px 14px", background:"#F8FAFC", borderRadius:8, fontSize:12, color:"#94A3B8" }}>Default password: <strong style={{ color:"#475569" }}>VARS@2026</strong></div>
+        {/* Mirror reflection */}
+        <div style={{ display:"flex", height:22, borderRadius:"0 0 10px 10px", overflow:"hidden", opacity:0.15, filter:"blur(1px)", marginBottom:3 }}>
+          <div style={{ flex:1, background:"linear-gradient(135deg,rgba(29,78,216,0.3),rgba(37,99,235,0.15))" }}/>
+          <div style={{ flex:1, background:"linear-gradient(135deg,rgba(100,10,20,0.35),rgba(139,27,45,0.2))", borderLeft:"1px solid rgba(255,255,255,0.05)" }}/>
+        </div>
+        <div style={{ height:16, background:"linear-gradient(to bottom,rgba(10,15,30,0),rgba(10,15,30,1))", marginBottom:20 }}/>
+
+        {/* Portal name */}
+        <div style={{ textAlign:"center", marginBottom:24 }}>
+          <div style={{ fontSize:26, fontWeight:900, letterSpacing:-0.5, lineHeight:1.1 }}>
+            <span style={{ color:"#93C5FD" }}>Mpower</span>
+            <span style={{ color:"rgba(255,255,255,0.3)", margin:"0 8px" }}>—</span>
+            <span style={{ color:"#FCA5A5" }}>VARS</span>
+            <span style={{ color:"#fff" }}> IMS</span>
+          </div>
+          <div style={{ fontSize:10, color:"rgba(255,255,255,0.3)", letterSpacing:"0.18em", textTransform:"uppercase", marginTop:6 }}>Internal Management System</div>
+        </div>
+
+        {/* Glass card */}
+        <div style={{ background:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.1)", borderRadius:20, padding:"28px 28px", position:"relative", overflow:"hidden" }}>
+          <div style={{ position:"absolute", top:0, left:"15%", right:"15%", height:1, background:"linear-gradient(90deg,transparent,rgba(147,197,253,0.5),rgba(252,165,165,0.5),transparent)" }}/>
+
+          {/* Email field */}
+          <label style={{ display:"block", fontSize:11, fontWeight:700, color:"rgba(255,255,255,0.45)", marginBottom:6, letterSpacing:"0.08em", textTransform:"uppercase" }}>Email</label>
+          <input type="email" value={email} onChange={e=>setEmail(e.target.value)} onKeyDown={e=>e.key==="Enter"&&login()} placeholder="your@email.com" style={{ width:"100%", background:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.1)", borderRadius:10, padding:"11px 14px", fontSize:14, color:"#fff", marginBottom:4, boxSizing:"border-box", outline:"none" }}/>
+          <div style={{ fontSize:11, color:"rgba(255,255,255,0.25)", marginBottom:16 }}>@varsconsultinginc.com · @mpowerlogic.com · or personal email</div>
+
+          {/* Password field */}
+          <label style={{ display:"block", fontSize:11, fontWeight:700, color:"rgba(255,255,255,0.45)", marginBottom:6, letterSpacing:"0.08em", textTransform:"uppercase" }}>Password</label>
+          <div style={{ position:"relative", marginBottom:20 }}>
+            <input type={show?"text":"password"} value={pass} onChange={e=>setPass(e.target.value)} onKeyDown={e=>e.key==="Enter"&&login()} placeholder="Enter your password" style={{ width:"100%", background:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.1)", borderRadius:10, padding:"11px 50px 11px 14px", fontSize:14, color:"#fff", boxSizing:"border-box", outline:"none" }}/>
+            <button onClick={()=>setShow(!show)} style={{ position:"absolute", right:12, top:"50%", transform:"translateY(-50%)", background:"none", border:"none", cursor:"pointer", color:"rgba(147,197,253,0.6)", fontSize:11, fontWeight:600 }}>{show?"Hide":"Show"}</button>
+          </div>
+
+          {err&&<div style={{ background:"rgba(220,38,38,0.15)", border:"1px solid rgba(220,38,38,0.3)", borderRadius:8, padding:"10px 14px", fontSize:13, color:"#FCA5A5", marginBottom:14 }}>⚠️ {err}</div>}
+
+          {/* Sign in button */}
+          <button onClick={login} disabled={loading} style={{ width:"100%", background:loading?"rgba(255,255,255,0.1)":"linear-gradient(135deg,#1D4ED8 0%,#7f1d1d 100%)", color:"#fff", border:"none", borderRadius:10, padding:13, fontSize:15, fontWeight:700, cursor:loading?"not-allowed":"pointer", marginBottom:16, letterSpacing:"0.02em" }}>
+            {loading?"Signing in...":"Sign in →"}
+          </button>
+
+          <div style={{ textAlign:"center", fontSize:12, color:"rgba(255,255,255,0.25)", marginBottom:12 }}>Need help? Contact your manager</div>
+          <div style={{ background:"rgba(255,255,255,0.03)", border:"1px solid rgba(255,255,255,0.07)", borderRadius:8, padding:"9px 14px", fontSize:11, color:"rgba(255,255,255,0.3)", textAlign:"center" }}>
+            Default password: <strong style={{ color:"rgba(255,255,255,0.55)" }}>VARS@2026</strong>
+          </div>
+          <div style={{ position:"absolute", bottom:-15, left:"50%", transform:"translateX(-50%)", width:"60%", height:30, background:"linear-gradient(90deg,rgba(29,78,216,0.4),rgba(139,27,45,0.4))", filter:"blur(18px)", borderRadius:"50%" }}/>
+        </div>
       </div>
     </div>
   );
