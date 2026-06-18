@@ -51,7 +51,7 @@ const fmtDateTime = (d) => d ? new Date(d).toLocaleString("en-US", { month: "sho
 const ROLE_CONFIG = {
   president:       { label: "President",            color: "#7C3AED", bg: "#F5F3FF", canAddCandidate: false, canAddMember: false, canViewAll: true,  isAdmin: true  },
   manager:         { label: "Manager",               color: "#0F766E", bg: "#F0FDFA", canAddCandidate: true,  canAddMember: true,  canViewAll: true,  isAdmin: true  },
-  r_lead:          { label: "R Lead",                color: "#2563EB", bg: "#EFF6FF", canAddCandidate: true,  canAddMember: false, canViewAll: true,  isAdmin: false },
+  r_lead:          { label: "R Lead",                color: "#2563EB", bg: "#EFF6FF", canAddCandidate: false, canAddMember: false, canViewAll: true,  isAdmin: false },
   c_lead:          { label: "C Lead",                color: "#D97706", bg: "#FFFBEB", canAddCandidate: false, canAddMember: false, canViewAll: true,  isAdmin: false },
   recruiter:       { label: "Recruiter",             color: "#059669", bg: "#F0FDF4", canAddCandidate: false, canAddMember: false, canViewAll: false, isAdmin: false },
   interview_coord: { label: "Interview Coordinator", color: "#DC2626", bg: "#FEF2F2", canAddCandidate: false, canAddMember: false, canViewAll: false, isAdmin: false },
@@ -252,6 +252,7 @@ export default function VARSPortal() {
     {id:"daily_log",icon:"📝",label:"Daily Log",always:true},
     {id:"candidates",icon:"👤",label:"Candidates",always:true},
     {id:"my_recruiters",icon:"👥",label:"My Recruiters",show:user.role==="r_lead"},
+    {id:"interviews",icon:"🎯",label:"Interviews",show:user.role==="r_lead"||user.role==="c_lead"},
     {id:"logs_history",icon:"📅",label:"Log History",always:true},
     {id:"stats",icon:"📈",label:"Stats & Reports",show:rc.canViewAll},
     {id:"team",icon:"🏢",label:"Team",show:rc.isAdmin||user.role==="r_lead"||user.role==="c_lead"},
@@ -292,6 +293,8 @@ export default function VARSPortal() {
           {page==="my_recruiters"&&<MyRecruitersPage user={user} members={members} candidates={candidates} logs={logs} timeline={timeline} getMember={getMember} onAddTimeline={addTimeline} loading={loading}/>}
           {page==="logs_history"&&<HistPage user={user} rc={rc} candidates={myCands} logs={logs} getMember={getMember} allCands={candidates}/>}
           {page==="stats"&&<StatsPage candidates={candidates} logs={logs} members={members}/>}
+          {page==="interviews"&&<InterviewsPage user={user} rc={rc} candidates={myCands} token={user.token} loading={loading} setToast={setToast}/>
+}
           {page==="team"&&<TeamPage user={user} rc={rc} members={members} candidates={candidates} logs={logs} onAddMember={addMember} loading={loading}/>}
           {page==="notifications"&&<NotifsPage notifications={notifications} onRefresh={()=>loadData()}/>}
         </div>
@@ -1020,5 +1023,284 @@ function NotifsPage({notifications,onRefresh}){
       {notifications.map(n=><Card key={n.id} style={{ padding:"12px 16px", display:"flex", alignItems:"center", gap:12 }}><div style={{ fontSize:20 }}>🔔</div><div style={{ flex:1 }}><div style={{ fontSize:13 }}>{n.message}</div><div style={{ fontSize:11, color:"#94A3B8", marginTop:2 }}>{fmtDateTime(n.created_at)}</div></div></Card>)}
       {notifications.length===0&&<div style={{ textAlign:"center", padding:60, color:"#94A3B8" }}>No notifications yet.</div>}
     </div>
+  </div>;
+}
+
+// ─── INTERVIEWS PAGE (R Lead + C Lead) ──────────────────────────────────────
+function InterviewsPage({user,rc,candidates,token,loading,setToast}){
+  const [tab,setTab]=useState("sessions");
+  const [sessions,setSessions]=useState([]);
+  const [pipeline,setPipeline]=useState([]);
+  const [pipelineUpdates,setPipelineUpdates]=useState([]);
+  const [loadingData,setLoadingData]=useState(true);
+  const [showAddSession,setShowAddSession]=useState(false);
+  const [showAddPipeline,setShowAddPipeline]=useState(false);
+  const [showAddUpdate,setShowAddUpdate]=useState(null);
+  const [showDeletePipeline,setShowDeletePipeline]=useState(null);
+  const [form,setForm]=useState({});
+  const set=(k,v)=>setForm(p=>({...p,[k]:v}));
+
+  useEffect(()=>{
+    const load=async()=>{
+      setLoadingData(true);
+      try {
+        const [s,p,pu]=await Promise.all([
+          sb.get("interview_sessions","select=*&order=created_at.desc",token),
+          sb.get("pipeline_interviews","select=*&order=created_at.desc",token),
+          sb.get("pipeline_updates","select=*&order=created_at.desc",token),
+        ]);
+        if(Array.isArray(s))setSessions(s);
+        if(Array.isArray(p))setPipeline(p);
+        if(Array.isArray(pu))setPipelineUpdates(pu);
+      } catch(e){ console.error(e); }
+      setLoadingData(false);
+    };
+    load();
+  },[token]);
+
+  const myCands = candidates;
+
+  const addSession=async()=>{
+    if(!form.candidate_id)return alert("Select a candidate");
+    if(!form.interview_date)return alert("Select interview date");
+    if(!form.round)return alert("Select round");
+    if(!form.duration)return alert("Select duration");
+    if(!form.overall_feedback)return alert("Select overall feedback");
+    if(!form.detailed_feedback?.trim())return alert("Detailed feedback is mandatory");
+    if(!form.interview_mode)return alert("Select interview mode");
+    try {
+      const r=await sb.post("interview_sessions",{...form,user_id:user.id},token);
+      if(r?.error){setToast({msg:"Failed: "+r.error.message,type:"error"});return;}
+      const [s]=await Promise.all([sb.get("interview_sessions","select=*&order=created_at.desc",token)]);
+      if(Array.isArray(s))setSessions(s);
+      setForm({});setShowAddSession(false);
+      setToast({msg:"Interview session added!",type:"success"});
+    } catch(e){setToast({msg:"Error saving.",type:"error"});}
+  };
+
+  const addPipeline=async()=>{
+    if(!form.candidate_id)return alert("Select a candidate");
+    if(!form.interview_with?.trim())return alert("Enter interview with");
+    if(!form.round?.trim())return alert("Enter round");
+    if(!form.expecting)return alert("Select expecting timeline");
+    try {
+      const r=await sb.post("pipeline_interviews",{...form,user_id:user.id,status:"active"},token);
+      if(r?.error){setToast({msg:"Failed: "+r.error.message,type:"error"});return;}
+      // Add initial update
+      if(form.initial_update?.trim()&&r[0]?.id){
+        await sb.post("pipeline_updates",{pipeline_id:r[0].id,update_text:form.initial_update,user_id:user.id},token);
+      }
+      const [p,pu]=await Promise.all([
+        sb.get("pipeline_interviews","select=*&order=created_at.desc",token),
+        sb.get("pipeline_updates","select=*&order=created_at.desc",token),
+      ]);
+      if(Array.isArray(p))setPipeline(p);
+      if(Array.isArray(pu))setPipelineUpdates(pu);
+      setForm({});setShowAddPipeline(false);
+      setToast({msg:"Pipeline interview added!",type:"success"});
+    } catch(e){setToast({msg:"Error saving.",type:"error"});}
+  };
+
+  const addUpdate=async(pipelineId)=>{
+    if(!form.update_text?.trim())return alert("Enter update text");
+    try {
+      await sb.post("pipeline_updates",{pipeline_id:pipelineId,update_text:form.update_text,user_id:user.id},token);
+      const pu=await sb.get("pipeline_updates","select=*&order=created_at.desc",token);
+      if(Array.isArray(pu))setPipelineUpdates(pu);
+      setForm({});setShowAddUpdate(null);
+      setToast({msg:"Update added!",type:"success"});
+    } catch(e){setToast({msg:"Error.",type:"error"});}
+  };
+
+  const deletePipeline=async(pipelineId)=>{
+    if(!form.delete_reason?.trim())return alert("Reason is mandatory");
+    try {
+      await sb.patch("pipeline_interviews",pipelineId,{status:"deleted",delete_reason:form.delete_reason},token);
+      const p=await sb.get("pipeline_interviews","select=*&order=created_at.desc",token);
+      if(Array.isArray(p))setPipeline(p);
+      setForm({});setShowDeletePipeline(null);
+      setToast({msg:"Removed from pipeline.",type:"success"});
+    } catch(e){setToast({msg:"Error.",type:"error"});}
+  };
+
+  const ROUNDS=[{v:"round_1",l:"Round 1"},{v:"round_2",l:"Round 2"},{v:"round_3",l:"Round 3"},{v:"round_4",l:"Round 4"},{v:"round_5",l:"Round 5"},{v:"round_6",l:"Round 6"},{v:"final",l:"Final Round"}];
+  const DURATIONS=[{v:"less_30",l:"< 30 min"},{v:"30_min",l:"30 min"},{v:"45_min",l:"45 min"},{v:"1_hour",l:"1 Hour"},{v:"1_30_hour",l:"1.5 Hours"},{v:"2_hours",l:"2 Hours"},{v:"3_hours",l:"3 Hours"}];
+  const SUPPORT_MODES=[{v:"sync",l:"Sync"},{v:"otter",l:"Otter"},{v:"prompt",l:"Prompt"},{v:"otter_prompt",l:"Otter+Prompt"}];
+
+  if(loadingData)return <div style={{padding:40,textAlign:"center",color:"#94A3B8"}}>Loading interviews...</div>;
+
+  return <div>
+    <div style={{fontSize:20,fontWeight:700,marginBottom:4}}>🎯 Interviews</div>
+    <div style={{fontSize:13,color:"#94A3B8",marginBottom:20}}>Interview sessions and pipeline tracking</div>
+
+    <div style={{display:"flex",gap:4,marginBottom:20,borderBottom:"1px solid #E2E8F0"}}>
+      {[{id:"sessions",l:"Interview Sessions"},{id:"pipeline",l:"Pipeline Interviews"}].map(t=>
+        <button key={t.id} onClick={()=>setTab(t.id)} style={{padding:"8px 16px",fontSize:13,fontWeight:600,cursor:"pointer",background:"none",border:"none",borderBottom:`2px solid ${tab===t.id?"#2563EB":"transparent"}`,color:tab===t.id?"#2563EB":"#94A3B8",marginBottom:-1}}>{t.l}</button>
+      )}
+    </div>
+
+    {tab==="sessions"&&<div>
+      <div style={{display:"flex",justifyContent:"flex-end",marginBottom:16}}>
+        <Btn onClick={()=>setShowAddSession(true)}>+ Add Interview Session</Btn>
+      </div>
+      {sessions.length===0&&<div style={{textAlign:"center",padding:60,color:"#94A3B8",fontSize:14}}>No interview sessions yet. Click '+ Add Interview Session'.</div>}
+      <div style={{display:"grid",gap:12}}>
+        {sessions.map(s=>{
+          const cand=myCands.find(c=>c.id===s.candidate_id);
+          const roundLabel=ROUNDS.find(r=>r.v===s.round)?.l||s.round;
+          const durationLabel=DURATIONS.find(d=>d.v===s.duration)?.l||s.duration;
+          const fbColors={went_well:["#16A34A","#F0FDF4"],okay:["#D97706","#FFFBEB"],not_went_well:["#DC2626","#FEF2F2"]};
+          const [fc,fb]=fbColors[s.overall_feedback]||["#94A3B8","#F1F5F9"];
+          return <Card key={s.id} style={{padding:18}}>
+            <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:12}}>
+              <div style={{display:"flex",alignItems:"center",gap:12}}>
+                <div style={{width:44,height:44,borderRadius:"50%",background:"#EFF6FF",color:"#2563EB",display:"flex",alignItems:"center",justifyContent:"center",fontSize:15,fontWeight:700}}>
+                  {cand?.name?.split(" ").map(w=>w[0]).join("")||"?"}
+                </div>
+                <div>
+                  <div style={{fontSize:16,fontWeight:700}}>{cand?.name||"Unknown"}</div>
+                  <div style={{fontSize:12,color:"#94A3B8"}}>{cand?.tech} · {fmtDate(s.interview_date)}</div>
+                </div>
+              </div>
+              <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
+                <span style={{background:"#EFF6FF",color:"#2563EB",fontSize:11,padding:"2px 8px",borderRadius:99,fontWeight:600}}>{roundLabel}</span>
+                <span style={{background:"#F5F3FF",color:"#7C3AED",fontSize:11,padding:"2px 8px",borderRadius:99,fontWeight:600}}>{durationLabel}</span>
+                <span style={{background:fb,color:fc,fontSize:11,padding:"2px 8px",borderRadius:99,fontWeight:600}}>{s.overall_feedback==="went_well"?"✅ Went Well":s.overall_feedback==="okay"?"👍 Okay":"❌ Not Went Well"}</span>
+              </div>
+            </div>
+            <div style={{background:"#F8FAFC",borderRadius:8,padding:"12px 14px",marginBottom:8}}>
+              <div style={{fontSize:12,fontWeight:600,color:"#475569",marginBottom:4}}>Detailed Feedback:</div>
+              <div style={{fontSize:13,color:"#334155"}}>{s.detailed_feedback}</div>
+            </div>
+            <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+              {s.interview_mode&&<span style={{background:"#F0FDFA",color:"#0F766E",fontSize:11,padding:"2px 8px",borderRadius:99,fontWeight:600}}>📡 {s.interview_mode==="virtual"?"Virtual":"In-person"}</span>}
+              {s.tech_support_name&&<span style={{background:"#F5F3FF",color:"#7C3AED",fontSize:11,padding:"2px 8px",borderRadius:99,fontWeight:600}}>🛠️ {s.tech_support_name}</span>}
+              {s.support_mode&&<span style={{background:"#EFF6FF",color:"#2563EB",fontSize:11,padding:"2px 8px",borderRadius:99,fontWeight:600}}>{SUPPORT_MODES.find(m=>m.v===s.support_mode)?.l||s.support_mode}</span>}
+            </div>
+          </Card>;
+        })}
+      </div>
+
+      <Modal open={showAddSession} onClose={()=>setShowAddSession(false)} title="Add Interview Session">
+        <Select label="Candidate *" value={form.candidate_id||""} onChange={e=>set("candidate_id",e.target.value)}>
+          <option value="">-- Select candidate --</option>
+          {myCands.map(c=><option key={c.id} value={c.id}>{c.name} · {c.tech}</option>)}
+        </Select>
+        <Input label="Interview date *" type="date" value={form.interview_date||""} onChange={e=>set("interview_date",e.target.value)}/>
+        <div style={{marginBottom:14}}>
+          <label style={{display:"block",fontSize:12,fontWeight:500,color:"#475569",marginBottom:8}}>Round *</label>
+          <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+            {ROUNDS.map(r=><button key={r.v} type="button" onClick={()=>set("round",r.v)} style={{padding:"5px 10px",borderRadius:8,fontSize:12,fontWeight:600,cursor:"pointer",background:form.round===r.v?"#EFF6FF":"#fff",color:form.round===r.v?"#2563EB":"#94A3B8",border:`1px solid ${form.round===r.v?"#2563EB":"#E2E8F0"}`}}>{r.l}</button>)}
+          </div>
+        </div>
+        <div style={{marginBottom:14}}>
+          <label style={{display:"block",fontSize:12,fontWeight:500,color:"#475569",marginBottom:8}}>Duration *</label>
+          <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+            {DURATIONS.map(d=><button key={d.v} type="button" onClick={()=>set("duration",d.v)} style={{padding:"5px 10px",borderRadius:8,fontSize:12,fontWeight:600,cursor:"pointer",background:form.duration===d.v?"#F5F3FF":"#fff",color:form.duration===d.v?"#7C3AED":"#94A3B8",border:`1px solid ${form.duration===d.v?"#7C3AED":"#E2E8F0"}`}}>{d.l}</button>)}
+          </div>
+        </div>
+        <div style={{marginBottom:14}}>
+          <label style={{display:"block",fontSize:12,fontWeight:500,color:"#475569",marginBottom:8}}>Overall Feedback *</label>
+          <div style={{display:"flex",gap:8}}>
+            {[{v:"went_well",l:"✅ Went Well",c:"#16A34A",b:"#F0FDF4"},{v:"okay",l:"👍 Okay",c:"#D97706",b:"#FFFBEB"},{v:"not_went_well",l:"❌ Not Went Well",c:"#DC2626",b:"#FEF2F2"}].map(f=><button key={f.v} type="button" onClick={()=>set("overall_feedback",f.v)} style={{padding:"6px 12px",borderRadius:8,fontSize:12,fontWeight:600,cursor:"pointer",background:form.overall_feedback===f.v?f.b:"#fff",color:form.overall_feedback===f.v?f.c:"#94A3B8",border:`1px solid ${form.overall_feedback===f.v?f.c:"#E2E8F0"}`}}>{f.l}</button>)}
+          </div>
+        </div>
+        <Textarea label="Detailed Feedback *" value={form.detailed_feedback||""} onChange={e=>set("detailed_feedback",e.target.value)} placeholder="Detailed interview feedback — mandatory..."/>
+        <Input label="Tech support name" value={form.tech_support_name||""} onChange={e=>set("tech_support_name",e.target.value)} placeholder="Support person name (optional)"/>
+        <div style={{marginBottom:14}}>
+          <label style={{display:"block",fontSize:12,fontWeight:500,color:"#475569",marginBottom:8}}>Interview mode *</label>
+          <div style={{display:"flex",gap:8}}>
+            {[{v:"virtual",l:"🖥️ Virtual"},{v:"in_person",l:"🤝 In-person"}].map(m=><button key={m.v} type="button" onClick={()=>set("interview_mode",m.v)} style={{padding:"6px 14px",borderRadius:8,fontSize:12,fontWeight:600,cursor:"pointer",background:form.interview_mode===m.v?"#EFF6FF":"#fff",color:form.interview_mode===m.v?"#2563EB":"#94A3B8",border:`1px solid ${form.interview_mode===m.v?"#2563EB":"#E2E8F0"}`}}>{m.l}</button>)}
+          </div>
+        </div>
+        <div style={{marginBottom:14}}>
+          <label style={{display:"block",fontSize:12,fontWeight:500,color:"#475569",marginBottom:8}}>Mode of support</label>
+          <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+            {SUPPORT_MODES.map(s=><button key={s.v} type="button" onClick={()=>set("support_mode",s.v)} style={{padding:"5px 10px",borderRadius:8,fontSize:12,fontWeight:600,cursor:"pointer",background:form.support_mode===s.v?"#EFF6FF":"#fff",color:form.support_mode===s.v?"#2563EB":"#94A3B8",border:`1px solid ${form.support_mode===s.v?"#2563EB":"#E2E8F0"}`}}>{s.l}</button>)}
+          </div>
+        </div>
+        <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
+          <Btn variant="outline" onClick={()=>{setShowAddSession(false);setForm({});}}>Cancel</Btn>
+          <Btn onClick={addSession}>Add Session</Btn>
+        </div>
+      </Modal>
+    </div>}
+
+    {tab==="pipeline"&&<div>
+      <div style={{display:"flex",justifyContent:"flex-end",marginBottom:16}}>
+        <Btn onClick={()=>setShowAddPipeline(true)}>+ Add to Pipeline</Btn>
+      </div>
+      {pipeline.filter(p=>p.status==="active").length===0&&<div style={{textAlign:"center",padding:60,color:"#94A3B8",fontSize:14}}>No pipeline interviews yet.</div>}
+      <div style={{display:"grid",gap:12}}>
+        {pipeline.filter(p=>p.status==="active").map(p=>{
+          const cand=myCands.find(c=>c.id===p.candidate_id);
+          const updates=pipelineUpdates.filter(u=>u.pipeline_id===p.id).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
+          const expectingLabel={["1_week"]:"In 1 week","2_weeks":"In 2 weeks","not_sure":"Not sure"}[p.expecting]||p.expecting;
+          return <Card key={p.id} style={{padding:18}}>
+            <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:12}}>
+              <div>
+                <div style={{fontSize:15,fontWeight:700}}>{cand?.name||"?"}</div>
+                <div style={{fontSize:12,color:"#94A3B8"}}>{cand?.tech} · Interview with: <strong>{p.interview_with}</strong></div>
+              </div>
+              <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                <span style={{background:"#EFF6FF",color:"#2563EB",fontSize:11,padding:"2px 8px",borderRadius:99,fontWeight:600}}>{p.round}</span>
+                <span style={{background:"#FFFBEB",color:"#D97706",fontSize:11,padding:"2px 8px",borderRadius:99,fontWeight:600}}>⏳ {expectingLabel}</span>
+                <button onClick={()=>{setShowAddUpdate(p.id);setForm({});}} style={{padding:"4px 10px",borderRadius:8,fontSize:12,fontWeight:600,cursor:"pointer",background:"#EFF6FF",color:"#2563EB",border:"1px solid #BFDBFE"}}>+ Update</button>
+                <button onClick={()=>{setShowDeletePipeline(p.id);setForm({});}} style={{padding:"4px 10px",borderRadius:8,fontSize:12,fontWeight:600,cursor:"pointer",background:"#FEF2F2",color:"#DC2626",border:"1px solid #FECACA"}}>Remove</button>
+              </div>
+            </div>
+            <div style={{fontSize:12,fontWeight:600,color:"#475569",marginBottom:8}}>Update History:</div>
+            {updates.length===0&&<div style={{fontSize:12,color:"#94A3B8",background:"#F8FAFC",padding:"8px 12px",borderRadius:8}}>No updates yet. Click '+ Update' to add.</div>}
+            {updates.map((u,i)=><div key={u.id} style={{display:"flex",gap:10,marginBottom:8}}>
+              <div style={{width:6,borderRadius:99,background:i===0?"#2563EB":"#E2E8F0",flexShrink:0}}/>
+              <div style={{flex:1,background:i===0?"#EFF6FF":"#F8FAFC",borderRadius:8,padding:"8px 12px"}}>
+                <div style={{fontSize:12,color:"#334155"}}>{u.update_text}</div>
+                <div style={{fontSize:10,color:"#94A3B8",marginTop:3}}>{fmtDateTime(u.created_at)}</div>
+              </div>
+            </div>)}
+          </Card>;
+        })}
+      </div>
+
+      {/* Add Pipeline Modal */}
+      <Modal open={showAddPipeline} onClose={()=>{setShowAddPipeline(false);setForm({});}} title="Add to Pipeline">
+        <Select label="Candidate *" value={form.candidate_id||""} onChange={e=>set("candidate_id",e.target.value)}>
+          <option value="">-- Select candidate --</option>
+          {myCands.map(c=><option key={c.id} value={c.id}>{c.name} · {c.tech}</option>)}
+        </Select>
+        <Input label="Interview with (Company/Person) *" value={form.interview_with||""} onChange={e=>set("interview_with",e.target.value)} placeholder="e.g. TechCorp — Sarah Johnson"/>
+        <Input label="Round *" value={form.round||""} onChange={e=>set("round",e.target.value)} placeholder="e.g. Round 1, HR Round"/>
+        <div style={{marginBottom:14}}>
+          <label style={{display:"block",fontSize:12,fontWeight:500,color:"#475569",marginBottom:8}}>Expecting *</label>
+          <div style={{display:"flex",gap:8}}>
+            {[{v:"1_week",l:"In 1 week"},{v:"2_weeks",l:"In 2 weeks"},{v:"not_sure",l:"Not sure"}].map(e=><button key={e.v} type="button" onClick={()=>set("expecting",e.v)} style={{padding:"6px 12px",borderRadius:8,fontSize:12,fontWeight:600,cursor:"pointer",background:form.expecting===e.v?"#EFF6FF":"#fff",color:form.expecting===e.v?"#2563EB":"#94A3B8",border:`1px solid ${form.expecting===e.v?"#2563EB":"#E2E8F0"}`}}>{e.l}</button>)}
+          </div>
+        </div>
+        <Textarea label="Initial update" value={form.initial_update||""} onChange={e=>set("initial_update",e.target.value)} placeholder="Any initial notes about this pipeline entry..."/>
+        <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
+          <Btn variant="outline" onClick={()=>{setShowAddPipeline(false);setForm({});}}>Cancel</Btn>
+          <Btn onClick={addPipeline}>Add to Pipeline</Btn>
+        </div>
+      </Modal>
+
+      {/* Add Update Modal */}
+      <Modal open={!!showAddUpdate} onClose={()=>{setShowAddUpdate(null);setForm({});}} title="Add Update">
+        <Textarea label="Update *" value={form.update_text||""} onChange={e=>set("update_text",e.target.value)} placeholder="What's the latest update on this interview?"/>
+        <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
+          <Btn variant="outline" onClick={()=>{setShowAddUpdate(null);setForm({});}}>Cancel</Btn>
+          <Btn onClick={()=>addUpdate(showAddUpdate)}>Add Update</Btn>
+        </div>
+      </Modal>
+
+      {/* Delete Pipeline Modal */}
+      <Modal open={!!showDeletePipeline} onClose={()=>{setShowDeletePipeline(null);setForm({});}} title="Remove from Pipeline">
+        <div style={{background:"#FEF2F2",border:"1px solid #FECACA",borderRadius:8,padding:"10px 14px",fontSize:13,color:"#DC2626",marginBottom:16}}>⚠️ This will remove the interview from the active pipeline. Reason is mandatory.</div>
+        <Textarea label="Reason for removal *" value={form.delete_reason||""} onChange={e=>set("delete_reason",e.target.value)} placeholder="Why is this being removed from pipeline?"/>
+        <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
+          <Btn variant="outline" onClick={()=>{setShowDeletePipeline(null);setForm({});}}>Cancel</Btn>
+          <Btn variant="danger" onClick={()=>deletePipeline(showDeletePipeline)}>Remove</Btn>
+        </div>
+      </Modal>
+    </div>}
   </div>;
 }
