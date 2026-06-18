@@ -127,6 +127,122 @@ function Tabs({ tabs, active, onChange }) {
   </div>;
 }
 
+// ─── PASSWORD VALIDATION ────────────────────────────────────────────────────
+function validatePassword(password) {
+  const errors = [];
+  if (password.length < 8) errors.push("At least 8 characters required");
+  if (!/[A-Z]/.test(password)) errors.push("At least 1 capital letter required");
+  if (!/[!@#$%^&*()_+\-=\[\]{};':"\|,.<>\/?]/.test(password)) errors.push("At least 1 special character required");
+  if (!/[0-9]/.test(password)) errors.push("At least 1 number required");
+  // Check repeated numbers
+  if (/(\d)/.test(password)) errors.push("No repeated numbers allowed (e.g. 11, 22)");
+  return errors;
+}
+
+// ─── CHANGE PASSWORD SCREEN ──────────────────────────────────────────────────
+function ChangePasswordScreen({ user, onDone }) {
+  const [newPass, setNewPass] = useState("");
+  const [confirmPass, setConfirmPass] = useState("");
+  const [show, setShow] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState("");
+
+  const errors = validatePassword(newPass);
+  const isValid = errors.length === 0 && newPass === confirmPass && newPass.length > 0;
+
+  const handleChange = async () => {
+    if (errors.length > 0) { setErr(errors[0]); return; }
+    if (newPass !== confirmPass) { setErr("Passwords do not match"); return; }
+    if (newPass === "VARS@2026") { setErr("New password cannot be same as default password"); return; }
+    setLoading(true); setErr("");
+    try {
+      // Update password via Supabase Auth
+      const res = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+        method: "PUT",
+        headers: {
+          apikey: SUPABASE_KEY,
+          Authorization: `Bearer ${user.token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ password: newPass }),
+      });
+      const data = await res.json();
+      if (data.error) { setErr(data.error.message || "Failed to update password"); setLoading(false); return; }
+      // Mark password as changed
+      await fetch(`${SUPABASE_URL}/rest/v1/team_members?id=eq.${user.id}`, {
+        method: "PATCH",
+        headers: {
+          apikey: SUPABASE_KEY,
+          Authorization: `Bearer ${user.token}`,
+          "Content-Type": "application/json",
+          Prefer: "return=representation",
+        },
+        body: JSON.stringify({ password_changed: true }),
+      });
+      onDone();
+    } catch (e) { setErr("Error updating password. Try again."); }
+    setLoading(false);
+  };
+
+  return (
+    <div style={{ minHeight:"100vh", background:"linear-gradient(135deg,#0F1F3D 0%,#1E3A6E 100%)", display:"flex", alignItems:"center", justifyContent:"center", fontFamily:"-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" }}>
+      <div style={{ background:"#fff", borderRadius:16, padding:"40px 36px", width:420, boxShadow:"0 24px 64px rgba(0,0,0,0.25)" }}>
+        <div style={{ fontSize:26, fontWeight:800, color:"#0F1F3D", marginBottom:2 }}>VARS <span style={{ color:"#2563EB" }}>Portal</span></div>
+        <div style={{ background:"#EFF6FF", border:"1px solid #BFDBFE", borderRadius:10, padding:"12px 14px", marginBottom:24, marginTop:8 }}>
+          <div style={{ fontSize:13, fontWeight:700, color:"#2563EB", marginBottom:4 }}>🔐 First Login — Set Your Password</div>
+          <div style={{ fontSize:12, color:"#475569" }}>Welcome {user.name}! Please set a new secure password to continue.</div>
+        </div>
+
+        {/* Password rules */}
+        <div style={{ background:"#F8FAFC", borderRadius:8, padding:"12px 14px", marginBottom:20 }}>
+          <div style={{ fontSize:11, fontWeight:700, color:"#475569", marginBottom:8, textTransform:"uppercase", letterSpacing:"0.05em" }}>Password Requirements:</div>
+          {[
+            { rule: "At least 8 characters", pass: newPass.length >= 8 },
+            { rule: "At least 1 capital letter (A-Z)", pass: /[A-Z]/.test(newPass) },
+            { rule: "At least 1 special character (!@#$...)", pass: /[!@#$%^&*()_+\-=\[\]{};':"\|,.<>\/?]/.test(newPass) },
+            { rule: "At least 1 number (0-9)", pass: /[0-9]/.test(newPass) },
+            { rule: "No repeated numbers (11, 22, 33...)", pass: newPass.length > 0 && !/(\d)/.test(newPass) },
+          ].map((r, i) => (
+            <div key={i} style={{ display:"flex", alignItems:"center", gap:8, marginBottom:4 }}>
+              <span style={{ fontSize:12, color: newPass.length === 0 ? "#94A3B8" : r.pass ? "#16A34A" : "#DC2626" }}>
+                {newPass.length === 0 ? "○" : r.pass ? "✅" : "❌"}
+              </span>
+              <span style={{ fontSize:12, color: newPass.length === 0 ? "#94A3B8" : r.pass ? "#16A34A" : "#DC2626" }}>{r.rule}</span>
+            </div>
+          ))}
+        </div>
+
+        {/* New password */}
+        <div style={{ marginBottom:14 }}>
+          <label style={{ display:"block", fontSize:12, fontWeight:500, color:"#475569", marginBottom:5 }}>New Password *</label>
+          <div style={{ position:"relative" }}>
+            <input type={show?"text":"password"} value={newPass} onChange={e=>setNewPass(e.target.value)} placeholder="Enter new password" style={{ width:"100%", border:`1px solid ${newPass.length>0&&errors.length>0?"#FECACA":"#E2E8F0"}`, borderRadius:8, padding:"8px 40px 8px 12px", fontSize:14, outline:"none", boxSizing:"border-box" }}/>
+            <button onClick={()=>setShow(!show)} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", background:"none", border:"none", cursor:"pointer", color:"#94A3B8", fontSize:12 }}>{show?"Hide":"Show"}</button>
+          </div>
+        </div>
+
+        {/* Confirm password */}
+        <div style={{ marginBottom:16 }}>
+          <label style={{ display:"block", fontSize:12, fontWeight:500, color:"#475569", marginBottom:5 }}>Confirm Password *</label>
+          <div style={{ position:"relative" }}>
+            <input type={showConfirm?"text":"password"} value={confirmPass} onChange={e=>setConfirmPass(e.target.value)} placeholder="Re-enter new password" onKeyDown={e=>e.key==="Enter"&&isValid&&handleChange()} style={{ width:"100%", border:`1px solid ${confirmPass.length>0&&newPass!==confirmPass?"#FECACA":"#E2E8F0"}`, borderRadius:8, padding:"8px 40px 8px 12px", fontSize:14, outline:"none", boxSizing:"border-box" }}/>
+            <button onClick={()=>setShowConfirm(!showConfirm)} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", background:"none", border:"none", cursor:"pointer", color:"#94A3B8", fontSize:12 }}>{showConfirm?"Hide":"Show"}</button>
+          </div>
+          {confirmPass.length>0&&newPass!==confirmPass&&<div style={{ fontSize:11, color:"#DC2626", marginTop:4 }}>Passwords do not match</div>}
+          {confirmPass.length>0&&newPass===confirmPass&&errors.length===0&&<div style={{ fontSize:11, color:"#16A34A", marginTop:4 }}>✅ Passwords match!</div>}
+        </div>
+
+        {err&&<div style={{ background:"#FEF2F2", border:"1px solid #FECACA", borderRadius:8, padding:"10px 14px", fontSize:13, color:"#DC2626", marginBottom:16 }}>⚠️ {err}</div>}
+
+        <button onClick={handleChange} disabled={loading||!isValid} style={{ width:"100%", background:loading||!isValid?"#94A3B8":"#2563EB", color:"#fff", border:"none", borderRadius:10, padding:13, fontSize:15, fontWeight:700, cursor:loading||!isValid?"not-allowed":"pointer" }}>
+          {loading?"Setting password...":"Set Password & Continue →"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ─── LOGIN ──────────────────────────────────────────────────────────────────
 function LoginPage({ onLogin }) {
   const [email,setEmail]=useState(""); const [pass,setPass]=useState(""); const [loading,setLoading]=useState(false); const [err,setErr]=useState(""); const [show,setShow]=useState(false);
@@ -260,6 +376,8 @@ export default function VARSPortal() {
   const logout=async()=>{ await sb.signOut(user.token); setUser(null); setPage("dashboard"); setMembers([]); setCandidates([]); setLogs([]); setNotifications([]); setTimeline([]); };
 
   if(!user)return <LoginPage onLogin={u=>setUser(u)} />;
+  // First login — force password change
+  if(user&&!user.password_changed)return <ChangePasswordScreen user={user} onDone={()=>setUser({...user,password_changed:true})}/>;
 
   const navItems=[
     {id:"dashboard",icon:"📊",label:"Dashboard",always:true},
