@@ -2328,7 +2328,10 @@ function StatusMeetingPage({user,rc,members,candidates,allCandidates,logs,token,
             <div style={{fontSize:12,fontWeight:700,color:"#475569",marginBottom:8}}>Interviews ({candSessions.length}):</div>
             {candSessions.map(s=><div key={s.id} style={{background:"#F8FAFC",borderRadius:8,padding:"10px 12px",marginBottom:6}}>
               <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
-                <span style={{fontSize:12,fontWeight:600}}>{ROUNDS_MAP[s.round]||s.round} · {fmtDate(s.interview_date)}</span>
+                <div>
+                  <span style={{fontSize:12,fontWeight:600}}>{ROUNDS_MAP[s.round]||s.round} · {fmtDate(s.interview_date)}</span>
+                  {s.with_whom&&<div style={{fontSize:11,color:"#2563EB",fontWeight:600,marginTop:2}}>🏢 {s.with_whom}</div>}
+                </div>
                 <span style={{fontSize:11,background:s.overall_feedback==="went_well"?"#F0FDF4":s.overall_feedback==="okay"?"#FFFBEB":"#FEF2F2",color:s.overall_feedback==="went_well"?"#16A34A":s.overall_feedback==="okay"?"#D97706":"#DC2626",padding:"1px 7px",borderRadius:99,fontWeight:600}}>{s.overall_feedback==="went_well"?"✅ Went Well":s.overall_feedback==="okay"?"👍 Okay":"❌ Not Went Well"}</span>
               </div>
               <div style={{fontSize:12,color:"#475569"}}>{s.detailed_feedback?.substring(0,100)}{s.detailed_feedback?.length>100?"...":""}</div>
@@ -2364,7 +2367,8 @@ function StatusMeetingPage({user,rc,members,candidates,allCandidates,logs,token,
                 <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
                   <div>
                     <div style={{fontSize:15,fontWeight:700}}>{ROUNDS_MAP[s.round]||s.round}</div>
-                    <div style={{fontSize:12,color:"#94A3B8"}}>{fmtDate(s.interview_date)} · {s.interview_mode==="virtual"?"🖥️ Virtual":"🤝 In-person"}</div>
+                    {s.with_whom&&<div style={{fontSize:13,color:"#2563EB",fontWeight:700,marginTop:2}}>🏢 {s.with_whom}</div>}
+                    <div style={{fontSize:12,color:"#94A3B8",marginTop:2}}>{fmtDate(s.interview_date)} · {s.interview_mode==="virtual"?"🖥️ Virtual":"🤝 In-person"}</div>
                   </div>
                   <div style={{display:"flex",gap:8,alignItems:"center"}}>
                     <span style={{fontSize:12,background:s.overall_feedback==="went_well"?"#F0FDF4":s.overall_feedback==="okay"?"#FFFBEB":"#FEF2F2",color:s.overall_feedback==="went_well"?"#16A34A":s.overall_feedback==="okay"?"#D97706":"#DC2626",padding:"4px 12px",borderRadius:99,fontWeight:700}}>{s.overall_feedback==="went_well"?"✅ Went Well":s.overall_feedback==="okay"?"👍 Okay":"❌ Not Went Well"}</span>
