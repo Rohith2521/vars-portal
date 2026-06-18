@@ -1504,6 +1504,7 @@ function OverallStatusPage({user,members,candidates,logs,token}){
   const totalSubs=recLogs.reduce((s,l)=>s+(l.submissions||0),0);
   const candSessions=cand?interviewSessions.filter(s=>s.candidate_id===cand.id&&inPeriod(s.interview_date)):[];
   const candPipeline=cand?pipelineItems.filter(p=>p.candidate_id===cand.id):[];
+  const candScreeningCalls=cand?screeningCalls.filter(s=>s.candidate_id===cand.id&&inPeriod(s.call_date)):[];
   const candMgrFeedbacks=cand?managerFeedbacks.filter(f=>f.candidate_id===cand.id&&inPeriod(f.created_at?.split("T")[0])):[];
   const candPresNotes=cand?presNotes.filter(n=>n.candidate_id===cand.id).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at)):[];
 
@@ -1815,9 +1816,13 @@ function StatusMeetingPage({user,rc,members,candidates,allCandidates,logs,token,
   const [selCand,setSelCand]=useState("");
   const [fromDate,setFromDate]=useState("");
   const [toDate,setToDate]=useState("");
+  const [activeTab,setActiveTab]=useState("overview");
+  const [selectedInterview,setSelectedInterview]=useState(null);
+  const [selectedPipeline,setSelectedPipeline]=useState(null);
   const [interviewSessions,setInterviewSessions]=useState([]);
   const [pipelineItems,setPipelineItems]=useState([]);
   const [pipelineUpdates,setPipelineUpdates]=useState([]);
+  const [screeningCalls,setScreeningCalls]=useState([]);
   const [statusNotes,setStatusNotes]=useState([]);
   const [presNotes,setPresNotes]=useState([]);
   const [form,setForm]=useState({});
@@ -1830,16 +1835,18 @@ function StatusMeetingPage({user,rc,members,candidates,allCandidates,logs,token,
     const load=async()=>{
       setLoadingData(true);
       try {
-        const [is,pi,pu,sn,pn]=await Promise.all([
+        const [is,pi,pu,sc,sn,pn]=await Promise.all([
           sb.get("interview_sessions","select=*&order=created_at.desc",token),
           sb.get("pipeline_interviews","select=*&order=created_at.desc",token),
           sb.get("pipeline_updates","select=*&order=created_at.desc",token),
+          sb.get("screening_calls","select=*&order=created_at.desc",token),
           sb.get("status_meeting_notes","select=*&order=created_at.desc",token),
           sb.get("president_notes","select=*&order=created_at.desc",token),
         ]);
         if(Array.isArray(is))setInterviewSessions(is);
         if(Array.isArray(pi))setPipelineItems(pi);
         if(Array.isArray(pu))setPipelineUpdates(pu);
+        if(Array.isArray(sc))setScreeningCalls(sc);
         if(Array.isArray(sn))setStatusNotes(sn);
         if(Array.isArray(pn))setPresNotes(pn);
       } catch(e){console.error(e);}
@@ -1868,6 +1875,7 @@ function StatusMeetingPage({user,rc,members,candidates,allCandidates,logs,token,
   const totalSubs=recLogs.reduce((s,l)=>s+(l.submissions||0),0);
   const candSessions=cand?interviewSessions.filter(s=>s.candidate_id===cand.id&&inPeriod(s.interview_date)):[];
   const candPipeline=cand?pipelineItems.filter(p=>p.candidate_id===cand.id):[];
+  const candScreeningCalls=cand?screeningCalls.filter(s=>s.candidate_id===cand.id&&inPeriod(s.call_date)):[];
   const candStatusNotes=cand?statusNotes.filter(n=>n.candidate_id===cand.id&&inPeriod(n.created_at?.split("T")[0])):[];
   const candPresNotes=cand&&user.role==="president"?presNotes.filter(n=>n.candidate_id===cand.id).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at)):[];
 
@@ -1944,6 +1952,19 @@ function StatusMeetingPage({user,rc,members,candidates,allCandidates,logs,token,
         </div>}
       </div>
 
+      {/* TABS */}
+      <div style={{display:"flex",gap:2,marginBottom:16,borderBottom:"1px solid #E2E8F0",overflowX:"auto"}}>
+        {[
+          {id:"overview",l:"📋 Overview"},
+          {id:"interviews",l:`🎯 Interviews (${candSessions.length})`},
+          {id:"pipeline",l:`📋 Pipeline (${candPipeline.filter(p=>p.status==="active").length})`},
+          {id:"screening",l:`📞 Screening Calls (${candScreeningCalls.length})`},
+          {id:"manager",l:"👔 Manager Notes"},
+        ].map(t=><button key={t.id} onClick={()=>{setActiveTab(t.id);setSelectedInterview(null);setSelectedPipeline(null);}} style={{padding:"8px 14px",fontSize:12,fontWeight:600,cursor:"pointer",background:"none",border:"none",borderBottom:`2px solid ${activeTab===t.id?"#2563EB":"transparent"}`,color:activeTab===t.id?"#2563EB":"#94A3B8",marginBottom:-1,whiteSpace:"nowrap"}}>{t.l}</button>)}
+      </div>
+
+      {/* OVERVIEW TAB */}
+      {activeTab==="overview"&&<>
       {/* 👤 RECRUITER SECTION */}
       <Card style={{marginBottom:12,border:"1px solid #BBF7D0"}}>
         <div style={{padding:"14px 18px",borderBottom:"1px solid #BBF7D0",background:"#F0FDF4",borderRadius:"10px 10px 0 0",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
@@ -2061,8 +2082,132 @@ function StatusMeetingPage({user,rc,members,candidates,allCandidates,logs,token,
         </div>
       </Card>
 
+      </>}
+
+      {/* INTERVIEWS TAB */}
+      {activeTab==="interviews"&&<div>
+        {!selectedInterview&&<div>
+          {candSessions.length===0&&<div style={{textAlign:"center",padding:60,color:"#94A3B8",fontSize:14}}>No interviews for this period.</div>}
+          <div style={{display:"grid",gap:12}}>
+            {candSessions.map(s=>{
+              const ROUNDS_MAP={round_1:"Round 1",round_2:"Round 2",round_3:"Round 3",round_4:"Round 4",round_5:"Round 5",round_6:"Round 6",final:"Final"};
+              const DURATION_MAP={less_30:"<30 min","30_min":"30 min","45_min":"45 min","1_hour":"1 Hour","1_30_hour":"1.5 Hours","2_hours":"2 Hours","3_hours":"3 Hours"};
+              return <Card key={s.id} style={{padding:18,cursor:"pointer",border:"1px solid #E2E8F0"}} onClick={()=>setSelectedInterview(s)}>
+                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
+                  <div>
+                    <div style={{fontSize:15,fontWeight:700}}>{ROUNDS_MAP[s.round]||s.round}</div>
+                    <div style={{fontSize:12,color:"#94A3B8"}}>{fmtDate(s.interview_date)} · {s.interview_mode==="virtual"?"🖥️ Virtual":"🤝 In-person"}</div>
+                  </div>
+                  <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                    <span style={{fontSize:12,background:s.overall_feedback==="went_well"?"#F0FDF4":s.overall_feedback==="okay"?"#FFFBEB":"#FEF2F2",color:s.overall_feedback==="went_well"?"#16A34A":s.overall_feedback==="okay"?"#D97706":"#DC2626",padding:"4px 12px",borderRadius:99,fontWeight:700}}>{s.overall_feedback==="went_well"?"✅ Went Well":s.overall_feedback==="okay"?"👍 Okay":"❌ Not Went Well"}</span>
+                    <span style={{fontSize:12,color:"#2563EB",fontWeight:600}}>View details →</span>
+                  </div>
+                </div>
+                <div style={{fontSize:12,color:"#475569",background:"#F8FAFC",padding:"8px 12px",borderRadius:8}}>{s.detailed_feedback?.substring(0,120)}{s.detailed_feedback?.length>120?"...":""}</div>
+              </Card>;
+            })}
+          </div>
+        </div>}
+        {selectedInterview&&<div>
+          <button onClick={()=>setSelectedInterview(null)} style={{background:"none",border:"none",color:"#2563EB",cursor:"pointer",fontSize:13,fontWeight:600,marginBottom:16,padding:0}}>← Back to interviews</button>
+          <Card style={{padding:24}}>
+            <div style={{display:"flex",justifyContent:"space-between",marginBottom:16}}>
+              <div>
+                <div style={{fontSize:20,fontWeight:800}}>{{round_1:"Round 1",round_2:"Round 2",round_3:"Round 3",round_4:"Round 4",round_5:"Round 5",round_6:"Round 6",final:"Final"}[selectedInterview.round]||selectedInterview.round}</div>
+                <div style={{fontSize:13,color:"#94A3B8"}}>{fmtDate(selectedInterview.interview_date)}</div>
+              </div>
+              <span style={{fontSize:13,background:selectedInterview.overall_feedback==="went_well"?"#F0FDF4":selectedInterview.overall_feedback==="okay"?"#FFFBEB":"#FEF2F2",color:selectedInterview.overall_feedback==="went_well"?"#16A34A":selectedInterview.overall_feedback==="okay"?"#D97706":"#DC2626",padding:"6px 16px",borderRadius:99,fontWeight:700,height:"fit-content"}}>{selectedInterview.overall_feedback==="went_well"?"✅ Went Well":selectedInterview.overall_feedback==="okay"?"👍 Okay":"❌ Not Went Well"}</span>
+            </div>
+            <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:16}}>
+              <span style={{background:"#F5F3FF",color:"#7C3AED",fontSize:12,padding:"3px 10px",borderRadius:99,fontWeight:600}}>⏱️ {{less_30:"<30 min","30_min":"30 min","45_min":"45 min","1_hour":"1 Hour","1_30_hour":"1.5 Hours","2_hours":"2 Hours","3_hours":"3 Hours"}[selectedInterview.duration]||selectedInterview.duration}</span>
+              <span style={{background:"#EFF6FF",color:"#2563EB",fontSize:12,padding:"3px 10px",borderRadius:99,fontWeight:600}}>📡 {selectedInterview.interview_mode==="virtual"?"Virtual":"In-person"}</span>
+              {selectedInterview.tech_support_name&&<span style={{background:"#F0FDF4",color:"#16A34A",fontSize:12,padding:"3px 10px",borderRadius:99,fontWeight:600}}>🛠️ {selectedInterview.tech_support_name}</span>}
+              {selectedInterview.support_mode&&<span style={{background:"#FFFBEB",color:"#D97706",fontSize:12,padding:"3px 10px",borderRadius:99,fontWeight:600}}>Support: {selectedInterview.support_mode}</span>}
+            </div>
+            <div style={{background:"#F8FAFC",borderRadius:10,padding:16}}>
+              <div style={{fontSize:13,fontWeight:700,color:"#475569",marginBottom:8}}>Detailed Feedback:</div>
+              <div style={{fontSize:14,color:"#334155",lineHeight:1.8}}>{selectedInterview.detailed_feedback}</div>
+            </div>
+          </Card>
+        </div>}
+      </div>}
+
+      {/* PIPELINE TAB */}
+      {activeTab==="pipeline"&&<div>
+        {!selectedPipeline&&<div>
+          {candPipeline.length===0&&<div style={{textAlign:"center",padding:60,color:"#94A3B8",fontSize:14}}>No pipeline interviews.</div>}
+          <div style={{display:"grid",gap:12}}>
+            {candPipeline.map(p=>{
+              const updates=pipelineUpdates.filter(u=>u.pipeline_id===p.id).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
+              return <Card key={p.id} style={{padding:18,cursor:"pointer"}} onClick={()=>setSelectedPipeline(p)}>
+                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
+                  <div>
+                    <div style={{fontSize:15,fontWeight:700}}>{p.interview_with}</div>
+                    <div style={{fontSize:12,color:"#94A3B8"}}>{p.round} · Added {fmtDate(p.created_at?.split("T")[0])}</div>
+                  </div>
+                  <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                    <span style={{background:p.status==="active"?"#F0FDF4":"#FEF2F2",color:p.status==="active"?"#16A34A":"#DC2626",fontSize:11,padding:"2px 8px",borderRadius:99,fontWeight:600}}>{p.status==="active"?"🟢 Active":"🔴 Removed"}</span>
+                    <span style={{fontSize:12,color:"#2563EB",fontWeight:600}}>View details →</span>
+                  </div>
+                </div>
+                {updates[0]&&<div style={{fontSize:12,color:"#475569",background:"#EFF6FF",padding:"6px 10px",borderRadius:6}}>Latest: {updates[0].update_text}</div>}
+              </Card>;
+            })}
+          </div>
+        </div>}
+        {selectedPipeline&&<div>
+          <button onClick={()=>setSelectedPipeline(null)} style={{background:"none",border:"none",color:"#2563EB",cursor:"pointer",fontSize:13,fontWeight:600,marginBottom:16,padding:0}}>← Back to pipeline</button>
+          <Card style={{padding:24}}>
+            <div style={{display:"flex",justifyContent:"space-between",marginBottom:16}}>
+              <div>
+                <div style={{fontSize:20,fontWeight:800}}>{selectedPipeline.interview_with}</div>
+                <div style={{fontSize:13,color:"#94A3B8"}}>{selectedPipeline.round} · Added {fmtDate(selectedPipeline.created_at?.split("T")[0])}</div>
+              </div>
+              <div style={{display:"flex",gap:8}}>
+                <span style={{background:{["1_week"]:"#FFFBEB","2_weeks":"#EFF6FF","not_sure":"#F1F5F9"}[selectedPipeline.expecting]||"#F1F5F9",color:{["1_week"]:"#D97706","2_weeks":"#2563EB","not_sure":"#475569"}[selectedPipeline.expecting]||"#475569",fontSize:12,padding:"3px 10px",borderRadius:99,fontWeight:600}}>{{"1_week":"In 1 week","2_weeks":"In 2 weeks","not_sure":"Not sure"}[selectedPipeline.expecting]||selectedPipeline.expecting}</span>
+                <span style={{background:selectedPipeline.status==="active"?"#F0FDF4":"#FEF2F2",color:selectedPipeline.status==="active"?"#16A34A":"#DC2626",fontSize:12,padding:"3px 10px",borderRadius:99,fontWeight:700}}>{selectedPipeline.status==="active"?"🟢 Active":"🔴 Removed"}</span>
+              </div>
+            </div>
+            {selectedPipeline.delete_reason&&<div style={{background:"#FEF2F2",borderRadius:8,padding:"10px 14px",marginBottom:16,fontSize:13,color:"#DC2626"}}>Removal reason: {selectedPipeline.delete_reason}</div>}
+            <div style={{fontSize:13,fontWeight:700,color:"#475569",marginBottom:12}}>Update History:</div>
+            <div style={{position:"relative"}}>
+              <div style={{position:"absolute",left:10,top:0,bottom:0,width:2,background:"#E2E8F0"}}/>
+              {pipelineUpdates.filter(u=>u.pipeline_id===selectedPipeline.id).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at)).map((u,i)=><div key={u.id} style={{display:"flex",gap:14,marginBottom:12,position:"relative"}}>
+                <div style={{width:22,height:22,borderRadius:"50%",background:i===0?"#2563EB":"#E2E8F0",border:`2px solid ${i===0?"#2563EB":"#E2E8F0"}`,flexShrink:0,zIndex:1}}/>
+                <div style={{flex:1,background:i===0?"#EFF6FF":"#F8FAFC",borderRadius:8,padding:"10px 14px"}}>
+                  <div style={{fontSize:13,color:"#334155",lineHeight:1.6}}>{u.update_text}</div>
+                  <div style={{fontSize:11,color:"#94A3B8",marginTop:4}}>{fmtDateTime(u.created_at)}</div>
+                </div>
+              </div>)}
+              {pipelineUpdates.filter(u=>u.pipeline_id===selectedPipeline.id).length===0&&<div style={{paddingLeft:30,fontSize:13,color:"#94A3B8"}}>No updates yet.</div>}
+            </div>
+          </Card>
+        </div>}
+      </div>}
+
+      {/* SCREENING CALLS TAB */}
+      {activeTab==="screening"&&<div>
+        {candScreeningCalls.length===0&&<div style={{textAlign:"center",padding:60,color:"#94A3B8",fontSize:14}}>No screening calls for this period.</div>}
+        <div style={{display:"grid",gap:12}}>
+          {candScreeningCalls.map(sc=><Card key={sc.id} style={{padding:18}}>
+            <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:12}}>
+              <div>
+                <div style={{fontSize:15,fontWeight:700}}>{sc.with_whom||"—"}</div>
+                <div style={{fontSize:12,color:"#94A3B8"}}>{sc.company_name} · {fmtDate(sc.call_date)}</div>
+              </div>
+              <span style={{background:{positive:"#F0FDF4",negative:"#FEF2F2",pending:"#FFFBEB",no_show:"#F1F5F9"}[sc.outcome]||"#F1F5F9",color:{positive:"#16A34A",negative:"#DC2626",pending:"#D97706",no_show:"#475569"}[sc.outcome]||"#475569",fontSize:12,padding:"3px 10px",borderRadius:99,fontWeight:600}}>{sc.outcome==="positive"?"✅ Positive":sc.outcome==="negative"?"❌ Negative":sc.outcome==="pending"?"⏳ Pending":sc.outcome==="no_show"?"👻 No Show":"—"}</span>
+            </div>
+            {sc.company_details&&<div style={{fontSize:12,color:"#475569",background:"#F8FAFC",padding:"8px 12px",borderRadius:8,marginBottom:8}}>Company: {sc.company_details}</div>}
+            {sc.feedback&&<div style={{fontSize:13,color:"#334155",background:"#F0FDFA",border:"1px solid #99F6E4",padding:"10px 14px",borderRadius:8}}>
+              <div style={{fontSize:11,fontWeight:700,color:"#0F766E",marginBottom:4}}>Feedback:</div>
+              {sc.feedback}
+            </div>}
+          </Card>)}
+        </div>
+      </div>}
+
       {/* 👔 MANAGER SECTION */}
-      {(user.role==="manager"||user.role==="president"||rc.canViewAll)&&<Card style={{marginBottom:12,border:"1px solid #99F6E4"}}>
+      {(user.role==="manager"||user.role==="president"||rc.canViewAll)&&activeTab==="manager"&&<Card style={{marginBottom:12,border:"1px solid #99F6E4"}}>
         <div style={{padding:"14px 18px",borderBottom:"1px solid #99F6E4",background:"#F0FDFA",borderRadius:"10px 10px 0 0"}}>
           <div style={{fontWeight:700,fontSize:14,color:"#0F766E"}}>👔 Manager Feedback</div>
         </div>
