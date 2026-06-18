@@ -1440,8 +1440,8 @@ function OverallStatusPage({user,members,candidates,logs,token}){
   const [selRLead,setSelRLead]=useState("");
   const [selRec,setSelRec]=useState("");
   const [selCand,setSelCand]=useState("");
-  const [selPeriod,setSelPeriod]=useState("this_week");
-  const [selCustomWeek,setSelCustomWeek]=useState("");
+  const [selFromDate,setSelFromDate]=useState("");
+  const [selToDate,setSelToDate]=useState("");
   const [presNotes,setPresNotes]=useState([]);
   const [newNote,setNewNote]=useState("");
   const [interviewSessions,setInterviewSessions]=useState([]);
@@ -1479,34 +1479,8 @@ function OverallStatusPage({user,members,candidates,logs,token}){
 
   // Period calculation
   const getPeriodDates=()=>{
-    const now=new Date();
-    if(selPeriod==="this_week"){
-      const start=new Date(now);start.setDate(now.getDate()-now.getDay()+1);
-      const end=new Date(now);end.setDate(now.getDate()-now.getDay()+7);
-      return {start,end};
-    }
-    if(selPeriod==="last_week"){
-      const start=new Date(now);start.setDate(now.getDate()-now.getDay()-6);
-      const end=new Date(now);end.setDate(now.getDate()-now.getDay());
-      return {start,end};
-    }
-    if(selPeriod==="this_month"){
-      const start=new Date(now.getFullYear(),now.getMonth(),1);
-      const end=new Date(now.getFullYear(),now.getMonth()+1,0);
-      return {start,end};
-    }
-    if(selPeriod==="last_month"){
-      const start=new Date(now.getFullYear(),now.getMonth()-1,1);
-      const end=new Date(now.getFullYear(),now.getMonth(),0);
-      return {start,end};
-    }
-    if(selPeriod==="this_year"){
-      return {start:new Date(now.getFullYear(),0,1),end:new Date(now.getFullYear(),11,31)};
-    }
-    if(selPeriod==="custom_week"&&selCustomWeek){
-      const start=new Date(selCustomWeek);
-      const end=new Date(selCustomWeek);end.setDate(end.getDate()+6);
-      return {start,end};
+    if(selFromDate&&selToDate){
+      return {start:new Date(selFromDate),end:new Date(selToDate)};
     }
     return {start:new Date(0),end:new Date()};
   };
@@ -1584,15 +1558,18 @@ function OverallStatusPage({user,members,candidates,logs,token}){
         </div>
         <div>
           <label style={{display:"block",fontSize:12,fontWeight:600,color:"#475569",marginBottom:6}}>4. Select Period</label>
-          <select value={selPeriod} onChange={e=>setSelPeriod(e.target.value)} style={{width:"100%",border:"1px solid #E2E8F0",borderRadius:8,padding:"8px 12px",fontSize:13,outline:"none",background:"#fff"}}>
-            <option value="this_week">This Week</option>
-            <option value="last_week">Last Week</option>
-            <option value="this_month">This Month</option>
-            <option value="last_month">Last Month</option>
-            <option value="this_year">This Year</option>
-            <option value="custom_week">Custom Week</option>
-          </select>
-          {selPeriod==="custom_week"&&<input type="date" value={selCustomWeek} onChange={e=>setSelCustomWeek(e.target.value)} style={{width:"100%",border:"1px solid #E2E8F0",borderRadius:8,padding:"8px 12px",fontSize:13,outline:"none",marginTop:6}}/>}
+          <div style={{display:"flex",gap:8,alignItems:"center"}}>
+            <div style={{flex:1}}>
+              <label style={{display:"block",fontSize:11,color:"#94A3B8",marginBottom:4}}>From</label>
+              <input type="date" value={selFromDate} onChange={e=>setSelFromDate(e.target.value)} style={{width:"100%",border:"1px solid #E2E8F0",borderRadius:8,padding:"8px 10px",fontSize:13,outline:"none"}}/>
+            </div>
+            <div style={{paddingTop:18,color:"#94A3B8",fontWeight:600}}>→</div>
+            <div style={{flex:1}}>
+              <label style={{display:"block",fontSize:11,color:"#94A3B8",marginBottom:4}}>To</label>
+              <input type="date" value={selToDate} onChange={e=>setSelToDate(e.target.value)} style={{width:"100%",border:"1px solid #E2E8F0",borderRadius:8,padding:"8px 10px",fontSize:13,outline:"none"}}/>
+            </div>
+          </div>
+          {selFromDate&&selToDate&&<div style={{fontSize:11,color:"#7C3AED",marginTop:6,fontWeight:600}}>📅 {selFromDate} → {selToDate}</div>}
         </div>
       </div>
     </Card>
@@ -1617,7 +1594,7 @@ function OverallStatusPage({user,members,candidates,logs,token}){
         </div>
         <div style={{textAlign:"right"}}>
           <div style={{fontSize:11,fontWeight:600,color:"#94A3B8",textTransform:"uppercase",letterSpacing:"0.05em"}}>Period</div>
-          <div style={{fontSize:13,fontWeight:700,color:"#7C3AED"}}>{selPeriod.replace(/_/g," ").replace(/\b\w/g,c=>c.toUpperCase())}</div>
+          <div style={{fontSize:13,fontWeight:700,color:"#7C3AED"}}>{selFromDate&&selToDate?`${selFromDate} → ${selToDate}`:"All time"}</div>
         </div>
       </div>
 
