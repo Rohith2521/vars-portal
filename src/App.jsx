@@ -697,25 +697,54 @@ function CandidateProfile({candidate,members,logs,timeline,getMember,onAddTimeli
   const changeAssignment=async(type,newMemberId)=>{
     if(!newMemberId)return alert("Select a team member");
     try {
-      // Set end date on current assignment
       const yesterday=new Date();yesterday.setDate(yesterday.getDate()-1);
       const yStr=yesterday.toISOString().split("T")[0];
+
+      // Find current active assignment for this type
       const current=assignments.find(a=>a.assignment_type===type&&!a.end_date);
       if(current){
-        await sb.patch("candidate_assignments",current.id,{end_date:yStr},token);
+        // Set end date on current
+        const patchRes=await sb.patch("candidate_assignments",current.id,{end_date:yStr},token);
+        console.log("Patch result:",patchRes);
+      } else {
+        // No existing history — create entry for current person with end date
+        const currentMemberId=type==="recruiter"?candidate.recruiter_id:candidate.r_lead_id;
+        if(currentMemberId){
+          await sb.post("candidate_assignments",{
+            candidate_id:candidate.id,
+            assignment_type:type,
+            member_id:currentMemberId,
+            start_date:candidate.added_on||today(),
+            end_date:yStr,
+            changed_by:user.id
+          },token);
+        }
       }
-      // Add new assignment
-      await sb.post("candidate_assignments",{candidate_id:candidate.id,assignment_type:type,member_id:newMemberId,start_date:today(),changed_by:user.id},token);
+
+      // Add new assignment entry
+      await sb.post("candidate_assignments",{
+        candidate_id:candidate.id,
+        assignment_type:type,
+        member_id:newMemberId,
+        start_date:today(),
+        end_date:null,
+        changed_by:user.id
+      },token);
+
       // Update candidate record
       const updateField=type==="recruiter"?"recruiter_id":"r_lead_id";
       await sb.patch("candidates",candidate.id,{[updateField]:newMemberId},token);
+
       // Reload assignments
       const r=await sb.get("candidate_assignments",`candidate_id=eq.${candidate.id}&order=created_at.desc`,token);
       if(Array.isArray(r))setAssignments(r);
       setShowChangeRec(false);setShowChangeRLead(false);setForm({});
       if(onRefresh)onRefresh();
       alert(type==="recruiter"?"Recruiter changed successfully!":"R Lead changed successfully!");
-    } catch(e){alert("Error changing assignment.");}
+    } catch(e){
+      console.error("Change assignment error:",e);
+      alert("Error changing assignment: "+e.message);
+    }
   };
 
   const submit=()=>{
@@ -1545,6 +1574,7 @@ function InterviewsPage({user,rc,candidates,token,loading,setToast}){
           </div>
         </div>
         <Textarea label="Detailed Feedback *" value={form.detailed_feedback||""} onChange={e=>set("detailed_feedback",e.target.value)} placeholder="Detailed interview feedback — mandatory..."/>
+        <Input label="Interview with (Company / Person) *" value={form.with_whom||""} onChange={e=>set("with_whom",e.target.value)} placeholder="e.g. TechCorp — Sarah Johnson"/>
         <Input label="Tech support name *" value={form.tech_support_name||""} onChange={e=>set("tech_support_name",e.target.value)} placeholder="Support person name"/>
         <div style={{marginBottom:14}}>
           <label style={{display:"block",fontSize:12,fontWeight:500,color:"#475569",marginBottom:8}}>Interview mode *</label>
@@ -2083,7 +2113,14 @@ function StatusMeetingPage({user,rc,members,candidates,allCandidates,logs,token,
   const candSessions=cand?interviewSessions.filter(s=>s.candidate_id===cand.id&&inPeriod(s.interview_date)):[];
   const candPipeline=cand?pipelineItems.filter(p=>p.candidate_id===cand.id):[];
   const candScreeningCalls=cand?screeningCalls.filter(s=>s.candidate_id===cand.id&&inPeriod(s.call_date)):[];
-  const candStatusNotes=cand?statusNotes.filter(n=>n.candidate_id===cand.id&&inPeriod(n.created_at?.split("T")[0])):[];
+  // Filter status notes by period_start/period_end overlap — not created_at!
+  const candStatusNotes=cand?statusNotes.filter(n=>{
+    if(n.candidate_id!==cand.id)return false;
+    if(!fromDate||!toDate)return true;
+    // Show note if its period overlaps with selected period
+    if(!n.period_start||!n.period_end)return true;
+    return n.period_start<=toDate && n.period_end>=fromDate;
+  }):[];
   const candPresNotes=cand&&user.role==="president"?presNotes.filter(n=>n.candidate_id===cand.id).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at)):[];
 
   const saveManagerNote=async()=>{
@@ -2345,7 +2382,8 @@ function StatusMeetingPage({user,rc,members,candidates,allCandidates,logs,token,
             <div style={{display:"flex",justifyContent:"space-between",marginBottom:16}}>
               <div>
                 <div style={{fontSize:20,fontWeight:800}}>{{round_1:"Round 1",round_2:"Round 2",round_3:"Round 3",round_4:"Round 4",round_5:"Round 5",round_6:"Round 6",final:"Final"}[selectedInterview.round]||selectedInterview.round}</div>
-                <div style={{fontSize:13,color:"#94A3B8"}}>{fmtDate(selectedInterview.interview_date)}</div>
+                {selectedInterview.with_whom&&<div style={{fontSize:14,color:"#2563EB",fontWeight:700,marginTop:4}}>🏢 {selectedInterview.with_whom}</div>}
+                <div style={{fontSize:13,color:"#94A3B8",marginTop:2}}>{fmtDate(selectedInterview.interview_date)}</div>
                 {selectedInterview.tech_support_name&&<div style={{display:"flex",alignItems:"center",gap:6,marginTop:6}}>
                   <span style={{background:"#F0FDF4",color:"#16A34A",fontSize:12,padding:"3px 10px",borderRadius:99,fontWeight:700}}>🛠️ Tech Support: {selectedInterview.tech_support_name}</span>
                   {selectedInterview.support_mode&&<span style={{background:"#EFF6FF",color:"#2563EB",fontSize:12,padding:"3px 10px",borderRadius:99,fontWeight:600}}>Mode: {selectedInterview.support_mode}</span>}
