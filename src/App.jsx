@@ -289,7 +289,7 @@ export default function VARSPortal() {
           {loading&&<div style={{ position:"fixed", top:60, right:20, background:"#0F1F3D", color:"#fff", padding:"5px 14px", borderRadius:8, fontSize:12, zIndex:500 }}>Syncing...</div>}
           {page==="dashboard"&&<DashPage user={user} rc={rc} candidates={myCands} logs={logs} getMember={getMember} onNav={setPage} onRefresh={()=>loadData()}/>}
           {page==="daily_log"&&<LogPage user={user} rc={rc} candidates={myCands} onSubmit={addLog} loading={loading}/>}
-          {page==="candidates"&&<CandPage user={user} rc={rc} candidates={myCands} members={members} onAdd={addCandidate} onAddMember={addMember} logs={logs} getMember={getMember} loading={loading} timeline={timeline} onAddTimeline={addTimeline}/>}
+          {page==="candidates"&&<CandPage user={user} rc={rc} candidates={myCands} members={members} onAdd={addCandidate} onAddMember={addMember} logs={logs} getMember={getMember} loading={loading} timeline={timeline} onAddTimeline={addTimeline} token={user?.token} onRefresh={loadData}/>}
           {page==="my_recruiters"&&<MyRecruitersPage user={user} members={members} candidates={candidates} logs={logs} timeline={timeline} getMember={getMember} onAddTimeline={addTimeline} loading={loading}/>}
           {page==="logs_history"&&<HistPage user={user} rc={rc} candidates={myCands} logs={logs} getMember={getMember} allCands={candidates}/>}
           {page==="stats"&&<StatsPage candidates={candidates} logs={logs} members={members}/>}
@@ -346,7 +346,7 @@ function CandPage({user,rc,candidates,members,onAdd,onAddMember,logs,getMember,l
       {selectedCand ? <span style={{ cursor:"pointer", color:"#94A3B8", fontSize:14 }} onClick={()=>setSelectedCand(null)}>← Back</span> : "Candidates & Recruiters"}
     </div>
     {selectedCand ? (
-      <CandidateProfile candidate={selectedCand} members={members} logs={logs} timeline={timeline} getMember={getMember} onAddTimeline={onAddTimeline} loading={loading} user={user} onBack={()=>setSelectedCand(null)}/>
+      <CandidateProfile candidate={selectedCand} members={members} logs={logs} timeline={timeline} getMember={getMember} onAddTimeline={onAddTimeline} loading={loading} user={user} onBack={()=>setSelectedCand(null)} token={user?.token} onRefresh={()=>window.location.reload()}/>
     ) : (
       <>
         <Tabs tabs={tabs} active={tab} onChange={setTab}/>
@@ -373,7 +373,7 @@ function CandidatesTab({candidates,members,onAdd,logs,getMember,loading,rc,onSel
         const cLogs=logs.filter(l=>l.candidate_id===c.id); const lastLog=cLogs[0];
         return <Card key={c.id} style={{ padding:18 }} onClick={()=>onSelectCand(c)}>
           <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", marginBottom:12 }}>
-            <div style={{ display:"flex", alignItems:"center", gap:12 }}><Av name={c.name} role="president" size={44}/><div><div style={{ fontSize:16, fontWeight:700 }}>{c.name}</div><div style={{ fontSize:12, color:"#94A3B8" }}>{c.tech} · Added {fmtDate(c.added_on)}</div></div></div>
+            <div style={{ display:"flex", alignItems:"center", gap:12 }}><Av name={c.name} role="president" size={44}/><div><div style={{ fontSize:16, fontWeight:700 }}>{c.name}</div><div style={{ fontSize:12, color:"#94A3B8" }}>{c.tech} · Marketing started: {fmtDate(c.marketing_start_date||c.added_on)}</div></div></div>
             <div style={{ display:"flex", gap:8, alignItems:"center" }}><StatusBadge status={c.status}/><span style={{ fontSize:11, color:"#94A3B8" }}>👁 View Profile</span></div>
           </div>
           <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(160px,1fr))", gap:8, marginBottom:lastLog?10:0 }}>
@@ -389,6 +389,7 @@ function CandidatesTab({candidates,members,onAdd,logs,getMember,loading,rc,onSel
     <Modal open={showAdd} onClose={()=>setShowAdd(false)} title="Add New Candidate">
       <Input label="Full name *" value={form.name||""} onChange={e=>set("name",e.target.value)} placeholder="e.g. Arjun Sharma"/>
       <Input label="Tech stack *" value={form.tech||""} onChange={e=>set("tech",e.target.value)} placeholder="e.g. Java Full Stack"/>
+      <Input label="Marketing start date *" type="date" value={form.marketing_start_date||""} onChange={e=>set("marketing_start_date",e.target.value)}/>
       <Select label="Assign Recruiter *" value={form.recruiter_id||""} onChange={e=>set("recruiter_id",e.target.value)}><option value="">-- Select --</option>{byRole("recruiter").map(m=><option key={m.id} value={m.id}>{m.name}</option>)}</Select>
       <Select label="Assign R Lead *" value={form.r_lead_id||""} onChange={e=>set("r_lead_id",e.target.value)}><option value="">-- Select --</option>{byRole("r_lead").map(m=><option key={m.id} value={m.id}>{m.name}</option>)}</Select>
       <Select label="Assign C Lead *" value={form.c_lead_id||""} onChange={e=>set("c_lead_id",e.target.value)}><option value="">-- Select --</option>{byRole("c_lead").map(m=><option key={m.id} value={m.id}>{m.name}</option>)}</Select>
@@ -464,13 +465,47 @@ function RecruitersTab({members,candidates,logs,onAddMember,loading,getMember,on
 }
 
 // ─── CANDIDATE PROFILE (360° view) ─────────────────────────────────────────
-function CandidateProfile({candidate,members,logs,timeline,getMember,onAddTimeline,loading,user,onBack}){
+function CandidateProfile({candidate,members,logs,timeline,getMember,onAddTimeline,loading,user,onBack,token,onRefresh}){
   const [tab,setTab]=useState("overview");
   const [showAdd,setShowAdd]=useState(false); const [form,setForm]=useState({});
+  const [showChangeRec,setShowChangeRec]=useState(false);
+  const [showChangeRLead,setShowChangeRLead]=useState(false);
+  const [assignments,setAssignments]=useState([]);
   const set=(k,v)=>setForm(p=>({...p,[k]:v}));
   const candTimeline=timeline.filter(t=>t.candidate_id===candidate.id).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
   const candLogs=logs.filter(l=>l.candidate_id===candidate.id).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
   const canAddTimeline=["r_lead","manager","president","interview_coord","c_lead"].includes(user.role);
+  const isManager=user.role==="manager"||user.role==="president";
+
+  useEffect(()=>{
+    if(token){
+      sb.get("candidate_assignments",`candidate_id=eq.${candidate.id}&order=created_at.desc`,token).then(r=>{if(Array.isArray(r))setAssignments(r);});
+    }
+  },[candidate.id,token]);
+
+  const changeAssignment=async(type,newMemberId)=>{
+    if(!newMemberId)return alert("Select a team member");
+    try {
+      // Set end date on current assignment
+      const yesterday=new Date();yesterday.setDate(yesterday.getDate()-1);
+      const yStr=yesterday.toISOString().split("T")[0];
+      const current=assignments.find(a=>a.assignment_type===type&&!a.end_date);
+      if(current){
+        await sb.patch("candidate_assignments",current.id,{end_date:yStr},token);
+      }
+      // Add new assignment
+      await sb.post("candidate_assignments",{candidate_id:candidate.id,assignment_type:type,member_id:newMemberId,start_date:today(),changed_by:user.id},token);
+      // Update candidate record
+      const updateField=type==="recruiter"?"recruiter_id":"r_lead_id";
+      await sb.patch("candidates",candidate.id,{[updateField]:newMemberId},token);
+      // Reload assignments
+      const r=await sb.get("candidate_assignments",`candidate_id=eq.${candidate.id}&order=created_at.desc`,token);
+      if(Array.isArray(r))setAssignments(r);
+      setShowChangeRec(false);setShowChangeRLead(false);setForm({});
+      if(onRefresh)onRefresh();
+      alert(type==="recruiter"?"Recruiter changed successfully!":"R Lead changed successfully!");
+    } catch(e){alert("Error changing assignment.");}
+  };
 
   const submit=()=>{
     if(!form.entry_type)return alert("Select entry type");
@@ -483,7 +518,11 @@ function CandidateProfile({candidate,members,logs,timeline,getMember,onAddTimeli
     {id:"overview",label:"Overview"},
     {id:"timeline",label:`Timeline (${candTimeline.length})`},
     {id:"daily_logs",label:`Daily Logs (${candLogs.length})`},
+    {id:"assignment_history",label:"Assignment History"},
   ];
+
+  const recHistory=assignments.filter(a=>a.assignment_type==="recruiter");
+  const rLeadHistory=assignments.filter(a=>a.assignment_type==="r_lead");
 
   return <div>
     <button onClick={onBack} style={{ background:"none", border:"none", color:"#2563EB", cursor:"pointer", fontSize:13, fontWeight:600, marginBottom:16, padding:0 }}>← Back to candidates</button>
@@ -491,16 +530,60 @@ function CandidateProfile({candidate,members,logs,timeline,getMember,onAddTimeli
       <Av name={candidate.name} role="president" size={56}/>
       <div style={{ flex:1 }}>
         <div style={{ fontSize:22, fontWeight:800 }}>{candidate.name}</div>
-        <div style={{ fontSize:14, color:"#94A3B8" }}>{candidate.tech} · Added {fmtDate(candidate.added_on)}</div>
+        <div style={{ fontSize:12, color:"#94A3B8", marginTop:2 }}>{candidate.tech} · Marketing started: {fmtDate(candidate.marketing_start_date||candidate.added_on)}</div>
         <div style={{ display:"flex", gap:8, marginTop:8, flexWrap:"wrap" }}>
           {[["Recruiter",candidate.recruiter_id,"recruiter"],["R Lead",candidate.r_lead_id,"r_lead"],["C Lead",candidate.c_lead_id,"c_lead"],["IC",candidate.interview_coord_id,"interview_coord"]].map(([lbl,id,role])=>{
             const m=getMember(id);const rc2=ROLE_CONFIG[role];
             return <span key={lbl} style={{ background:rc2.bg, color:rc2.color, fontSize:11, padding:"3px 10px", borderRadius:99, fontWeight:600 }}>{lbl}: {m?.name||"?"}</span>;
           })}
         </div>
+        {isManager&&<div style={{ display:"flex", gap:8, marginTop:10 }}>
+          <button onClick={()=>{setShowChangeRec(true);setForm({});}} style={{ padding:"5px 12px", borderRadius:8, fontSize:12, fontWeight:600, cursor:"pointer", background:"#F0FDF4", color:"#16A34A", border:"1px solid #BBF7D0" }}>🔄 Change Recruiter</button>
+          <button onClick={()=>{setShowChangeRLead(true);setForm({});}} style={{ padding:"5px 12px", borderRadius:8, fontSize:12, fontWeight:600, cursor:"pointer", background:"#EFF6FF", color:"#2563EB", border:"1px solid #BFDBFE" }}>🔄 Change R Lead</button>
+        </div>}
       </div>
       <StatusBadge status={candidate.status}/>
     </div>
+    
+    {/* Change Recruiter Modal */}
+    <Modal open={showChangeRec} onClose={()=>setShowChangeRec(false)} title="Change Recruiter">
+      <div style={{ background:"#FFFBEB", border:"1px solid #FDE68A", borderRadius:8, padding:"10px 14px", fontSize:13, color:"#D97706", marginBottom:16 }}>
+        ⚠️ Current recruiter's end date will be set to yesterday automatically. New recruiter starts from today.
+      </div>
+      <div style={{ marginBottom:16 }}>
+        <div style={{ fontSize:12, fontWeight:600, color:"#475569", marginBottom:4 }}>Current Recruiter:</div>
+        <div style={{ fontSize:14, fontWeight:700 }}>{getMember(candidate.recruiter_id)?.name||"Not assigned"}</div>
+        <div style={{ fontSize:11, color:"#94A3B8" }}>Will end: {new Date(Date.now()-86400000).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"})}</div>
+      </div>
+      <Select label="Select new recruiter *" value={form.new_member_id||""} onChange={e=>set("new_member_id",e.target.value)}>
+        <option value="">-- Select recruiter --</option>
+        {members.filter(m=>m.role==="recruiter"&&m.id!==candidate.recruiter_id).map(m=><option key={m.id} value={m.id}>{m.name}</option>)}
+      </Select>
+      <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}>
+        <Btn variant="outline" onClick={()=>setShowChangeRec(false)}>Cancel</Btn>
+        <Btn onClick={()=>changeAssignment("recruiter",form.new_member_id)}>Confirm Change</Btn>
+      </div>
+    </Modal>
+
+    {/* Change R Lead Modal */}
+    <Modal open={showChangeRLead} onClose={()=>setShowChangeRLead(false)} title="Change R Lead">
+      <div style={{ background:"#FFFBEB", border:"1px solid #FDE68A", borderRadius:8, padding:"10px 14px", fontSize:13, color:"#D97706", marginBottom:16 }}>
+        ⚠️ Current R Lead's end date will be set to yesterday automatically. New R Lead starts from today.
+      </div>
+      <div style={{ marginBottom:16 }}>
+        <div style={{ fontSize:12, fontWeight:600, color:"#475569", marginBottom:4 }}>Current R Lead:</div>
+        <div style={{ fontSize:14, fontWeight:700 }}>{getMember(candidate.r_lead_id)?.name||"Not assigned"}</div>
+        <div style={{ fontSize:11, color:"#94A3B8" }}>Will end: {new Date(Date.now()-86400000).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"})}</div>
+      </div>
+      <Select label="Select new R Lead *" value={form.new_member_id||""} onChange={e=>set("new_member_id",e.target.value)}>
+        <option value="">-- Select R Lead --</option>
+        {members.filter(m=>m.role==="r_lead"&&m.id!==candidate.r_lead_id).map(m=><option key={m.id} value={m.id}>{m.name}</option>)}
+      </Select>
+      <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}>
+        <Btn variant="outline" onClick={()=>setShowChangeRLead(false)}>Cancel</Btn>
+        <Btn onClick={()=>changeAssignment("r_lead",form.new_member_id)}>Confirm Change</Btn>
+      </div>
+    </Modal>
 
     <Tabs tabs={tabs} active={tab} onChange={setTab}/>
 
@@ -586,6 +669,51 @@ function CandidateProfile({candidate,members,logs,timeline,getMember,onAddTimeli
       </Card>;})}
       {candLogs.length===0&&<div style={{ textAlign:"center", padding:60, color:"#94A3B8", fontSize:14 }}>No daily logs yet.</div>}
     </div>}
+
+    {tab==="assignment_history"&&<div>
+      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14 }}>
+        <Card>
+          <CardHeader title="👤 Recruiter History"/>
+          <div style={{ padding:"0 0 8px" }}>
+            {recHistory.length===0&&<div style={{ padding:"20px 16px", fontSize:13, color:"#94A3B8" }}>No history yet.</div>}
+            {recHistory.map((a,i)=>{
+              const m=getMember(a.member_id);
+              const isCurrent=!a.end_date;
+              return <div key={a.id} style={{ display:"flex", alignItems:"center", gap:12, padding:"12px 16px", borderBottom:"1px solid #F1F5F9" }}>
+                <div style={{ width:8, height:8, borderRadius:"50%", background:isCurrent?"#16A34A":"#E2E8F0", flexShrink:0 }}/>
+                <div style={{ flex:1 }}>
+                  <div style={{ fontSize:13, fontWeight:600 }}>{m?.name||"Unknown"}</div>
+                  <div style={{ fontSize:11, color:"#94A3B8" }}>
+                    From: {fmtDate(a.start_date)} → {isCurrent?<span style={{ color:"#16A34A", fontWeight:600 }}>Present</span>:fmtDate(a.end_date)}
+                  </div>
+                </div>
+                {isCurrent&&<span style={{ background:"#F0FDF4", color:"#16A34A", fontSize:11, padding:"2px 8px", borderRadius:99, fontWeight:600 }}>Current</span>}
+              </div>;
+            })}
+          </div>
+        </Card>
+        <Card>
+          <CardHeader title="📋 R Lead History"/>
+          <div style={{ padding:"0 0 8px" }}>
+            {rLeadHistory.length===0&&<div style={{ padding:"20px 16px", fontSize:13, color:"#94A3B8" }}>No history yet.</div>}
+            {rLeadHistory.map((a,i)=>{
+              const m=getMember(a.member_id);
+              const isCurrent=!a.end_date;
+              return <div key={a.id} style={{ display:"flex", alignItems:"center", gap:12, padding:"12px 16px", borderBottom:"1px solid #F1F5F9" }}>
+                <div style={{ width:8, height:8, borderRadius:"50%", background:isCurrent?"#2563EB":"#E2E8F0", flexShrink:0 }}/>
+                <div style={{ flex:1 }}>
+                  <div style={{ fontSize:13, fontWeight:600 }}>{m?.name||"Unknown"}</div>
+                  <div style={{ fontSize:11, color:"#94A3B8" }}>
+                    From: {fmtDate(a.start_date)} → {isCurrent?<span style={{ color:"#2563EB", fontWeight:600 }}>Present</span>:fmtDate(a.end_date)}
+                  </div>
+                </div>
+                {isCurrent&&<span style={{ background:"#EFF6FF", color:"#2563EB", fontSize:11, padding:"2px 8px", borderRadius:99, fontWeight:600 }}>Current</span>}
+              </div>;
+            })}
+          </div>
+        </Card>
+      </div>
+    </div>}
   </div>;
 }
 
@@ -595,7 +723,7 @@ function MyRecruitersPage({user,members,candidates,logs,timeline,getMember,onAdd
   const [selectedCand,setSelectedCand]=useState(null);
   const myRecruiters=members.filter(m=>m.role==="recruiter"&&m.r_lead_team===user.id);
 
-  if(selectedCand) return <CandidateProfile candidate={selectedCand} members={members} logs={logs} timeline={timeline} getMember={getMember} onAddTimeline={onAddTimeline} loading={loading} user={user} onBack={()=>setSelectedCand(null)}/>;
+  if(selectedCand) return <CandidateProfile candidate={selectedCand} members={members} logs={logs} timeline={timeline} getMember={getMember} onAddTimeline={onAddTimeline} loading={loading} user={user} onBack={()=>setSelectedCand(null)} token={user?.token} onRefresh={()=>window.location.reload()}/>;
 
   return <div>
     <div style={{ fontSize:20, fontWeight:700, marginBottom:4 }}>My Recruiters</div>
