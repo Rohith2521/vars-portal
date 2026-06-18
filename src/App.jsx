@@ -689,10 +689,163 @@ function LogPage({user,rc,candidates,onSubmit,loading}){
     <div style={{ fontSize:13, color:"#94A3B8", marginBottom:20 }}>Submit your end-of-day update · Due by 6:00 PM EST</div>
     {candidates.length===0&&<div style={{ background:"#FFFBEB", border:"1px solid #FDE68A", borderRadius:10, padding:"14px 18px", fontSize:13, color:"#D97706", marginBottom:16 }}>⚠️ No candidates assigned yet.</div>}
     <Card style={{ padding:22, maxWidth:520 }}>
-      {user.role==="recruiter"&&<><div style={{ fontSize:15, fontWeight:700, marginBottom:16 }}>📝 Recruiter Daily Log</div><CS/><Input label="Emails sent today *" type="number" min={0} value={form.emails_sent||""} onChange={e=>set("emails_sent",+e.target.value)} placeholder="e.g. 15"/><Input label="Submissions done today *" type="number" min={0} value={form.submissions||""} onChange={e=>set("submissions",+e.target.value)} placeholder="e.g. 3"/><Textarea label="Notes (optional)" value={form.notes||""} onChange={e=>set("notes",e.target.value)}/><Btn onClick={()=>sub("recruiter")} disabled={loading||!form.candidate_id}>{loading?"Saving...":"Submit Daily Log"}</Btn></>}
-      {user.role==="r_lead"&&<><div style={{ fontSize:15, fontWeight:700, marginBottom:16 }}>📋 R Lead Daily Log</div><CS/><Input label="Interview stage" value={form.interview_stage||""} onChange={e=>set("interview_stage",e.target.value)} placeholder="e.g. Client Interview Scheduled"/><Input label="Scheduled date" type="date" value={form.scheduled_date||""} onChange={e=>set("scheduled_date",e.target.value)}/><div style={{ marginBottom:14 }}><label style={{ display:"flex", alignItems:"center", gap:8, fontSize:13, cursor:"pointer" }}><input type="checkbox" checked={form.vendor_issue||false} onChange={e=>set("vendor_issue",e.target.checked)}/>Vendor mock issue today?</label></div>{form.vendor_issue&&<Textarea label="Vendor issue details" value={form.vendor_feedback||""} onChange={e=>set("vendor_feedback",e.target.value)}/>}<Textarea label="Notes" value={form.notes||""} onChange={e=>set("notes",e.target.value)}/><Btn onClick={()=>sub("r_lead")} disabled={loading||!form.candidate_id}>{loading?"Saving...":"Submit Daily Log"}</Btn></>}
-      {user.role==="c_lead"&&<><div style={{ fontSize:15, fontWeight:700, marginBottom:16 }}>🖥️ C Lead Daily Log</div><CS/><Textarea label="Floor issues / observations" value={form.floor_issues||""} onChange={e=>set("floor_issues",e.target.value)}/><Select label="Resolution status" value={form.resolution_status||""} onChange={e=>set("resolution_status",e.target.value)}><option value="">-- Select --</option><option value="solved">✅ Solved</option><option value="pending">⏳ Pending</option><option value="waiting">🔄 Waiting for decision</option><option value="none">✔️ No issues today</option></Select><Textarea label="Notes" value={form.notes||""} onChange={e=>set("notes",e.target.value)}/><Btn onClick={()=>sub("c_lead")} disabled={loading||!form.candidate_id}>{loading?"Saving...":"Submit Daily Log"}</Btn></>}
-      {user.role==="interview_coord"&&<><div style={{ fontSize:15, fontWeight:700, marginBottom:16 }}>🎤 IC Daily Log</div><CS/><Select label="Session type" value={form.session_type||""} onChange={e=>set("session_type",e.target.value)}><option value="">-- Select --</option><option value="Lip Sync">Lip Sync Session</option><option value="Turbo Prompt">Turbo Prompt Session</option><option value="Mock Interview">Mock Interview</option><option value="Mixed">Mixed Session</option></Select><Input label="Sessions conducted" type="number" min={0} value={form.sessions_done||""} onChange={e=>set("sessions_done",+e.target.value)}/><Textarea label="Candidate feedback" value={form.feedback||""} onChange={e=>set("feedback",e.target.value)}/><Textarea label="Notes" value={form.notes||""} onChange={e=>set("notes",e.target.value)}/><Btn onClick={()=>sub("interview_coord")} disabled={loading||!form.candidate_id}>{loading?"Saving...":"Submit Daily Log"}</Btn></>}
+      {user.role==="recruiter"&&<>
+        <div style={{ fontSize:15, fontWeight:700, marginBottom:16 }}>📝 Recruiter Daily Log</div>
+        <CS/>
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:14 }}>
+          <div>
+            <label style={{ display:"block", fontSize:12, fontWeight:500, color:"#475569", marginBottom:5 }}>Emails Sent Today *</label>
+            <input type="number" min={0} value={form.emails_sent||""} onChange={e=>set("emails_sent",+e.target.value)} placeholder="e.g. 15" style={{ width:"100%", border:`1px solid ${form.emails_sent!==undefined&&form.emails_sent<15&&form.emails_sent>0?"#FCA5A5":"#E2E8F0"}`, borderRadius:8, padding:"8px 12px", fontSize:14, outline:"none", boxSizing:"border-box" }}/>
+            {form.emails_sent>0&&form.emails_sent<15&&<div style={{ fontSize:11, color:"#D97706", background:"#FFFBEB", padding:"4px 8px", borderRadius:4, marginTop:4 }}>⚠️ Less than 15 — reason required</div>}
+          </div>
+          <div>
+            <label style={{ display:"block", fontSize:12, fontWeight:500, color:"#475569", marginBottom:5 }}>Submissions Done *</label>
+            <input type="number" min={0} value={form.submissions||""} onChange={e=>set("submissions",+e.target.value)} placeholder="e.g. 3" style={{ width:"100%", border:`1px solid ${form.submissions===0&&form.emails_sent>0?"#FCA5A5":"#E2E8F0"}`, borderRadius:8, padding:"8px 12px", fontSize:14, outline:"none", boxSizing:"border-box" }}/>
+            {form.submissions===0&&form.emails_sent>0&&<div style={{ fontSize:11, color:"#DC2626", background:"#FEF2F2", padding:"4px 8px", borderRadius:4, marginTop:4 }}>⚠️ Zero submissions — reason required</div>}
+          </div>
+        </div>
+        {form.emails_sent>0&&form.emails_sent<15&&<Textarea label="Reason for less emails *" value={form.reason_less_emails||""} onChange={e=>set("reason_less_emails",e.target.value)} placeholder="Why less than 15 emails today?"/>}
+        {form.submissions===0&&form.emails_sent>0&&<Textarea label="Reason for zero submissions *" value={form.reason_zero_subs||""} onChange={e=>set("reason_zero_subs",e.target.value)} placeholder="Why zero submissions today?"/>}
+        <div style={{ background:"#FEF2F2", border:"1px solid #FECACA", borderRadius:10, padding:"14px 16px", marginBottom:14 }}>
+          <div style={{ fontSize:13, fontWeight:700, color:"#DC2626", marginBottom:10 }}>🚨 Issues Faced Today</div>
+          <Textarea label="Issue description" value={form.issue_description||""} onChange={e=>set("issue_description",e.target.value)} placeholder="Describe any issues faced today..."/>
+          <div style={{ marginBottom:14 }}>
+            <label style={{ display:"block", fontSize:12, fontWeight:500, color:"#475569", marginBottom:8 }}>To whom informed</label>
+            <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+              {["R Lead","C Lead","Manager"].map(p=><label key={p} style={{ display:"flex", alignItems:"center", gap:6, fontSize:13, cursor:"pointer", background:(form.informed_to||[]).includes(p)?"#EFF6FF":"#F8FAFC", border:`1px solid ${(form.informed_to||[]).includes(p)?"#2563EB":"#E2E8F0"}`, padding:"6px 12px", borderRadius:8 }}>
+                <input type="checkbox" checked={(form.informed_to||[]).includes(p)} onChange={e=>{const cur=form.informed_to||[];set("informed_to",e.target.checked?[...cur,p]:cur.filter(x=>x!==p));}} style={{ accentColor:"#2563EB" }}/>{p}
+              </label>)}
+            </div>
+          </div>
+          <div style={{ marginBottom:14 }}>
+            <label style={{ display:"block", fontSize:12, fontWeight:500, color:"#475569", marginBottom:8 }}>Issue status *</label>
+            <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+              {[{v:"solved",l:"✅ Solved",c:"#16A34A",b:"#F0FDF4"},{v:"pending",l:"⏳ Pending",c:"#D97706",b:"#FFFBEB"},{v:"waiting",l:"🔄 Waiting",c:"#2563EB",b:"#EFF6FF"},{v:"no_issues",l:"✔️ No Issues",c:"#475569",b:"#F8FAFC"}].map(s=><button key={s.v} type="button" onClick={()=>set("issue_status",s.v)} style={{ padding:"6px 12px", borderRadius:8, fontSize:12, fontWeight:600, cursor:"pointer", background:form.issue_status===s.v?s.b:"#fff", color:form.issue_status===s.v?s.c:"#94A3B8", border:`1px solid ${form.issue_status===s.v?s.c:"#E2E8F0"}` }}>{s.l}</button>)}
+            </div>
+          </div>
+        </div>
+        <Textarea label="Notes (optional)" value={form.notes||""} onChange={e=>set("notes",e.target.value)} placeholder="Any additional notes..."/>
+        <Btn onClick={()=>{
+          if(!form.candidate_id)return alert("Select a candidate");
+          if(form.emails_sent>0&&form.emails_sent<15&&!form.reason_less_emails?.trim())return alert("Reason for less emails is required");
+          if(form.submissions===0&&form.emails_sent>0&&!form.reason_zero_subs?.trim())return alert("Reason for zero submissions is required");
+          if(form.issue_description?.trim()&&!form.issue_status)return alert("Please select issue status");
+          sub("recruiter");
+        }} disabled={loading||!form.candidate_id}>{loading?"Saving...":"Submit Daily Log"}</Btn>
+      </>}
+      {user.role==="r_lead"&&<>
+        <div style={{ fontSize:15, fontWeight:700, marginBottom:16 }}>📋 R Lead Daily Log</div>
+        <CS/>
+        <div style={{ background:"#F0FDF4", border:"1px solid #BBF7D0", borderRadius:10, padding:"14px 16px", marginBottom:14 }}>
+          <div style={{ fontSize:13, fontWeight:700, color:"#16A34A", marginBottom:10 }}>🏢 Vendor Mock</div>
+          <div style={{ marginBottom:12 }}>
+            <label style={{ display:"block", fontSize:12, fontWeight:500, color:"#475569", marginBottom:8 }}>Was vendor mock conducted today? *</label>
+            <div style={{ display:"flex", gap:8 }}>
+              {[{v:"yes",l:"✅ Conducted"},{v:"no",l:"❌ Not Conducted"}].map(m=><button key={m.v} type="button" onClick={()=>set("vendor_mock_conducted",m.v)} style={{ padding:"6px 14px", borderRadius:8, fontSize:12, fontWeight:600, cursor:"pointer", background:form.vendor_mock_conducted===m.v?"#F0FDF4":"#fff", color:form.vendor_mock_conducted===m.v?"#16A34A":"#94A3B8", border:`1px solid ${form.vendor_mock_conducted===m.v?"#16A34A":"#E2E8F0"}` }}>{m.l}</button>)}
+            </div>
+          </div>
+          {form.vendor_mock_conducted==="yes"&&<>
+            <div style={{ marginBottom:12 }}>
+              <label style={{ display:"block", fontSize:12, fontWeight:500, color:"#475569", marginBottom:8 }}>Mode of conduct *</label>
+              <div style={{ display:"flex", gap:8 }}>
+                {[{v:"video",l:"🎥 Video Meeting"},{v:"phone",l:"📞 Phone Call"}].map(m=><button key={m.v} type="button" onClick={()=>set("vendor_mock_mode",m.v)} style={{ padding:"6px 14px", borderRadius:8, fontSize:12, fontWeight:600, cursor:"pointer", background:form.vendor_mock_mode===m.v?"#EFF6FF":"#fff", color:form.vendor_mock_mode===m.v?"#2563EB":"#94A3B8", border:`1px solid ${form.vendor_mock_mode===m.v?"#2563EB":"#E2E8F0"}` }}>{m.l}</button>)}
+              </div>
+            </div>
+            <Textarea label="Vendor mock feedback *" value={form.vendor_mock_feedback||""} onChange={e=>set("vendor_mock_feedback",e.target.value)} placeholder="Feedback is mandatory..."/>
+          </>}
+          {form.vendor_mock_conducted==="no"&&<Textarea label="Reason for not conducting *" value={form.vendor_mock_reason||""} onChange={e=>set("vendor_mock_reason",e.target.value)} placeholder="Why was vendor mock not conducted today?"/>}
+        </div>
+        <Textarea label="Notes (optional)" value={form.notes||""} onChange={e=>set("notes",e.target.value)} placeholder="Any additional notes..."/>
+        <Btn onClick={()=>{
+          if(!form.candidate_id)return alert("Select a candidate");
+          if(!form.vendor_mock_conducted)return alert("Select vendor mock status");
+          if(form.vendor_mock_conducted==="yes"&&!form.vendor_mock_feedback?.trim())return alert("Vendor mock feedback is mandatory");
+          if(form.vendor_mock_conducted==="no"&&!form.vendor_mock_reason?.trim())return alert("Reason is mandatory if not conducted");
+          sub("r_lead");
+        }} disabled={loading||!form.candidate_id}>{loading?"Saving...":"Submit Daily Log"}</Btn>
+      </>}
+      {user.role==="c_lead"&&<>
+        <div style={{ fontSize:15, fontWeight:700, marginBottom:16 }}>🖥️ C Lead Daily Log</div>
+        <CS/>
+        <Textarea label="Floor issues / observations *" value={form.floor_issues||""} onChange={e=>set("floor_issues",e.target.value)} placeholder="Describe any floor issues or updates..."/>
+        <div style={{ marginBottom:14 }}>
+          <label style={{ display:"block", fontSize:12, fontWeight:500, color:"#475569", marginBottom:8 }}>To whom informed *</label>
+          <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+            {["Manager","R Lead"].map(p=><label key={p} style={{ display:"flex", alignItems:"center", gap:6, fontSize:13, cursor:"pointer", background:(form.clead_informed_to||[]).includes(p)?"#EFF6FF":"#F8FAFC", border:`1px solid ${(form.clead_informed_to||[]).includes(p)?"#2563EB":"#E2E8F0"}`, padding:"6px 12px", borderRadius:8 }}>
+              <input type="checkbox" checked={(form.clead_informed_to||[]).includes(p)} onChange={e=>{const cur=form.clead_informed_to||[];set("clead_informed_to",e.target.checked?[...cur,p]:cur.filter(x=>x!==p));}} style={{ accentColor:"#2563EB" }}/>{p}
+            </label>)}
+          </div>
+        </div>
+        <div style={{ marginBottom:14 }}>
+          <label style={{ display:"block", fontSize:12, fontWeight:500, color:"#475569", marginBottom:8 }}>Resolution status *</label>
+          <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+            {[{v:"solved",l:"✅ Solved",c:"#16A34A",b:"#F0FDF4"},{v:"pending",l:"⏳ Pending",c:"#D97706",b:"#FFFBEB"},{v:"waiting",l:"🔄 Waiting",c:"#2563EB",b:"#EFF6FF"},{v:"no_issues",l:"✔️ No Issues",c:"#475569",b:"#F8FAFC"}].map(s=><button key={s.v} type="button" onClick={()=>set("resolution_status",s.v)} style={{ padding:"6px 12px", borderRadius:8, fontSize:12, fontWeight:600, cursor:"pointer", background:form.resolution_status===s.v?s.b:"#fff", color:form.resolution_status===s.v?s.c:"#94A3B8", border:`1px solid ${form.resolution_status===s.v?s.c:"#E2E8F0"}` }}>{s.l}</button>)}
+          </div>
+        </div>
+        <Textarea label="Notes (optional)" value={form.notes||""} onChange={e=>set("notes",e.target.value)} placeholder="Any additional notes..."/>
+        <Btn onClick={()=>{
+          if(!form.candidate_id)return alert("Select a candidate");
+          if(!form.floor_issues?.trim())return alert("Floor issues field is required");
+          if(!form.resolution_status)return alert("Select resolution status");
+          sub("c_lead");
+        }} disabled={loading||!form.candidate_id}>{loading?"Saving...":"Submit Daily Log"}</Btn>
+      </>}
+      {user.role==="interview_coord"&&<>
+        <div style={{ fontSize:15, fontWeight:700, marginBottom:16 }}>🎤 IC Daily Log</div>
+        <CS/>
+        <div style={{ marginBottom:14 }}>
+          <label style={{ display:"block", fontSize:12, fontWeight:500, color:"#475569", marginBottom:8 }}>Session Type *</label>
+          <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
+            {[{v:"sync",l:"Sync"},{v:"prompt",l:"Prompt Session"},{v:"otter",l:"Otter Session"},{v:"otter_prompt",l:"Otter + Prompt"},{v:"mixed",l:"Mixed Sessions"}].map(s=><button key={s.v} type="button" onClick={()=>set("session_type",s.v)} style={{ padding:"6px 12px", borderRadius:8, fontSize:12, fontWeight:600, cursor:"pointer", background:form.session_type===s.v?"#FEF2F2":"#fff", color:form.session_type===s.v?"#DC2626":"#94A3B8", border:`1px solid ${form.session_type===s.v?"#DC2626":"#E2E8F0"}` }}>{s.l}</button>)}
+          </div>
+        </div>
+        <Input label="Sessions conducted *" type="number" min={0} value={form.sessions_done||""} onChange={e=>set("sessions_done",+e.target.value)} placeholder="e.g. 2"/>
+        <Textarea label="Session Feedback *" value={form.feedback||""} onChange={e=>set("feedback",e.target.value)} placeholder="Detailed feedback — mandatory..."/>
+        <Textarea label="Notes (optional)" value={form.notes||""} onChange={e=>set("notes",e.target.value)} placeholder="Any additional notes..."/>
+        <div style={{ background:"#EFF6FF", border:"1px solid #BFDBFE", borderRadius:10, padding:"14px 16px", marginBottom:14 }}>
+          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
+            <div style={{ fontSize:13, fontWeight:700, color:"#2563EB" }}>🗓️ Tomorrow's Interview</div>
+            <label style={{ display:"flex", alignItems:"center", gap:6, fontSize:12, cursor:"pointer" }}>
+              <input type="checkbox" checked={form.tomorrow_interview||false} onChange={e=>set("tomorrow_interview",e.target.checked)} style={{ accentColor:"#2563EB" }}/>
+              Interview scheduled tomorrow?
+            </label>
+          </div>
+          {form.tomorrow_interview&&<>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+              <Input label="With whom *" value={form.tmr_with_whom||""} onChange={e=>set("tmr_with_whom",e.target.value)} placeholder="Company — Person name"/>
+              <Input label="Interview time *" type="time" value={form.tmr_time||""} onChange={e=>set("tmr_time",e.target.value)}/>
+            </div>
+            <div style={{ marginBottom:14 }}>
+              <label style={{ display:"block", fontSize:12, fontWeight:500, color:"#475569", marginBottom:8 }}>Mode *</label>
+              <div style={{ display:"flex", gap:8 }}>
+                {[{v:"virtual",l:"🖥️ Virtual"},{v:"in_person",l:"🤝 In-person"}].map(m=><button key={m.v} type="button" onClick={()=>set("tmr_mode",m.v)} style={{ padding:"6px 14px", borderRadius:8, fontSize:12, fontWeight:600, cursor:"pointer", background:form.tmr_mode===m.v?"#EFF6FF":"#fff", color:form.tmr_mode===m.v?"#2563EB":"#94A3B8", border:`1px solid ${form.tmr_mode===m.v?"#2563EB":"#E2E8F0"}` }}>{m.l}</button>)}
+              </div>
+            </div>
+            <Input label="Tech support name *" value={form.tmr_tech_support||""} onChange={e=>set("tmr_tech_support",e.target.value)} placeholder="Support person name"/>
+            <div style={{ marginBottom:14 }}>
+              <label style={{ display:"block", fontSize:12, fontWeight:500, color:"#475569", marginBottom:8 }}>Mode of Support *</label>
+              <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
+                {[{v:"sync",l:"Sync"},{v:"otter",l:"Otter"},{v:"prompt",l:"Prompt"},{v:"otter_prompt",l:"Otter+Prompt"},{v:"self",l:"Self"},{v:"ai",l:"AI"}].map(s=><button key={s.v} type="button" onClick={()=>set("tmr_support_mode",s.v)} style={{ padding:"5px 10px", borderRadius:8, fontSize:12, fontWeight:600, cursor:"pointer", background:form.tmr_support_mode===s.v?"#EFF6FF":"#fff", color:form.tmr_support_mode===s.v?"#2563EB":["self","ai"].includes(s.v)?"#DC2626":"#94A3B8", border:`1px solid ${form.tmr_support_mode===s.v?"#2563EB":["self","ai"].includes(s.v)?"#FECACA":"#E2E8F0"}` }}>{s.l}</button>)}
+              </div>
+            </div>
+            {["self","ai"].includes(form.tmr_support_mode)&&<Textarea label="Reason for Self/AI support *" value={form.tmr_support_reason||""} onChange={e=>set("tmr_support_reason",e.target.value)} placeholder="Reason mandatory if Self or AI selected..."/>}
+          </>}
+        </div>
+        <Btn onClick={()=>{
+          if(!form.candidate_id)return alert("Select a candidate");
+          if(!form.session_type)return alert("Select session type");
+          if(!form.feedback?.trim())return alert("Session feedback is mandatory");
+          if(form.tomorrow_interview){
+            if(!form.tmr_with_whom?.trim())return alert("Enter interview with whom");
+            if(!form.tmr_time)return alert("Enter interview time");
+            if(!form.tmr_mode)return alert("Select interview mode");
+            if(!form.tmr_tech_support?.trim())return alert("Enter tech support name");
+            if(!form.tmr_support_mode)return alert("Select mode of support");
+            if(["self","ai"].includes(form.tmr_support_mode)&&!form.tmr_support_reason?.trim())return alert("Reason is mandatory for Self/AI support");
+          }
+          sub("interview_coord");
+        }} disabled={loading||!form.candidate_id}>{loading?"Saving...":"Submit Daily Log"}</Btn>
+      </>}
       {(user.role==="manager"||user.role==="president")&&<>
         <div style={{ fontSize:15, fontWeight:700, marginBottom:4 }}>👔 Manager Feedback</div>
         <div style={{ fontSize:12, color:"#94A3B8", marginBottom:16 }}>Add feedback for this candidate's progress</div>
