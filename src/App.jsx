@@ -380,6 +380,8 @@ export default function VARSPortal() {
   if(!user)return <LoginPage onLogin={u=>setUser(u)} />;
   // First login — force password change
   if(user&&!user.password_changed)return <ChangePasswordScreen user={user} onDone={()=>setUser({...user,password_changed:true})}/>;
+  // Safety check
+  if(!rc)return <LoginPage onLogin={u=>setUser(u)} />;
 
   const navItems=[
     {id:"dashboard",icon:"📊",label:"Dashboard",always:true},
