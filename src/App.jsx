@@ -287,7 +287,7 @@ export default function VARSPortal() {
   const [members,setMembers]=useState([]); const [candidates,setCandidates]=useState([]);
   const [logs,setLogs]=useState([]); const [notifications,setNotifications]=useState([]);
   const [timeline,setTimeline]=useState([]);
-  const [toast,setToast]=useState(null); const [loading,setLoading]=useState(false); const [showN,setShowN]=useState(false);
+  const [toast,setToast]=useState(null); const [loading,setLoading]=useState(false); const [showN,setShowN]=useState(false); const [showProfile,setShowProfile]=useState(false);
   const showToast=(msg,type="success")=>setToast({msg,type});
 
   const loadData=useCallback(async(token)=>{
