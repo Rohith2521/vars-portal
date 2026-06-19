@@ -438,7 +438,7 @@ export default function VARSPortal() {
     {id:"daily_log",icon:"📝",label:"Daily Log",always:true},
     {id:"candidates",icon:"👤",label:"Candidates",always:true},
     {id:"my_recruiters",icon:"👥",label:"My Recruiters",show:user.role==="r_lead"},
-    {id:"interviews",icon:"🎯",label:"Interviews",show:user.role==="r_lead"||user.role==="c_lead"},
+    {id:"interviews",icon:"🎯",label:"Interviews",show:user.role==="r_lead"||user.role==="c_lead"||user.role==="manager"||user.role==="president"},
     {id:"logs_history",icon:"📅",label:"Log History",always:true},
     {id:"status_meeting",icon:"📞",label:"Status Meeting",always:true},
     {id:"overall_status",icon:"📊",label:"Overall Status",show:user.role==="president"},
@@ -2146,8 +2146,238 @@ function StatusMeetingPage({user,rc,members,candidates,allCandidates,logs,token,
   const ROUNDS_MAP={round_1:"Round 1",round_2:"Round 2",round_3:"Round 3",round_4:"Round 4",round_5:"Round 5",round_6:"Round 6",final:"Final"};
   const DURATION_MAP={less_30:"<30 min","30_min":"30 min","45_min":"45 min","1_hour":"1 Hour","1_30_hour":"1.5 Hours","2_hours":"2 Hours","3_hours":"3 Hours"};
 
+  const downloadPDF = () => {
+    const getMemberName = id => members.find(m=>m.id===id)?.name || "?";
+    const periodLabel = fromDate&&toDate ? `${fromDate} to ${toDate}` : "All time";
+    const ROUNDS_MAP={round_1:"Round 1",round_2:"Round 2",round_3:"Round 3",round_4:"Round 4",round_5:"Round 5",round_6:"Round 6",final:"Final"};
+    const DURATION_MAP={less_30:"<30 min","30_min":"30 min","45_min":"45 min","1_hour":"1 Hour","1_30_hour":"1.5 Hours","2_hours":"2 Hours","3_hours":"3 Hours"};
+
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(`
+<!DOCTYPE html>
+<html>
+<head>
+<title>Status Meeting Report - ${cand?.name}</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #0F172A; background: #fff; padding: 40px; }
+  .header { text-align: center; margin-bottom: 32px; padding-bottom: 20px; border-bottom: 2px solid #E2E8F0; }
+  .company-row { display: flex; align-items: center; justify-content: center; gap: 16px; margin-bottom: 8px; }
+  .company-mpower { font-size: 16px; font-weight: 800; color: #1D4ED8; }
+  .company-vars { font-size: 16px; font-weight: 800; color: #7f1d1d; }
+  .company-div { width: 1px; height: 20px; background: #E2E8F0; }
+  .portal-title { font-size: 24px; font-weight: 900; color: #0F172A; margin-bottom: 4px; }
+  .portal-sub { font-size: 12px; color: #94A3B8; letter-spacing: 0.1em; text-transform: uppercase; }
+  .report-title { font-size: 18px; font-weight: 700; color: #2563EB; margin-top: 16px; }
+  .candidate-info { background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 16px 20px; margin-bottom: 24px; }
+  .cand-name { font-size: 20px; font-weight: 800; margin-bottom: 4px; }
+  .cand-tech { font-size: 13px; color: #475569; margin-bottom: 8px; }
+  .team-row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .team-badge { font-size: 11px; padding: 3px 10px; border-radius: 99px; font-weight: 600; }
+  .badge-rec { background: #F0FDF4; color: #16A34A; }
+  .badge-rlead { background: #EFF6FF; color: #2563EB; }
+  .badge-clead { background: #FFFBEB; color: #D97706; }
+  .badge-ic { background: #FEF2F2; color: #DC2626; }
+  .period-badge { background: #F5F3FF; color: #7C3AED; font-size: 12px; padding: 4px 12px; border-radius: 99px; font-weight: 600; margin-top: 8px; display: inline-block; }
+  .section { margin-bottom: 24px; border: 1px solid #E2E8F0; border-radius: 10px; overflow: hidden; }
+  .section-header { padding: 12px 16px; font-size: 14px; font-weight: 700; }
+  .section-rec { background: #F0FDF4; color: #16A34A; border-bottom: 1px solid #BBF7D0; }
+  .section-rlead { background: #EFF6FF; color: #2563EB; border-bottom: 1px solid #BFDBFE; }
+  .section-clead { background: #FFFBEB; color: #D97706; border-bottom: 1px solid #FDE68A; }
+  .section-ic { background: #FEF2F2; color: #DC2626; border-bottom: 1px solid #FECACA; }
+  .section-mgr { background: #F0FDFA; color: #0F766E; border-bottom: 1px solid #99F6E4; }
+  .section-body { padding: 12px 16px; }
+  .row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #F1F5F9; font-size: 13px; }
+  .row:last-child { border-bottom: none; }
+  .label { color: #94A3B8; font-weight: 500; }
+  .value { font-weight: 600; color: #0F172A; }
+  .stats-row { display: flex; gap: 12px; margin-bottom: 12px; }
+  .stat-box { flex: 1; background: #F8FAFC; border-radius: 8px; padding: 10px; text-align: center; }
+  .stat-val { font-size: 22px; font-weight: 800; }
+  .stat-lbl { font-size: 10px; color: #94A3B8; text-transform: uppercase; letter-spacing: 0.05em; }
+  .feedback-box { background: #F0FDFA; border: 1px solid #99F6E4; border-radius: 8px; padding: 10px 14px; margin-bottom: 8px; font-size: 13px; }
+  .confidential-box { background: #F5F3FF; border: 1px solid #DDD6FE; border-radius: 8px; padding: 10px 14px; font-size: 13px; }
+  .conf-label { font-size: 11px; font-weight: 700; color: #7C3AED; margin-bottom: 4px; }
+  .no-data { color: #94A3B8; font-size: 13px; padding: 8px 0; }
+  .interview-card { background: #F8FAFC; border-radius: 8px; padding: 12px; margin-bottom: 8px; }
+  .interview-title { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+  .interview-with { font-size: 12px; color: #2563EB; font-weight: 600; margin-bottom: 4px; }
+  .badge { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 99px; font-weight: 600; margin-right: 4px; }
+  .badge-well { background: #F0FDF4; color: #16A34A; }
+  .badge-ok { background: #FFFBEB; color: #D97706; }
+  .badge-bad { background: #FEF2F2; color: #DC2626; }
+  .footer { text-align: center; margin-top: 40px; padding-top: 16px; border-top: 1px solid #E2E8F0; font-size: 11px; color: #94A3B8; }
+  @media print { body { padding: 20px; } }
+</style>
+</head>
+<body>
+  <!-- Header -->
+  <div class="header">
+    <div class="company-row">
+      <span class="company-mpower">Mpower Logic Inc.</span>
+      <div class="company-div"></div>
+      <span class="company-vars">VARS Consulting Inc.</span>
+    </div>
+    <div class="portal-title">Mpower - VARS IMS</div>
+    <div class="portal-sub">Internal Management System</div>
+    <div class="report-title">📞 Status Meeting Report</div>
+  </div>
+
+  <!-- Candidate Info -->
+  <div class="candidate-info">
+    <div class="cand-name">${cand?.name}</div>
+    <div class="cand-tech">${cand?.tech} · Marketing started: ${cand?.marketing_start_date || cand?.added_on || '—'}</div>
+    <div class="team-row">
+      <span class="team-badge badge-rec">Rec: ${getMemberName(cand?.recruiter_id)}</span>
+      <span class="team-badge badge-rlead">R Lead: ${getMemberName(cand?.r_lead_id)}</span>
+      <span class="team-badge badge-clead">C Lead: ${getMemberName(cand?.c_lead_id)}</span>
+      <span class="team-badge badge-ic">IC: ${getMemberName(cand?.interview_coord_id)}</span>
+    </div>
+    <div class="period-badge">📅 Period: ${periodLabel}</div>
+  </div>
+
+  <!-- Stats Summary -->
+  <div class="stats-row">
+    <div class="stat-box"><div class="stat-val" style="color:#2563EB">${totalEmails}</div><div class="stat-lbl">Emails Sent</div></div>
+    <div class="stat-box"><div class="stat-val" style="color:#7C3AED">${totalSubs}</div><div class="stat-lbl">Submissions</div></div>
+    <div class="stat-box"><div class="stat-val" style="color:#16A34A">${candSessions.length}</div><div class="stat-lbl">Interviews</div></div>
+    <div class="stat-box"><div class="stat-val" style="color:#D97706">${candPipeline.filter(p=>p.status==="active").length}</div><div class="stat-lbl">Pipeline</div></div>
+    <div class="stat-box"><div class="stat-val" style="color:#DC2626">${icLogs.length}</div><div class="stat-lbl">Mock Sessions</div></div>
+  </div>
+
+  <!-- Recruiter Section -->
+  <div class="section">
+    <div class="section-header section-rec">👤 Recruiter — ${getMemberName(cand?.recruiter_id)}</div>
+    <div class="section-body">
+      ${recLogs.length === 0 ? '<div class="no-data">No recruiter logs for this period.</div>' :
+        recLogs.map(l => `
+          <div class="row">
+            <span class="label">${l.log_date}</span>
+            <span class="value">📧 ${l.emails_sent || 0} emails &nbsp;·&nbsp; 📤 ${l.submissions || 0} submissions</span>
+          </div>
+          ${l.reason_less_emails ? `<div style="font-size:11px;color:#D97706;margin-bottom:4px;">⚠️ Less emails: ${l.reason_less_emails}</div>` : ''}
+          ${l.reason_zero_subs ? `<div style="font-size:11px;color:#DC2626;margin-bottom:4px;">⚠️ Zero subs: ${l.reason_zero_subs}</div>` : ''}
+          ${l.issue_description ? `<div style="font-size:11px;color:#475569;margin-bottom:4px;">🚨 Issue: ${l.issue_description} (${l.issue_status || ''})</div>` : ''}
+        `).join('')}
+      <div class="row" style="background:#EFF6FF;padding:8px;border-radius:6px;margin-top:8px;">
+        <span style="font-weight:700">Total</span>
+        <span style="font-weight:700;color:#2563EB">📧 ${totalEmails} &nbsp;·&nbsp; 📤 ${totalSubs}</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- R Lead Section -->
+  <div class="section">
+    <div class="section-header section-rlead">📋 R Lead — ${getMemberName(cand?.r_lead_id)}</div>
+    <div class="section-body">
+      <div style="font-weight:600;font-size:12px;margin-bottom:8px;color:#475569;">Vendor Mocks:</div>
+      ${rLeadLogs.length === 0 ? '<div class="no-data">No R Lead logs this period.</div>' :
+        rLeadLogs.map(l => `
+          <div class="interview-card">
+            <div class="row"><span class="label">${l.log_date}</span><span class="value">${l.vendor_mock_conducted === 'yes' ? '✅ Conducted' : '❌ Not Conducted'}</span></div>
+            ${l.vendor_mock_feedback ? `<div style="font-size:12px;color:#475569;margin-top:4px;">Feedback: ${l.vendor_mock_feedback}</div>` : ''}
+            ${l.vendor_mock_reason ? `<div style="font-size:12px;color:#DC2626;margin-top:4px;">Reason: ${l.vendor_mock_reason}</div>` : ''}
+          </div>
+        `).join('')}
+      <div style="font-weight:600;font-size:12px;margin:12px 0 8px;color:#475569;">Pipeline Interviews:</div>
+      ${candPipeline.length === 0 ? '<div class="no-data">No pipeline interviews.</div>' :
+        candPipeline.map(p => {
+          const updates = pipelineUpdates.filter(u=>u.pipeline_id===p.id).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
+          return `<div class="interview-card">
+            <div class="interview-title">${p.interview_with} · ${p.round}</div>
+            <div style="font-size:11px;color:${p.status==='active'?'#16A34A':'#DC2626'};margin-bottom:6px;">${p.status==='active'?'🟢 Active':'🔴 Removed'}</div>
+            ${updates.slice(0,3).map(u=>`<div style="font-size:11px;color:#475569;border-left:2px solid #BFDBFE;padding-left:8px;margin-bottom:4px;">${u.update_text}</div>`).join('')}
+          </div>`;
+        }).join('')}
+    </div>
+  </div>
+
+  <!-- C Lead Section -->
+  <div class="section">
+    <div class="section-header section-clead">🖥️ C Lead — ${getMemberName(cand?.c_lead_id)}</div>
+    <div class="section-body">
+      ${cLeadLogs.length === 0 ? '<div class="no-data">No C Lead logs this period.</div>' :
+        cLeadLogs.map(l => `
+          <div class="row">
+            <span class="label">${l.log_date}</span>
+            <span class="value">${l.resolution_status || '—'}</span>
+          </div>
+          ${l.floor_issues ? `<div style="font-size:12px;color:#475569;margin-bottom:6px;">${l.floor_issues}</div>` : ''}
+        `).join('')}
+    </div>
+  </div>
+
+  <!-- IC Section -->
+  <div class="section">
+    <div class="section-header section-ic">🎤 Interview Coordinator — ${getMemberName(cand?.interview_coord_id)}</div>
+    <div class="section-body">
+      <div style="font-weight:600;font-size:12px;margin-bottom:8px;color:#475569;">Interviews (${candSessions.length}):</div>
+      ${candSessions.length === 0 ? '<div class="no-data">No interviews this period.</div>' :
+        candSessions.map(s => `
+          <div class="interview-card">
+            <div class="interview-title">${ROUNDS_MAP[s.round]||s.round}</div>
+            ${s.with_whom ? `<div class="interview-with">🏢 ${s.with_whom}</div>` : ''}
+            <div style="margin-bottom:6px;">
+              <span class="badge ${s.overall_feedback==='went_well'?'badge-well':s.overall_feedback==='okay'?'badge-ok':'badge-bad'}">${s.overall_feedback==='went_well'?'✅ Went Well':s.overall_feedback==='okay'?'👍 Okay':'❌ Not Went Well'}</span>
+              <span class="badge" style="background:#F5F3FF;color:#7C3AED;">${DURATION_MAP[s.duration]||s.duration}</span>
+              <span class="badge" style="background:#EFF6FF;color:#2563EB;">${s.interview_mode==='virtual'?'Virtual':'In-person'}</span>
+            </div>
+            ${s.detailed_feedback ? `<div style="font-size:12px;color:#475569;">${s.detailed_feedback}</div>` : ''}
+            ${s.tech_support_name ? `<div style="font-size:11px;color:#16A34A;margin-top:4px;">🛠️ ${s.tech_support_name} — ${s.support_mode||''}</div>` : ''}
+          </div>
+        `).join('')}
+      <div style="font-weight:600;font-size:12px;margin:12px 0 8px;color:#475569;">Mock Sessions (${icLogs.length}):</div>
+      ${icLogs.length === 0 ? '<div class="no-data">No mock sessions this period.</div>' :
+        icLogs.map(l => `
+          <div class="interview-card">
+            <div class="row"><span class="label">${l.log_date}</span><span class="value">${l.session_type} · ${l.sessions_done} sessions</span></div>
+            ${l.feedback ? `<div style="font-size:12px;color:#475569;margin-top:4px;">${l.feedback}</div>` : ''}
+          </div>
+        `).join('')}
+    </div>
+  </div>
+
+  <!-- Manager Feedback -->
+  <div class="section">
+    <div class="section-header section-mgr">👔 Manager Feedback</div>
+    <div class="section-body">
+      ${[...mgrLogs, ...candStatusNotes].length === 0 ? '<div class="no-data">No manager feedback for this period.</div>' : ''}
+      ${mgrLogs.map(l => `
+        <div style="margin-bottom:12px;">
+          <div style="font-size:12px;font-weight:600;color:#475569;margin-bottom:6px;">${getMemberName(l.user_id)} · ${l.log_date}</div>
+          ${(l.feedback_to_team||l.manager_feedback) ? `<div class="feedback-box">💬 ${l.feedback_to_team||l.manager_feedback}</div>` : ''}
+          ${(user.role==='president' && l.feedback_to_president) ? `<div class="confidential-box"><div class="conf-label">🔒 Confidential (President only)</div>${l.feedback_to_president}</div>` : ''}
+        </div>
+      `).join('')}
+      ${candStatusNotes.map(n => `
+        <div style="margin-bottom:12px;">
+          <div style="font-size:12px;font-weight:600;color:#475569;margin-bottom:6px;">${getMemberName(n.manager_id)} · Status Meeting Note</div>
+          ${n.public_feedback ? `<div class="feedback-box">💬 ${n.public_feedback}</div>` : ''}
+          ${(user.role==='president' && n.confidential_note) ? `<div class="confidential-box"><div class="conf-label">🔒 Confidential (President only)</div>${n.confidential_note}</div>` : ''}
+        </div>
+      `).join('')}
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    <div>Mpower Logic Inc. | VARS Consulting Inc. — Internal Management System</div>
+    <div style="margin-top:4px;">Generated on ${new Date().toLocaleString('en-US', {dateStyle:'full',timeStyle:'short'})} by ${user.name} (${ROLE_CONFIG[user.role]?.label})</div>
+    <div style="margin-top:4px;">CONFIDENTIAL — Internal use only</div>
+  </div>
+</body>
+</html>`);
+    printWindow.document.close();
+    setTimeout(() => {
+      printWindow.print();
+    }, 500);
+  };
+
   return <div>
-    <div style={{fontSize:20,fontWeight:700,marginBottom:4}}>📞 Status Meeting</div>
+    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:4}}>
+      <div style={{fontSize:20,fontWeight:700}}>📞 Status Meeting</div>
+      {cand&&<button onClick={downloadPDF} style={{background:"#2563EB",color:"#fff",border:"none",borderRadius:8,padding:"8px 16px",fontSize:13,fontWeight:600,cursor:"pointer",display:"flex",alignItems:"center",gap:6}}>📥 Download PDF Report</button>}
+    </div>
     <div style={{fontSize:13,color:"#94A3B8",marginBottom:20}}>Select candidate + period to view full status — everyone sees all sections</div>
 
     {/* FILTERS */}
