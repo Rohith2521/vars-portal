@@ -60,16 +60,16 @@ const ROLE_CONFIG = {
 };
 
 const ENTRY_TYPES = {
-  screening_call:    { label: "Screening Call",      icon: "📞", color: "#2563EB" },
-  interview_round1:  { label: "Interview Round 1",   icon: "🎯", color: "#7C3AED" },
-  interview_round2:  { label: "Interview Round 2",   icon: "🎯", color: "#7C3AED" },
-  interview_round3:  { label: "Interview Round 3",   icon: "🎯", color: "#7C3AED" },
-  vendor_mock:       { label: "Vendor Mock",         icon: "🏢", color: "#D97706" },
-  interview_mock:    { label: "Interview Mock",      icon: "🎤", color: "#DC2626" },
-  pipeline_update:   { label: "Pipeline Update",     icon: "📋", color: "#0F766E" },
-  offer:             { label: "Offer",               icon: "🎉", color: "#16A34A" },
-  placement:         { label: "Placement",           icon: "✅", color: "#16A34A" },
-  dropped:           { label: "Dropped",             icon: "❌", color: "#DC2626" },
+  screening_call:    { label: "Screening Call",      icon: "", color: "#2563EB" },
+  interview_round1:  { label: "Interview Round 1",   icon: "", color: "#7C3AED" },
+  interview_round2:  { label: "Interview Round 2",   icon: "", color: "#7C3AED" },
+  interview_round3:  { label: "Interview Round 3",   icon: "", color: "#7C3AED" },
+  vendor_mock:       { label: "Vendor Mock",         icon: "", color: "#D97706" },
+  interview_mock:    { label: "Interview Mock",      icon: "", color: "#DC2626" },
+  pipeline_update:   { label: "Pipeline Update",     icon: "", color: "#0F766E" },
+  offer:             { label: "Offer",               icon: "", color: "#16A34A" },
+  placement:         { label: "Placement",           icon: "", color: "#16A34A" },
+  dropped:           { label: "Dropped",             icon: "", color: "#DC2626" },
 };
 
 // ─── UI COMPONENTS ─────────────────────────────────────────────────────────
@@ -134,7 +134,7 @@ function Modal({ open, onClose, title, children, wide }) {
 }
 function Toast({ msg, type="success", onDone }) {
   useEffect(()=>{ const t=setTimeout(onDone,3500); return()=>clearTimeout(t); },[onDone]);
-  return <div style={{ position:"fixed", bottom:24, right:24, background:type==="error"?"#DC2626":"#16A34A", color:"#fff", padding:"12px 20px", borderRadius:10, fontSize:14, fontWeight:500, zIndex:9999, maxWidth:340 }}>{type==="success"?"✓":"✗"} {msg}</div>;
+  return <div style={{ position:"fixed", bottom:24, right:24, background:type==="error"?"#DC2626":"#16A34A", color:"#fff", padding:"12px 20px", borderRadius:10, fontSize:14, fontWeight:500, zIndex:9999, maxWidth:340 }}>{type==="success"?"":""} {msg}</div>;
 }
 function Av({ name, role, size=32 }) {
   const rc = ROLE_CONFIG[role]||{color:"#2563EB",bg:"#EFF6FF"};
@@ -210,7 +210,7 @@ function ChangePasswordScreen({ user, onDone }) {
       <div style={{ background:"#fff", borderRadius:16, padding:"40px 36px", width:420, boxShadow:"0 24px 64px rgba(0,0,0,0.25)" }}>
         <div style={{ fontSize:26, fontWeight:800, color:"#0F1F3D", marginBottom:2 }}>VARS <span style={{ color:"#2563EB" }}>Portal</span></div>
         <div style={{ background:"#EFF6FF", border:"1px solid #BFDBFE", borderRadius:10, padding:"12px 14px", marginBottom:24, marginTop:8 }}>
-          <div style={{ fontSize:13, fontWeight:700, color:"#2563EB", marginBottom:4 }}>🔐 First Login — Set Your Password</div>
+          <div style={{ fontSize:13, fontWeight:700, color:"#2563EB", marginBottom:4 }}> First Login — Set Your Password</div>
           <div style={{ fontSize:12, color:"#475569" }}>Welcome {user.name}! Please set a new secure password to continue.</div>
         </div>
 
@@ -226,7 +226,7 @@ function ChangePasswordScreen({ user, onDone }) {
           ].map((r, i) => (
             <div key={i} style={{ display:"flex", alignItems:"center", gap:8, marginBottom:4 }}>
               <span style={{ fontSize:12, color: newPass.length === 0 ? "#94A3B8" : r.pass ? "#16A34A" : "#DC2626" }}>
-                {newPass.length === 0 ? "○" : r.pass ? "✅" : "❌"}
+                {newPass.length === 0 ? "○" : r.pass ? "" : ""}
               </span>
               <span style={{ fontSize:12, color: newPass.length === 0 ? "#94A3B8" : r.pass ? "#16A34A" : "#DC2626" }}>{r.rule}</span>
             </div>
@@ -250,10 +250,10 @@ function ChangePasswordScreen({ user, onDone }) {
             <button onClick={()=>setShowConfirm(!showConfirm)} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", background:"none", border:"none", cursor:"pointer", color:"#94A3B8", fontSize:12 }}>{showConfirm?"Hide":"Show"}</button>
           </div>
           {confirmPass.length>0&&newPass!==confirmPass&&<div style={{ fontSize:11, color:"#DC2626", marginTop:4 }}>Passwords do not match</div>}
-          {confirmPass.length>0&&newPass===confirmPass&&errors.length===0&&<div style={{ fontSize:11, color:"#16A34A", marginTop:4 }}>✅ Passwords match!</div>}
+          {confirmPass.length>0&&newPass===confirmPass&&errors.length===0&&<div style={{ fontSize:11, color:"#16A34A", marginTop:4 }}> Passwords match!</div>}
         </div>
 
-        {err&&<div style={{ background:"#FEF2F2", border:"1px solid #FECACA", borderRadius:8, padding:"10px 14px", fontSize:13, color:"#DC2626", marginBottom:16 }}>⚠️ {err}</div>}
+        {err&&<div style={{ background:"#FEF2F2", border:"1px solid #FECACA", borderRadius:8, padding:"10px 14px", fontSize:13, color:"#DC2626", marginBottom:16 }}>Note: {err}</div>}
 
         <button onClick={handleChange} disabled={loading||!isValid} style={{ width:"100%", background:loading||!isValid?"#94A3B8":"#2563EB", color:"#fff", border:"none", borderRadius:10, padding:13, fontSize:15, fontWeight:700, cursor:loading||!isValid?"not-allowed":"pointer" }}>
           {loading?"Setting password...":"Set Password & Continue →"}
@@ -289,7 +289,7 @@ function LoginPage({ onLogin }) {
         {/* Logo strip */}
         <div style={{ display:"flex", alignItems:"stretch", borderRadius:14, overflow:"hidden", border:"1px solid rgba(255,255,255,0.08)", marginBottom:3 }}>
           <div style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", gap:10, padding:"14px 16px", background:"linear-gradient(135deg,rgba(29,78,216,0.35),rgba(37,99,235,0.2))", borderRight:"1px solid rgba(255,255,255,0.08)" }}>
-            <div style={{ width:36, height:36, borderRadius:"50%", background:"rgba(59,130,246,0.25)", border:"1px solid rgba(59,130,246,0.4)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:18, flexShrink:0 }}>🌐</div>
+            <div style={{ width:36, height:36, borderRadius:"50%", background:"rgba(59,130,246,0.25)", border:"1px solid rgba(59,130,246,0.4)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:18, flexShrink:0 }}></div>
             <div><div style={{ fontSize:13, fontWeight:800, color:"#93C5FD", letterSpacing:-0.2 }}>Mpower Logic</div><div style={{ fontSize:9, color:"rgba(147,197,253,0.5)", letterSpacing:"0.1em", textTransform:"uppercase", marginTop:2 }}>Inc.</div></div>
           </div>
           <div style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", gap:10, padding:"14px 16px", background:"linear-gradient(135deg,rgba(100,10,20,0.4),rgba(139,27,45,0.25))" }}>
@@ -331,7 +331,7 @@ function LoginPage({ onLogin }) {
             <button onClick={()=>setShow(!show)} style={{ position:"absolute", right:12, top:"50%", transform:"translateY(-50%)", background:"none", border:"none", cursor:"pointer", color:"rgba(147,197,253,0.6)", fontSize:11, fontWeight:600 }}>{show?"Hide":"Show"}</button>
           </div>
 
-          {err&&<div style={{ background:"rgba(220,38,38,0.15)", border:"1px solid rgba(220,38,38,0.3)", borderRadius:8, padding:"10px 14px", fontSize:13, color:"#FCA5A5", marginBottom:14 }}>⚠️ {err}</div>}
+          {err&&<div style={{ background:"rgba(220,38,38,0.15)", border:"1px solid rgba(220,38,38,0.3)", borderRadius:8, padding:"10px 14px", fontSize:13, color:"#FCA5A5", marginBottom:14 }}>Note: {err}</div>}
 
           {/* Sign in button */}
           <button onClick={login} disabled={loading} style={{ width:"100%", background:loading?"rgba(255,255,255,0.1)":"linear-gradient(135deg,#1D4ED8 0%,#7f1d1d 100%)", color:"#fff", border:"none", borderRadius:10, padding:13, fontSize:15, fontWeight:700, cursor:loading?"not-allowed":"pointer", marginBottom:16, letterSpacing:"0.02em" }}>
@@ -516,14 +516,14 @@ export default function VARSPortal() {
           <div style={{ fontSize:10, color:"#93C5FD", letterSpacing:"0.05em" }}>Internal Management System</div>
         </div>
         {rc.isAdmin&&<div style={{ position:"relative" }}>
-          <button onClick={()=>setShowN(!showN)} style={{ background:"none", border:"none", color:"#93C5FD", cursor:"pointer", fontSize:18, position:"relative" }}>🔔{unread>0&&<span style={{ position:"absolute", top:-4, right:-4, background:"#DC2626", color:"#fff", fontSize:10, borderRadius:99, padding:"1px 5px" }}>{unread}</span>}</button>
+          <button onClick={()=>setShowN(!showN)} style={{ background:"none", border:"none", color:"#93C5FD", cursor:"pointer", fontSize:18, position:"relative" }}>{unread>0&&<span style={{ position:"absolute", top:-4, right:-4, background:"#DC2626", color:"#fff", fontSize:10, borderRadius:99, padding:"1px 5px" }}>{unread}</span>}</button>
           {showN&&<div style={{ position:"absolute", right:0, top:38, background:"#fff", border:"1px solid #E2E8F0", borderRadius:10, width:340, zIndex:200, boxShadow:"0 8px 30px rgba(0,0,0,0.15)", maxHeight:420, overflowY:"auto" }}>
             <div style={{ padding:"12px 16px", borderBottom:"1px solid #E2E8F0", display:"flex", alignItems:"center", justifyContent:"space-between", position:"sticky", top:0, background:"#fff" }}>
-              <div style={{ fontWeight:700, fontSize:13 }}>🔔 Notifications <span style={{ fontSize:11, color:"#94A3B8", fontWeight:400 }}>({unread} unread)</span></div>
-              {unread>0&&<button onClick={markAllRead} style={{ fontSize:11, color:"#2563EB", background:"#EFF6FF", border:"1px solid #BFDBFE", borderRadius:6, padding:"3px 8px", cursor:"pointer", fontWeight:600 }}>✓ Mark all read</button>}
+              <div style={{ fontWeight:700, fontSize:13 }}> Notifications <span style={{ fontSize:11, color:"#94A3B8", fontWeight:400 }}>({unread} unread)</span></div>
+              {unread>0&&<button onClick={markAllRead} style={{ fontSize:11, color:"#2563EB", background:"#EFF6FF", border:"1px solid #BFDBFE", borderRadius:6, padding:"3px 8px", cursor:"pointer", fontWeight:600 }}>Mark all read</button>}
             </div>
             {notifications.slice(0,12).map(n=><div key={n.id} onClick={()=>!n.read_at&&markRead(n.id)} style={{ padding:"10px 16px", borderBottom:"1px solid #F1F5F9", background:n.read_at?"#FAFAFA":"#fff", cursor:n.read_at?"default":"pointer", display:"flex", alignItems:"flex-start", gap:8 }}>
-              <span style={{ fontSize:14, marginTop:1 }}>{n.read_at?"🔕":"🔔"}</span>
+              <span style={{ fontSize:14, marginTop:1 }}>{n.read_at?"":""}</span>
               <div style={{ flex:1 }}>
                 <div style={{ fontSize:12, color:n.read_at?"#94A3B8":"#0F172A", fontWeight:n.read_at?400:500 }}>{n.message}</div>
                 <div style={{ fontSize:11, color:"#94A3B8", marginTop:2 }}>{fmtDateTime(n.created_at)}</div>
@@ -584,7 +584,7 @@ function DashPage({user,rc,candidates,logs,getMember,onNav,onRefresh}){
   const weekAgo=new Date();weekAgo.setDate(weekAgo.getDate()-7);
   const wLogs=logs.filter(l=>l.type==="recruiter"&&new Date(l.log_date)>=weekAgo);
   return <div>
-    <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:4 }}><div style={{ fontSize:20, fontWeight:700 }}>Good day, {user.name}! 👋</div><Btn variant="outline" onClick={onRefresh} style={{ fontSize:12, padding:"5px 12px" }}>↻ Refresh</Btn></div>
+    <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:4 }}><div style={{ fontSize:20, fontWeight:700 }}>Good day, {user.name}! </div><Btn variant="outline" onClick={onRefresh} style={{ fontSize:12, padding:"5px 12px" }}>↻ Refresh</Btn></div>
     <div style={{ fontSize:13, color:"#94A3B8", marginBottom:20 }}>VARS Portal · {fmtDate(today())}</div>
     <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(140px,1fr))", gap:10, marginBottom:20 }}>
       <StatCard label="My candidates" value={candidates.length} color="#2563EB" sub="assigned to you"/>
@@ -598,7 +598,7 @@ function DashPage({user,rc,candidates,logs,getMember,onNav,onRefresh}){
         {candidates.length===0&&<div style={{ padding:24, textAlign:"center", fontSize:13, color:"#94A3B8" }}>No candidates assigned yet.</div>}
       </Card>
       <Card><CardHeader title="Recent Logs" action={<Btn variant="outline" onClick={()=>onNav("logs_history")} style={{ fontSize:12, padding:"5px 10px" }}>View all</Btn>}/>
-        {myLogs.slice(0,5).map(l=>{const cand=candidates.find(c=>c.id===l.candidate_id);const m=getMember(l.user_id);return<div key={l.id} style={{ padding:"10px 16px", borderBottom:"1px solid #F1F5F9" }}><div style={{ display:"flex", justifyContent:"space-between" }}><div style={{ fontSize:12, fontWeight:600 }}>{m?.name} <span style={{ color:"#94A3B8", fontWeight:400 }}>→ {cand?.name||"?"}</span></div><RoleBadge role={l.type==="manager_feedback"?"manager":l.type}/></div><div style={{ fontSize:11, color:"#94A3B8", marginTop:2 }}>{fmtDate(l.log_date)} · {l.log_time}</div>{l.type==="recruiter"&&<div style={{ fontSize:11, color:"#475569", marginTop:3 }}>📧 {l.emails_sent} emails · 📤 {l.submissions} subs</div>}</div>;})}
+        {myLogs.slice(0,5).map(l=>{const cand=candidates.find(c=>c.id===l.candidate_id);const m=getMember(l.user_id);return<div key={l.id} style={{ padding:"10px 16px", borderBottom:"1px solid #F1F5F9" }}><div style={{ display:"flex", justifyContent:"space-between" }}><div style={{ fontSize:12, fontWeight:600 }}>{m?.name} <span style={{ color:"#94A3B8", fontWeight:400 }}>→ {cand?.name||"?"}</span></div><RoleBadge role={l.type==="manager_feedback"?"manager":l.type}/></div><div style={{ fontSize:11, color:"#94A3B8", marginTop:2 }}>{fmtDate(l.log_date)} · {l.log_time}</div>{l.type==="recruiter"&&<div style={{ fontSize:11, color:"#475569", marginTop:3 }}>Emails: {l.emails_sent} emails · Subs: {l.submissions} subs</div>}</div>;})}
         {myLogs.length===0&&<div style={{ padding:24, textAlign:"center", fontSize:13, color:"#94A3B8" }}>No logs yet.</div>}
       </Card>
     </div>
@@ -638,7 +638,7 @@ function CandidatesTab({candidates,members,onAdd,logs,getMember,loading,rc,onSel
         return <Card key={c.id} style={{ padding:18 }} onClick={()=>onSelectCand(c)}>
           <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", marginBottom:12 }}>
             <div style={{ display:"flex", alignItems:"center", gap:12 }}><Av name={c.name} role="president" size={44}/><div><div style={{ fontSize:16, fontWeight:700 }}>{c.name}</div><div style={{ fontSize:12, color:"#94A3B8" }}>{c.tech} · Marketing started: {fmtDate(c.marketing_start_date||c.added_on)}</div></div></div>
-            <div style={{ display:"flex", gap:8, alignItems:"center" }}><StatusBadge status={c.status}/><span style={{ fontSize:11, color:"#94A3B8" }}>👁 View Profile</span></div>
+            <div style={{ display:"flex", gap:8, alignItems:"center" }}><StatusBadge status={c.status}/><span style={{ fontSize:11, color:"#94A3B8" }}> View Profile</span></div>
           </div>
           <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(160px,1fr))", gap:8, marginBottom:lastLog?10:0 }}>
             {[["Recruiter",c.recruiter_id,"recruiter"],["R Lead",c.r_lead_id,"r_lead"],["C Lead",c.c_lead_id,"c_lead"],["IC",c.interview_coord_id,"interview_coord"]].map(([lbl,id,role])=>{
@@ -758,10 +758,10 @@ function RecruitersTab({members,candidates,logs,onAddMember,loading,getMember,on
           </div>
           <div style={{ fontSize:12, fontWeight:600, color:"#475569", marginBottom:8 }}>Assigned Candidates:</div>
           <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginBottom:10 }}>
-            {rCands.map(c=><span key={c.id} onClick={()=>onSelectCand(c)} style={{ background:c.status==="Placed"?"#F5F3FF":c.status==="Dropped"?"#FEF2F2":"#EFF6FF", color:c.status==="Placed"?"#7C3AED":c.status==="Dropped"?"#DC2626":"#2563EB", fontSize:12, padding:"4px 10px", borderRadius:6, cursor:"pointer", fontWeight:500 }}>{c.status==="Placed"?"✅ ":c.status==="Dropped"?"❌ ":""}{c.name} · {c.tech}</span>)}
+            {rCands.map(c=><span key={c.id} onClick={()=>onSelectCand(c)} style={{ background:c.status==="Placed"?"#F5F3FF":c.status==="Dropped"?"#FEF2F2":"#EFF6FF", color:c.status==="Placed"?"#7C3AED":c.status==="Dropped"?"#DC2626":"#2563EB", fontSize:12, padding:"4px 10px", borderRadius:6, cursor:"pointer", fontWeight:500 }}>{c.status==="Placed"?" ":c.status==="Dropped"?" ":""}{c.name} · {c.tech}</span>)}
             {rCands.length===0&&<span style={{ fontSize:12, color:"#94A3B8" }}>No candidates assigned yet.</span>}
           </div>
-          <button onClick={()=>{setShowDeactivate(r);setDeactForm({});}} style={{ padding:"5px 12px", borderRadius:8, fontSize:12, fontWeight:600, cursor:"pointer", background:"#FEF2F2", color:"#DC2626", border:"1px solid #FECACA" }}>🚫 End Association</button>
+          <button onClick={()=>{setShowDeactivate(r);setDeactForm({});}} style={{ padding:"5px 12px", borderRadius:8, fontSize:12, fontWeight:600, cursor:"pointer", background:"#FEF2F2", color:"#DC2626", border:"1px solid #FECACA" }}>End Association</button>
         </Card>;
       })}
     </div>
@@ -769,7 +769,7 @@ function RecruitersTab({members,candidates,logs,onAddMember,loading,getMember,on
     {/* Deactivation Modal */}
     <Modal open={!!showDeactivate} onClose={()=>setShowDeactivate(null)} title={`End Association — ${showDeactivate?.name}`}>
       <div style={{ background:"#FEF2F2", border:"1px solid #FECACA", borderRadius:8, padding:"10px 14px", fontSize:13, color:"#DC2626", marginBottom:16 }}>
-        ⚠️ This will deactivate {showDeactivate?.name} and reassign all their candidates.
+        Note: This will deactivate {showDeactivate?.name} and reassign all their candidates.
       </div>
       <Input label="Last working date *" type="date" value={deactForm.end_date||""} onChange={e=>setD("end_date",e.target.value)}/>
       <div style={{ marginBottom:12 }}>
@@ -816,7 +816,7 @@ function RecruitersTab({members,candidates,logs,onAddMember,loading,getMember,on
           </div>
         </div>)}
       </>}
-      {recCands.length===0&&<div style={{ background:"#F0FDF4", border:"1px solid #BBF7D0", borderRadius:8, padding:"10px 14px", fontSize:13, color:"#16A34A", marginBottom:12 }}>✅ No active candidates to reassign.</div>}
+      {recCands.length===0&&<div style={{ background:"#F0FDF4", border:"1px solid #BBF7D0", borderRadius:8, padding:"10px 14px", fontSize:13, color:"#16A34A", marginBottom:12 }}> No active candidates to reassign.</div>}
       <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}>
         <Btn variant="outline" onClick={()=>setShowDeactivate(null)}>Cancel</Btn>
         <Btn variant="danger" onClick={submitDeactivation} disabled={saving}>{saving?"Processing...":"Confirm End Association"}</Btn>
@@ -824,7 +824,7 @@ function RecruitersTab({members,candidates,logs,onAddMember,loading,getMember,on
     </Modal>
 
     <Modal open={showAdd} onClose={()=>setShowAdd(false)} title="Add New Recruiter">
-      <div style={{ background:"#EFF6FF", border:"1px solid #BFDBFE", borderRadius:8, padding:"10px 14px", fontSize:12, color:"#2563EB", marginBottom:16 }}>🔐 Login credentials auto-created. Default password: <strong>VARS@2026</strong></div>
+      <div style={{ background:"#EFF6FF", border:"1px solid #BFDBFE", borderRadius:8, padding:"10px 14px", fontSize:12, color:"#2563EB", marginBottom:16 }}> Login credentials auto-created. Default password: <strong>VARS@2026</strong></div>
       <Input label="Full name *" value={form.name||""} onChange={e=>set("name",e.target.value)} placeholder="e.g. John Smith"/>
       <Input label="Work email *" type="email" value={form.email||""} onChange={e=>set("email",e.target.value)} placeholder="john@varsconsultinginc.com"/>
       <Select label="Assign to R Lead team *" value={form.r_lead_team||""} onChange={e=>set("r_lead_team",e.target.value)}><option value="">-- Select R Lead --</option>{rLeads.map(m=><option key={m.id} value={m.id}>{m.name}</option>)}</Select>
@@ -938,13 +938,13 @@ function CandidateProfile({candidate,members,logs,timeline,getMember,onAddTimeli
           })}
         </div>
         {isManager&&<div style={{ display:"flex", gap:8, marginTop:10, flexWrap:"wrap" }}>
-          <button onClick={()=>{setShowChangeRec(true);setForm({});}} style={{ padding:"5px 12px", borderRadius:8, fontSize:12, fontWeight:600, cursor:"pointer", background:"#F0FDF4", color:"#16A34A", border:"1px solid #BBF7D0" }}>🔄 Change Recruiter</button>
-          <button onClick={()=>{setShowChangeRLead(true);setForm({});}} style={{ padding:"5px 12px", borderRadius:8, fontSize:12, fontWeight:600, cursor:"pointer", background:"#EFF6FF", color:"#2563EB", border:"1px solid #BFDBFE" }}>🔄 Change R Lead</button>
+          <button onClick={()=>{setShowChangeRec(true);setForm({});}} style={{ padding:"5px 12px", borderRadius:8, fontSize:12, fontWeight:600, cursor:"pointer", background:"#F0FDF4", color:"#16A34A", border:"1px solid #BBF7D0" }}>Change Recruiter</button>
+          <button onClick={()=>{setShowChangeRLead(true);setForm({});}} style={{ padding:"5px 12px", borderRadius:8, fontSize:12, fontWeight:600, cursor:"pointer", background:"#EFF6FF", color:"#2563EB", border:"1px solid #BFDBFE" }}>Change R Lead</button>
           {candidate.status==="Active"&&<>
-            <button onClick={()=>{setShowPlaced(true);setForm({});}} style={{ padding:"5px 12px", borderRadius:8, fontSize:12, fontWeight:600, cursor:"pointer", background:"#F5F3FF", color:"#7C3AED", border:"1px solid #DDD6FE" }}>✅ Mark as Placed</button>
-            <button onClick={()=>{setShowDropped(true);setForm({});}} style={{ padding:"5px 12px", borderRadius:8, fontSize:12, fontWeight:600, cursor:"pointer", background:"#FEF2F2", color:"#DC2626", border:"1px solid #FECACA" }}>❌ Mark as Dropped</button>
+            <button onClick={()=>{setShowPlaced(true);setForm({});}} style={{ padding:"5px 12px", borderRadius:8, fontSize:12, fontWeight:600, cursor:"pointer", background:"#F5F3FF", color:"#7C3AED", border:"1px solid #DDD6FE" }}>Mark as Placed</button>
+            <button onClick={()=>{setShowDropped(true);setForm({});}} style={{ padding:"5px 12px", borderRadius:8, fontSize:12, fontWeight:600, cursor:"pointer", background:"#FEF2F2", color:"#DC2626", border:"1px solid #FECACA" }}>Mark as Dropped</button>
           </>}
-          {(candidate.status==="Placed"||candidate.status==="Dropped")&&<button onClick={async()=>{await sb.patch("candidates",candidate.id,{status:"Active",status_reason:null,vendor_name:null,prime_vendor:null,end_client:null,project_start_date:null},token);if(onRefresh)onRefresh();alert("Candidate reactivated!");}} style={{ padding:"5px 12px", borderRadius:8, fontSize:12, fontWeight:600, cursor:"pointer", background:"#F0FDF4", color:"#16A34A", border:"1px solid #BBF7D0" }}>🔄 Reactivate</button>}
+          {(candidate.status==="Placed"||candidate.status==="Dropped")&&<button onClick={async()=>{await sb.patch("candidates",candidate.id,{status:"Active",status_reason:null,vendor_name:null,prime_vendor:null,end_client:null,project_start_date:null},token);if(onRefresh)onRefresh();alert("Candidate reactivated!");}} style={{ padding:"5px 12px", borderRadius:8, fontSize:12, fontWeight:600, cursor:"pointer", background:"#F0FDF4", color:"#16A34A", border:"1px solid #BBF7D0" }}>Reactivate</button>}
         </div>}
       </div>
       <StatusBadge status={candidate.status}/>
@@ -953,7 +953,7 @@ function CandidateProfile({candidate,members,logs,timeline,getMember,onAddTimeli
     {/* Change Recruiter Modal */}
     <Modal open={showChangeRec} onClose={()=>setShowChangeRec(false)} title="Change Recruiter">
       <div style={{ background:"#FFFBEB", border:"1px solid #FDE68A", borderRadius:8, padding:"10px 14px", fontSize:13, color:"#D97706", marginBottom:16 }}>
-        ⚠️ Current recruiter's end date will be set to yesterday automatically. New recruiter starts from today.
+        Note: Current recruiter's end date will be set to yesterday automatically. New recruiter starts from today.
       </div>
       <div style={{ marginBottom:16 }}>
         <div style={{ fontSize:12, fontWeight:600, color:"#475569", marginBottom:4 }}>Current Recruiter:</div>
@@ -971,7 +971,7 @@ function CandidateProfile({candidate,members,logs,timeline,getMember,onAddTimeli
     </Modal>
 
     {/* Mark as Placed Modal */}
-    <Modal open={showPlaced} onClose={()=>setShowPlaced(false)} title="✅ Mark as Placed">
+    <Modal open={showPlaced} onClose={()=>setShowPlaced(false)} title="Mark as Placed">
       <div style={{ background:"#F5F3FF", border:"1px solid #DDD6FE", borderRadius:8, padding:"10px 14px", fontSize:13, color:"#7C3AED", marginBottom:16 }}>
         Candidate will be marked as Placed. They will no longer appear in daily log candidate selection.
       </div>
@@ -990,14 +990,14 @@ function CandidateProfile({candidate,members,logs,timeline,getMember,onAddTimeli
             await sb.patch("candidates",candidate.id,{status:"Placed",vendor_name:form.vendor_name,prime_vendor:form.prime_vendor,end_client:form.end_client,project_start_date:form.project_start_date,status_updated_at:new Date().toISOString()},token);
             setShowPlaced(false);setForm({});
             if(onRefresh)onRefresh();
-            alert("Candidate marked as Placed! ✅");
+            alert("Candidate marked as Placed! ");
           } catch(e){alert("Error updating status");}
         }}>Confirm Placed</Btn>
       </div>
     </Modal>
 
     {/* Mark as Dropped Modal */}
-    <Modal open={showDropped} onClose={()=>setShowDropped(false)} title="❌ Mark as Dropped">
+    <Modal open={showDropped} onClose={()=>setShowDropped(false)} title="Mark as Dropped">
       <div style={{ background:"#FEF2F2", border:"1px solid #FECACA", borderRadius:8, padding:"10px 14px", fontSize:13, color:"#DC2626", marginBottom:16 }}>
         Candidate will be marked as Dropped. They will no longer appear in daily log candidate selection.
       </div>
@@ -1019,7 +1019,7 @@ function CandidateProfile({candidate,members,logs,timeline,getMember,onAddTimeli
     {/* Change R Lead Modal */}
     <Modal open={showChangeRLead} onClose={()=>setShowChangeRLead(false)} title="Change R Lead">
       <div style={{ background:"#FFFBEB", border:"1px solid #FDE68A", borderRadius:8, padding:"10px 14px", fontSize:13, color:"#D97706", marginBottom:16 }}>
-        ⚠️ Current R Lead's end date will be set to yesterday automatically. New R Lead starts from today.
+        Note: Current R Lead's end date will be set to yesterday automatically. New R Lead starts from today.
       </div>
       <div style={{ marginBottom:16 }}>
         <div style={{ fontSize:12, fontWeight:600, color:"#475569", marginBottom:4 }}>Current R Lead:</div>
@@ -1041,7 +1041,7 @@ function CandidateProfile({candidate,members,logs,timeline,getMember,onAddTimeli
     {tab==="overview"&&<div>
       {/* Placed details */}
       {candidate.status==="Placed"&&<div style={{ background:"#F5F3FF", border:"1px solid #DDD6FE", borderRadius:12, padding:"16px 20px", marginBottom:16 }}>
-        <div style={{ fontSize:14, fontWeight:700, color:"#7C3AED", marginBottom:12 }}>✅ Placed in Project</div>
+        <div style={{ fontSize:14, fontWeight:700, color:"#7C3AED", marginBottom:12 }}> Placed in Project</div>
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
           <div><div style={{ fontSize:11, color:"#94A3B8", fontWeight:600, marginBottom:2 }}>VENDOR</div><div style={{ fontSize:13, fontWeight:600 }}>{candidate.vendor_name||"—"}</div></div>
           <div><div style={{ fontSize:11, color:"#94A3B8", fontWeight:600, marginBottom:2 }}>PRIME VENDOR / IMPL. PARTNER</div><div style={{ fontSize:13, fontWeight:600 }}>{candidate.prime_vendor||"—"}</div></div>
@@ -1051,27 +1051,27 @@ function CandidateProfile({candidate,members,logs,timeline,getMember,onAddTimeli
       </div>}
       {/* Dropped reason */}
       {candidate.status==="Dropped"&&<div style={{ background:"#FEF2F2", border:"1px solid #FECACA", borderRadius:12, padding:"16px 20px", marginBottom:16 }}>
-        <div style={{ fontSize:14, fontWeight:700, color:"#DC2626", marginBottom:8 }}>❌ Dropped from Marketing</div>
+        <div style={{ fontSize:14, fontWeight:700, color:"#DC2626", marginBottom:8 }}> Dropped from Marketing</div>
         <div style={{ fontSize:13, color:"#475569" }}>{candidate.status_reason||"No reason provided."}</div>
       </div>}
       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14 }}>
       <Card style={{ padding:16 }}>
-        <div style={{ fontWeight:600, fontSize:14, marginBottom:12 }}>📋 Latest Pipeline Status</div>
+        <div style={{ fontWeight:600, fontSize:14, marginBottom:12 }}> Latest Pipeline Status</div>
         {candTimeline.filter(t=>t.entry_type==="pipeline_update").slice(0,1).map(t=><div key={t.id} style={{ background:"#F8FAFC", borderRadius:8, padding:12 }}><div style={{ fontSize:13, fontWeight:600 }}>{t.title}</div><div style={{ fontSize:12, color:"#475569", marginTop:4 }}>{t.details}</div><div style={{ fontSize:11, color:"#94A3B8", marginTop:4 }}>{fmtDateTime(t.created_at)}</div></div>)}
         {candTimeline.filter(t=>t.entry_type==="pipeline_update").length===0&&<div style={{ fontSize:13, color:"#94A3B8" }}>No pipeline updates yet.</div>}
       </Card>
       <Card style={{ padding:16 }}>
-        <div style={{ fontWeight:600, fontSize:14, marginBottom:12 }}>🎯 Latest Interview</div>
+        <div style={{ fontWeight:600, fontSize:14, marginBottom:12 }}> Latest Interview</div>
         {candTimeline.filter(t=>["interview_round1","interview_round2","interview_round3"].includes(t.entry_type)).slice(0,1).map(t=>{const et=ENTRY_TYPES[t.entry_type];return<div key={t.id} style={{ background:"#F8FAFC", borderRadius:8, padding:12 }}><div style={{ fontSize:13, fontWeight:600 }}>{et.icon} {et.label}</div><div style={{ fontSize:12, color:"#475569", marginTop:4 }}>{t.title}</div>{t.outcome&&<div style={{ marginTop:6 }}><StatusBadge status={t.outcome}/></div>}<div style={{ fontSize:11, color:"#94A3B8", marginTop:4 }}>{fmtDateTime(t.created_at)}</div></div>;})}
         {candTimeline.filter(t=>["interview_round1","interview_round2","interview_round3"].includes(t.entry_type)).length===0&&<div style={{ fontSize:13, color:"#94A3B8" }}>No interviews yet.</div>}
       </Card>
       <Card style={{ padding:16 }}>
-        <div style={{ fontWeight:600, fontSize:14, marginBottom:12 }}>🎤 Latest Mock Feedback</div>
+        <div style={{ fontWeight:600, fontSize:14, marginBottom:12 }}> Latest Mock Feedback</div>
         {candTimeline.filter(t=>["vendor_mock","interview_mock"].includes(t.entry_type)).slice(0,1).map(t=>{const et=ENTRY_TYPES[t.entry_type];return<div key={t.id} style={{ background:"#F8FAFC", borderRadius:8, padding:12 }}><div style={{ fontSize:13, fontWeight:600 }}>{et.icon} {et.label}</div><div style={{ fontSize:12, color:"#475569", marginTop:4 }}>{t.feedback}</div><div style={{ fontSize:11, color:"#94A3B8", marginTop:4 }}>{fmtDateTime(t.created_at)}</div></div>;})}
         {candTimeline.filter(t=>["vendor_mock","interview_mock"].includes(t.entry_type)).length===0&&<div style={{ fontSize:13, color:"#94A3B8" }}>No mock feedback yet.</div>}
       </Card>
       <Card style={{ padding:16 }}>
-        <div style={{ fontWeight:600, fontSize:14, marginBottom:12 }}>📞 Screening Calls</div>
+        <div style={{ fontWeight:600, fontSize:14, marginBottom:12 }}> Screening Calls</div>
         {candTimeline.filter(t=>t.entry_type==="screening_call").slice(0,2).map(t=><div key={t.id} style={{ background:"#F8FAFC", borderRadius:8, padding:10, marginBottom:8 }}><div style={{ fontSize:13, fontWeight:600 }}>{t.title}</div>{t.outcome&&<div style={{ marginTop:4 }}><StatusBadge status={t.outcome}/></div>}<div style={{ fontSize:11, color:"#94A3B8", marginTop:4 }}>{fmtDateTime(t.created_at)}</div></div>)}
         {candTimeline.filter(t=>t.entry_type==="screening_call").length===0&&<div style={{ fontSize:13, color:"#94A3B8" }}>No screening calls yet.</div>}
       </Card>
@@ -1082,7 +1082,7 @@ function CandidateProfile({candidate,members,logs,timeline,getMember,onAddTimeli
       {canAddTimeline&&<div style={{ display:"flex", justifyContent:"flex-end", marginBottom:16 }}><Btn onClick={()=>setShowAdd(true)}>+ Add Entry</Btn></div>}
       <div style={{ position:"relative" }}>
         <div style={{ position:"absolute", left:20, top:0, bottom:0, width:2, background:"#E2E8F0" }}/>
-        {candTimeline.map(t=>{const et=ENTRY_TYPES[t.entry_type]||{label:t.entry_type,icon:"📌",color:"#94A3B8"};const addedBy=getMember(t.user_id);return<div key={t.id} style={{ display:"flex", gap:16, marginBottom:20, position:"relative" }}>
+        {candTimeline.map(t=>{const et=ENTRY_TYPES[t.entry_type]||{label:t.entry_type,icon:"",color:"#94A3B8"};const addedBy=getMember(t.user_id);return<div key={t.id} style={{ display:"flex", gap:16, marginBottom:20, position:"relative" }}>
           <div style={{ width:42, height:42, borderRadius:"50%", background:et.color+"20", border:`2px solid ${et.color}`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:18, flexShrink:0, zIndex:1 }}>{et.icon}</div>
           <Card style={{ flex:1, padding:16 }}>
             <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", marginBottom:8 }}>
@@ -1091,7 +1091,7 @@ function CandidateProfile({candidate,members,logs,timeline,getMember,onAddTimeli
             </div>
             {t.details&&<div style={{ fontSize:13, color:"#475569", marginBottom:8 }}>{t.details}</div>}
             {t.feedback&&<div style={{ background:"#F8FAFC", borderRadius:8, padding:"10px 12px", fontSize:13, color:"#475569", marginBottom:8 }}><strong>Feedback:</strong> {t.feedback}</div>}
-            {t.scheduled_date&&<div style={{ fontSize:12, color:"#2563EB" }}>🗓️ Scheduled: {fmtDate(t.scheduled_date)}</div>}
+            {t.scheduled_date&&<div style={{ fontSize:12, color:"#2563EB" }}> Scheduled: {fmtDate(t.scheduled_date)}</div>}
             <div style={{ fontSize:11, color:"#94A3B8", marginTop:8 }}>Added by {addedBy?.name||"?"}</div>
           </Card>
         </div>;})}
@@ -1107,10 +1107,10 @@ function CandidateProfile({candidate,members,logs,timeline,getMember,onAddTimeli
         <Textarea label="Feedback" value={form.feedback||""} onChange={e=>set("feedback",e.target.value)} placeholder="Candidate feedback, strengths, weaknesses..."/>
         <Select label="Outcome" value={form.outcome||""} onChange={e=>set("outcome",e.target.value)}>
           <option value="">-- Select outcome --</option>
-          <option value="passed">✅ Passed</option>
-          <option value="failed">❌ Failed</option>
-          <option value="pending">⏳ Pending</option>
-          <option value="scheduled">🗓️ Scheduled</option>
+          <option value="passed"> Passed</option>
+          <option value="failed"> Failed</option>
+          <option value="pending"> Pending</option>
+          <option value="scheduled"> Scheduled</option>
         </Select>
         <Input label="Scheduled date (if any)" type="date" value={form.scheduled_date||""} onChange={e=>set("scheduled_date",e.target.value)}/>
         <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}><Btn variant="outline" onClick={()=>setShowAdd(false)}>Cancel</Btn><Btn onClick={submit} disabled={loading}>{loading?"Adding...":"Add Entry"}</Btn></div>
@@ -1120,17 +1120,17 @@ function CandidateProfile({candidate,members,logs,timeline,getMember,onAddTimeli
     {tab==="daily_logs"&&<div>
       {candLogs.map(l=>{const m=getMember(l.user_id);const roleMap={recruiter:"recruiter",r_lead:"r_lead",c_lead:"c_lead",interview_coord:"interview_coord",manager_feedback:"manager"};return<Card key={l.id} style={{ padding:16, marginBottom:10 }}>
         <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
-          <div style={{ display:"flex", alignItems:"center", gap:10 }}><Av name={m?.name} role={m?.role} size={34}/><div><div style={{ fontSize:13, fontWeight:700 }}>{m?.name||"?"}</div><div style={{ fontSize:11, color:"#94A3B8" }}>📅 {fmtDate(l.log_date)} · ⏰ {l.log_time}</div></div></div>
+          <div style={{ display:"flex", alignItems:"center", gap:10 }}><Av name={m?.name} role={m?.role} size={34}/><div><div style={{ fontSize:13, fontWeight:700 }}>{m?.name||"?"}</div><div style={{ fontSize:11, color:"#94A3B8" }}> {fmtDate(l.log_date)} · ⏰ {l.log_time}</div></div></div>
           <RoleBadge role={roleMap[l.type]||"recruiter"}/>
         </div>
         <div style={{ background:"#F8FAFC", borderRadius:8, padding:"10px 14px" }}>
-          {l.type==="recruiter"&&<div style={{ fontSize:13 }}>📧 <strong>{l.emails_sent}</strong> emails · 📤 <strong>{l.submissions}</strong> submissions{l.notes&&<div style={{ fontSize:12, color:"#94A3B8", marginTop:4 }}>{l.notes}</div>}</div>}
-          {l.type==="r_lead"&&<><div style={{ fontSize:13 }}>📋 {l.interview_stage||"—"}</div>{l.scheduled_date&&<div style={{ fontSize:12, marginTop:3 }}>🗓️ {fmtDate(l.scheduled_date)}</div>}{l.vendor_issue&&<div style={{ fontSize:12, color:"#DC2626", marginTop:3 }}>⚠️ {l.vendor_feedback}</div>}{l.notes&&<div style={{ fontSize:12, color:"#94A3B8", marginTop:3 }}>{l.notes}</div>}</>}
-          {l.type==="c_lead"&&<><div style={{ fontSize:13 }}>🖥️ {l.floor_issues}</div>{l.resolution_status&&<div style={{ marginTop:6 }}><StatusBadge status={l.resolution_status}/></div>}</>}
-          {l.type==="interview_coord"&&<><div style={{ fontSize:13 }}>🎤 <strong>{l.session_type}</strong> · {l.sessions_done} sessions</div>{l.feedback&&<div style={{ fontSize:12, color:"#475569", marginTop:4 }}>{l.feedback}</div>}</>}
+          {l.type==="recruiter"&&<div style={{ fontSize:13 }}>Emails: <strong>{l.emails_sent}</strong> emails · Subs: <strong>{l.submissions}</strong> submissions{l.notes&&<div style={{ fontSize:12, color:"#94A3B8", marginTop:4 }}>{l.notes}</div>}</div>}
+          {l.type==="r_lead"&&<><div style={{ fontSize:13 }}> {l.interview_stage||"—"}</div>{l.scheduled_date&&<div style={{ fontSize:12, marginTop:3 }}> {fmtDate(l.scheduled_date)}</div>}{l.vendor_issue&&<div style={{ fontSize:12, color:"#DC2626", marginTop:3 }}>Note: {l.vendor_feedback}</div>}{l.notes&&<div style={{ fontSize:12, color:"#94A3B8", marginTop:3 }}>{l.notes}</div>}</>}
+          {l.type==="c_lead"&&<><div style={{ fontSize:13 }}>️ {l.floor_issues}</div>{l.resolution_status&&<div style={{ marginTop:6 }}><StatusBadge status={l.resolution_status}/></div>}</>}
+          {l.type==="interview_coord"&&<><div style={{ fontSize:13 }}> <strong>{l.session_type}</strong> · {l.sessions_done} sessions</div>{l.feedback&&<div style={{ fontSize:12, color:"#475569", marginTop:4 }}>{l.feedback}</div>}</>}
           {l.type==="manager_feedback"&&<>
-            <div style={{ fontSize:13, background:"#F0FDFA", padding:"8px 10px", borderRadius:6, marginBottom:6 }}>💬 <strong>Team:</strong> {l.feedback_to_team||l.manager_feedback||"—"}</div>
-            {user.role==="president"&&l.feedback_to_president&&<div style={{ fontSize:13, background:"#F5F3FF", padding:"8px 10px", borderRadius:6, marginBottom:6 }}>🔒 <strong>President only:</strong> {l.feedback_to_president}</div>}
+            <div style={{ fontSize:13, background:"#F0FDFA", padding:"8px 10px", borderRadius:6, marginBottom:6 }}> <strong>Team:</strong> {l.feedback_to_team||l.manager_feedback||"—"}</div>
+            {user.role==="president"&&l.feedback_to_president&&<div style={{ fontSize:13, background:"#F5F3FF", padding:"8px 10px", borderRadius:6, marginBottom:6 }}> <strong>President only:</strong> {l.feedback_to_president}</div>}
             {l.action_items&&<div style={{ fontSize:12, color:"#94A3B8", marginTop:4 }}>Action: {l.action_items}</div>}
           </>}
         </div>
@@ -1141,7 +1141,7 @@ function CandidateProfile({candidate,members,logs,timeline,getMember,onAddTimeli
     {tab==="assignment_history"&&<div>
       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14 }}>
         <Card>
-          <CardHeader title="👤 Recruiter History"/>
+          <CardHeader title="Recruiter History"/>
           <div style={{ padding:"0 0 8px" }}>
             {recHistory.length===0&&<div style={{ padding:"20px 16px", fontSize:13, color:"#94A3B8" }}>No history yet.</div>}
             {recHistory.map((a,i)=>{
@@ -1161,7 +1161,7 @@ function CandidateProfile({candidate,members,logs,timeline,getMember,onAddTimeli
           </div>
         </Card>
         <Card>
-          <CardHeader title="📋 R Lead History"/>
+          <CardHeader title="R Lead History"/>
           <div style={{ padding:"0 0 8px" }}>
             {rLeadHistory.length===0&&<div style={{ padding:"20px 16px", fontSize:13, color:"#94A3B8" }}>No history yet.</div>}
             {rLeadHistory.map((a,i)=>{
@@ -1218,7 +1218,7 @@ function MyRecruitersPage({user,members,candidates,logs,timeline,getMember,onAdd
                 <div style={{ fontSize:12, color:"#94A3B8" }}>{rec.email}</div>
                 <div style={{ display:"flex", gap:8, marginTop:4 }}>
                   <span style={{ fontSize:11, background:"#EFF6FF", color:"#2563EB", padding:"2px 8px", borderRadius:99, fontWeight:600 }}>{recCands.length} candidates</span>
-                  {todayLog.length>0?<span style={{ fontSize:11, background:"#F0FDF4", color:"#16A34A", padding:"2px 8px", borderRadius:99, fontWeight:600 }}>✅ Log submitted today</span>:<span style={{ fontSize:11, background:"#FFFBEB", color:"#D97706", padding:"2px 8px", borderRadius:99, fontWeight:600 }}>⏳ Log pending today</span>}
+                  {todayLog.length>0?<span style={{ fontSize:11, background:"#F0FDF4", color:"#16A34A", padding:"2px 8px", borderRadius:99, fontWeight:600 }}>Log submitted today</span>:<span style={{ fontSize:11, background:"#FFFBEB", color:"#D97706", padding:"2px 8px", borderRadius:99, fontWeight:600 }}> Log pending today</span>}
                 </div>
               </div>
             </div>
@@ -1265,7 +1265,7 @@ function MyRecruitersPage({user,members,candidates,logs,timeline,getMember,onAdd
                     <span style={{ fontSize:12, fontWeight:600 }}>{cand?.name||"?"}</span>
                     <span style={{ fontSize:11, color:"#94A3B8" }}>{fmtDate(l.log_date)} · {l.log_time}</span>
                   </div>
-                  {l.type==="recruiter"&&<div style={{ fontSize:12, color:"#475569" }}>📧 {l.emails_sent} emails · 📤 {l.submissions} submissions</div>}
+                  {l.type==="recruiter"&&<div style={{ fontSize:12, color:"#475569" }}>Emails: {l.emails_sent} emails · Subs: {l.submissions} submissions</div>}
                 </div>;
               })}
               {logs.filter(l=>l.user_id===rec.id).length===0&&<div style={{ fontSize:12, color:"#94A3B8" }}>No logs yet.</div>}
@@ -1290,27 +1290,27 @@ function LogPage({user,rc,candidates,allCands,onSubmit,loading,members,logs,allL
   return <div>
     <div style={{ fontSize:20, fontWeight:700, marginBottom:4 }}>Daily Log</div>
     <div style={{ fontSize:13, color:"#94A3B8", marginBottom:20 }}>Submit your end-of-day update · Due by 6:00 PM EST</div>
-    {candidates.length===0&&<div style={{ background:"#FFFBEB", border:"1px solid #FDE68A", borderRadius:10, padding:"14px 18px", fontSize:13, color:"#D97706", marginBottom:16 }}>⚠️ No candidates assigned yet.</div>}
+    {candidates.length===0&&<div style={{ background:"#FFFBEB", border:"1px solid #FDE68A", borderRadius:10, padding:"14px 18px", fontSize:13, color:"#D97706", marginBottom:16 }}>Note: No candidates assigned yet.</div>}
     <Card style={{ padding:22, maxWidth:520 }}>
       {user.role==="recruiter"&&<>
-        <div style={{ fontSize:15, fontWeight:700, marginBottom:16 }}>📝 Recruiter Daily Log</div>
+        <div style={{ fontSize:15, fontWeight:700, marginBottom:16 }}> Recruiter Daily Log</div>
         <CS/>
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:14 }}>
           <div>
             <label style={{ display:"block", fontSize:12, fontWeight:500, color:"#475569", marginBottom:5 }}>Emails Sent Today *</label>
             <input type="number" min={0} value={form.emails_sent||""} onChange={e=>set("emails_sent",+e.target.value)} placeholder="e.g. 15" style={{ width:"100%", border:`1px solid ${form.emails_sent!==undefined&&form.emails_sent<15&&form.emails_sent>0?"#FCA5A5":"#E2E8F0"}`, borderRadius:8, padding:"8px 12px", fontSize:14, outline:"none", boxSizing:"border-box" }}/>
-            {form.emails_sent>0&&form.emails_sent<15&&<div style={{ fontSize:11, color:"#D97706", background:"#FFFBEB", padding:"4px 8px", borderRadius:4, marginTop:4 }}>⚠️ Less than 15 — reason required</div>}
+            {form.emails_sent>0&&form.emails_sent<15&&<div style={{ fontSize:11, color:"#D97706", background:"#FFFBEB", padding:"4px 8px", borderRadius:4, marginTop:4 }}>Less than 15 — reason required</div>}
           </div>
           <div>
             <label style={{ display:"block", fontSize:12, fontWeight:500, color:"#475569", marginBottom:5 }}>Submissions Done *</label>
             <input type="number" min={0} value={form.submissions||""} onChange={e=>set("submissions",+e.target.value)} placeholder="e.g. 3" style={{ width:"100%", border:`1px solid ${form.submissions===0&&form.emails_sent>0?"#FCA5A5":"#E2E8F0"}`, borderRadius:8, padding:"8px 12px", fontSize:14, outline:"none", boxSizing:"border-box" }}/>
-            {form.submissions===0&&form.emails_sent>0&&<div style={{ fontSize:11, color:"#DC2626", background:"#FEF2F2", padding:"4px 8px", borderRadius:4, marginTop:4 }}>⚠️ Zero submissions — reason required</div>}
+            {form.submissions===0&&form.emails_sent>0&&<div style={{ fontSize:11, color:"#DC2626", background:"#FEF2F2", padding:"4px 8px", borderRadius:4, marginTop:4 }}>Zero submissions — reason required</div>}
           </div>
         </div>
         {form.emails_sent>0&&form.emails_sent<15&&<Textarea label="Reason for less emails *" value={form.reason_less_emails||""} onChange={e=>set("reason_less_emails",e.target.value)} placeholder="Why less than 15 emails today?"/>}
         {form.submissions===0&&form.emails_sent>0&&<Textarea label="Reason for zero submissions *" value={form.reason_zero_subs||""} onChange={e=>set("reason_zero_subs",e.target.value)} placeholder="Why zero submissions today?"/>}
         <div style={{ background:"#FEF2F2", border:"1px solid #FECACA", borderRadius:10, padding:"14px 16px", marginBottom:14 }}>
-          <div style={{ fontSize:13, fontWeight:700, color:"#DC2626", marginBottom:10 }}>🚨 Issues Faced Today</div>
+          <div style={{ fontSize:13, fontWeight:700, color:"#DC2626", marginBottom:10 }}>Issues Faced Today</div>
           <Textarea label="Issue description" value={form.issue_description||""} onChange={e=>set("issue_description",e.target.value)} placeholder="Describe any issues faced today..."/>
           <div style={{ marginBottom:14 }}>
             <label style={{ display:"block", fontSize:12, fontWeight:500, color:"#475569", marginBottom:8 }}>To whom informed</label>
@@ -1323,7 +1323,7 @@ function LogPage({user,rc,candidates,allCands,onSubmit,loading,members,logs,allL
           <div style={{ marginBottom:14 }}>
             <label style={{ display:"block", fontSize:12, fontWeight:500, color:"#475569", marginBottom:8 }}>Issue status *</label>
             <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
-              {[{v:"solved",l:"✅ Solved",c:"#16A34A",b:"#F0FDF4"},{v:"pending",l:"⏳ Pending",c:"#D97706",b:"#FFFBEB"},{v:"waiting",l:"🔄 Waiting",c:"#2563EB",b:"#EFF6FF"},{v:"no_issues",l:"✔️ No Issues",c:"#475569",b:"#F8FAFC"}].map(s=><button key={s.v} type="button" onClick={()=>set("issue_status",s.v)} style={{ padding:"6px 12px", borderRadius:8, fontSize:12, fontWeight:600, cursor:"pointer", background:form.issue_status===s.v?s.b:"#fff", color:form.issue_status===s.v?s.c:"#94A3B8", border:`1px solid ${form.issue_status===s.v?s.c:"#E2E8F0"}` }}>{s.l}</button>)}
+              {[{v:"solved",l:"Solved",c:"#16A34A",b:"#F0FDF4"},{v:"pending",l:" Pending",c:"#D97706",b:"#FFFBEB"},{v:"waiting",l:" Waiting",c:"#2563EB",b:"#EFF6FF"},{v:"no_issues",l:"️ No Issues",c:"#475569",b:"#F8FAFC"}].map(s=><button key={s.v} type="button" onClick={()=>set("issue_status",s.v)} style={{ padding:"6px 12px", borderRadius:8, fontSize:12, fontWeight:600, cursor:"pointer", background:form.issue_status===s.v?s.b:"#fff", color:form.issue_status===s.v?s.c:"#94A3B8", border:`1px solid ${form.issue_status===s.v?s.c:"#E2E8F0"}` }}>{s.l}</button>)}
             </div>
           </div>
         </div>
@@ -1337,21 +1337,21 @@ function LogPage({user,rc,candidates,allCands,onSubmit,loading,members,logs,allL
         }} disabled={loading||!form.candidate_id}>{loading?"Saving...":"Submit Daily Log"}</Btn>
       </>}
       {user.role==="r_lead"&&<>
-        <div style={{ fontSize:15, fontWeight:700, marginBottom:16 }}>📋 R Lead Daily Log</div>
+        <div style={{ fontSize:15, fontWeight:700, marginBottom:16 }}>R Lead Daily Log</div>
         <CS/>
         <div style={{ background:"#F0FDF4", border:"1px solid #BBF7D0", borderRadius:10, padding:"14px 16px", marginBottom:14 }}>
-          <div style={{ fontSize:13, fontWeight:700, color:"#16A34A", marginBottom:10 }}>🏢 Vendor Mock</div>
+          <div style={{ fontSize:13, fontWeight:700, color:"#16A34A", marginBottom:10 }}>Vendor Mock</div>
           <div style={{ marginBottom:12 }}>
             <label style={{ display:"block", fontSize:12, fontWeight:500, color:"#475569", marginBottom:8 }}>Was vendor mock conducted today? *</label>
             <div style={{ display:"flex", gap:8 }}>
-              {[{v:"yes",l:"✅ Conducted"},{v:"no",l:"❌ Not Conducted"}].map(m=><button key={m.v} type="button" onClick={()=>set("vendor_mock_conducted",m.v)} style={{ padding:"6px 14px", borderRadius:8, fontSize:12, fontWeight:600, cursor:"pointer", background:form.vendor_mock_conducted===m.v?"#F0FDF4":"#fff", color:form.vendor_mock_conducted===m.v?"#16A34A":"#94A3B8", border:`1px solid ${form.vendor_mock_conducted===m.v?"#16A34A":"#E2E8F0"}` }}>{m.l}</button>)}
+              {[{v:"yes",l:"Conducted"},{v:"no",l:"Not Conducted"}].map(m=><button key={m.v} type="button" onClick={()=>set("vendor_mock_conducted",m.v)} style={{ padding:"6px 14px", borderRadius:8, fontSize:12, fontWeight:600, cursor:"pointer", background:form.vendor_mock_conducted===m.v?"#F0FDF4":"#fff", color:form.vendor_mock_conducted===m.v?"#16A34A":"#94A3B8", border:`1px solid ${form.vendor_mock_conducted===m.v?"#16A34A":"#E2E8F0"}` }}>{m.l}</button>)}
             </div>
           </div>
           {form.vendor_mock_conducted==="yes"&&<>
             <div style={{ marginBottom:12 }}>
               <label style={{ display:"block", fontSize:12, fontWeight:500, color:"#475569", marginBottom:8 }}>Mode of conduct *</label>
               <div style={{ display:"flex", gap:8 }}>
-                {[{v:"video",l:"🎥 Video Meeting"},{v:"phone",l:"📞 Phone Call"}].map(m=><button key={m.v} type="button" onClick={()=>set("vendor_mock_mode",m.v)} style={{ padding:"6px 14px", borderRadius:8, fontSize:12, fontWeight:600, cursor:"pointer", background:form.vendor_mock_mode===m.v?"#EFF6FF":"#fff", color:form.vendor_mock_mode===m.v?"#2563EB":"#94A3B8", border:`1px solid ${form.vendor_mock_mode===m.v?"#2563EB":"#E2E8F0"}` }}>{m.l}</button>)}
+                {[{v:"video",l:" Video Meeting"},{v:"phone",l:" Phone Call"}].map(m=><button key={m.v} type="button" onClick={()=>set("vendor_mock_mode",m.v)} style={{ padding:"6px 14px", borderRadius:8, fontSize:12, fontWeight:600, cursor:"pointer", background:form.vendor_mock_mode===m.v?"#EFF6FF":"#fff", color:form.vendor_mock_mode===m.v?"#2563EB":"#94A3B8", border:`1px solid ${form.vendor_mock_mode===m.v?"#2563EB":"#E2E8F0"}` }}>{m.l}</button>)}
               </div>
             </div>
             <Textarea label="Vendor mock feedback *" value={form.vendor_mock_feedback||""} onChange={e=>set("vendor_mock_feedback",e.target.value)} placeholder="Feedback is mandatory..."/>
@@ -1368,7 +1368,7 @@ function LogPage({user,rc,candidates,allCands,onSubmit,loading,members,logs,allL
         }} disabled={loading||!form.candidate_id}>{loading?"Saving...":"Submit Daily Log"}</Btn>
       </>}
       {user.role==="c_lead"&&<>
-        <div style={{ fontSize:15, fontWeight:700, marginBottom:16 }}>🖥️ C Lead Daily Log</div>
+        <div style={{ fontSize:15, fontWeight:700, marginBottom:16 }}>C Lead Daily Log</div>
         <CS/>
         <Textarea label="Floor issues / observations *" value={form.floor_issues||""} onChange={e=>set("floor_issues",e.target.value)} placeholder="Describe any floor issues or updates..."/>
         <div style={{ marginBottom:14 }}>
@@ -1382,7 +1382,7 @@ function LogPage({user,rc,candidates,allCands,onSubmit,loading,members,logs,allL
         <div style={{ marginBottom:14 }}>
           <label style={{ display:"block", fontSize:12, fontWeight:500, color:"#475569", marginBottom:8 }}>Resolution status *</label>
           <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
-            {[{v:"solved",l:"✅ Solved",c:"#16A34A",b:"#F0FDF4"},{v:"pending",l:"⏳ Pending",c:"#D97706",b:"#FFFBEB"},{v:"waiting",l:"🔄 Waiting",c:"#2563EB",b:"#EFF6FF"},{v:"no_issues",l:"✔️ No Issues",c:"#475569",b:"#F8FAFC"}].map(s=><button key={s.v} type="button" onClick={()=>set("resolution_status",s.v)} style={{ padding:"6px 12px", borderRadius:8, fontSize:12, fontWeight:600, cursor:"pointer", background:form.resolution_status===s.v?s.b:"#fff", color:form.resolution_status===s.v?s.c:"#94A3B8", border:`1px solid ${form.resolution_status===s.v?s.c:"#E2E8F0"}` }}>{s.l}</button>)}
+            {[{v:"solved",l:"Solved",c:"#16A34A",b:"#F0FDF4"},{v:"pending",l:" Pending",c:"#D97706",b:"#FFFBEB"},{v:"waiting",l:" Waiting",c:"#2563EB",b:"#EFF6FF"},{v:"no_issues",l:"️ No Issues",c:"#475569",b:"#F8FAFC"}].map(s=><button key={s.v} type="button" onClick={()=>set("resolution_status",s.v)} style={{ padding:"6px 12px", borderRadius:8, fontSize:12, fontWeight:600, cursor:"pointer", background:form.resolution_status===s.v?s.b:"#fff", color:form.resolution_status===s.v?s.c:"#94A3B8", border:`1px solid ${form.resolution_status===s.v?s.c:"#E2E8F0"}` }}>{s.l}</button>)}
           </div>
         </div>
         <Textarea label="Notes (optional)" value={form.notes||""} onChange={e=>set("notes",e.target.value)} placeholder="Any additional notes..."/>
@@ -1394,7 +1394,7 @@ function LogPage({user,rc,candidates,allCands,onSubmit,loading,members,logs,allL
         }} disabled={loading||!form.candidate_id}>{loading?"Saving...":"Submit Daily Log"}</Btn>
       </>}
       {user.role==="interview_coord"&&<>
-        <div style={{ fontSize:15, fontWeight:700, marginBottom:16 }}>🎤 IC Daily Log</div>
+        <div style={{ fontSize:15, fontWeight:700, marginBottom:16 }}>IC Daily Log</div>
         <CS/>
         <div style={{ marginBottom:14 }}>
           <label style={{ display:"block", fontSize:12, fontWeight:500, color:"#475569", marginBottom:8 }}>Session Type *</label>
@@ -1407,7 +1407,7 @@ function LogPage({user,rc,candidates,allCands,onSubmit,loading,members,logs,allL
         <Textarea label="Notes (optional)" value={form.notes||""} onChange={e=>set("notes",e.target.value)} placeholder="Any additional notes..."/>
         <div style={{ background:"#EFF6FF", border:"1px solid #BFDBFE", borderRadius:10, padding:"14px 16px", marginBottom:14 }}>
           <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
-            <div style={{ fontSize:13, fontWeight:700, color:"#2563EB" }}>🗓️ Tomorrow's Interview</div>
+            <div style={{ fontSize:13, fontWeight:700, color:"#2563EB" }}>Tomorrow's Interview</div>
             <label style={{ display:"flex", alignItems:"center", gap:6, fontSize:12, cursor:"pointer" }}>
               <input type="checkbox" checked={form.tomorrow_interview||false} onChange={e=>set("tomorrow_interview",e.target.checked)} style={{ accentColor:"#2563EB" }}/>
               Interview scheduled tomorrow?
@@ -1421,7 +1421,7 @@ function LogPage({user,rc,candidates,allCands,onSubmit,loading,members,logs,allL
             <div style={{ marginBottom:14 }}>
               <label style={{ display:"block", fontSize:12, fontWeight:500, color:"#475569", marginBottom:8 }}>Mode *</label>
               <div style={{ display:"flex", gap:8 }}>
-                {[{v:"virtual",l:"🖥️ Virtual"},{v:"in_person",l:"🤝 In-person"}].map(m=><button key={m.v} type="button" onClick={()=>set("tmr_mode",m.v)} style={{ padding:"6px 14px", borderRadius:8, fontSize:12, fontWeight:600, cursor:"pointer", background:form.tmr_mode===m.v?"#EFF6FF":"#fff", color:form.tmr_mode===m.v?"#2563EB":"#94A3B8", border:`1px solid ${form.tmr_mode===m.v?"#2563EB":"#E2E8F0"}` }}>{m.l}</button>)}
+                {[{v:"virtual",l:"️ Virtual"},{v:"in_person",l:" In-person"}].map(m=><button key={m.v} type="button" onClick={()=>set("tmr_mode",m.v)} style={{ padding:"6px 14px", borderRadius:8, fontSize:12, fontWeight:600, cursor:"pointer", background:form.tmr_mode===m.v?"#EFF6FF":"#fff", color:form.tmr_mode===m.v?"#2563EB":"#94A3B8", border:`1px solid ${form.tmr_mode===m.v?"#2563EB":"#E2E8F0"}` }}>{m.l}</button>)}
               </div>
             </div>
             <Input label="Tech support name *" value={form.tmr_tech_support||""} onChange={e=>set("tmr_tech_support",e.target.value)} placeholder="Support person name"/>
@@ -1450,15 +1450,15 @@ function LogPage({user,rc,candidates,allCands,onSubmit,loading,members,logs,allL
         }} disabled={loading||!form.candidate_id}>{loading?"Saving...":"Submit Daily Log"}</Btn>
       </>}
       {user.role==="manager"&&<>
-        <div style={{ fontSize:15, fontWeight:700, marginBottom:4 }}>👔 Manager Feedback</div>
+        <div style={{ fontSize:15, fontWeight:700, marginBottom:4 }}>Manager Feedback</div>
         <div style={{ fontSize:12, color:"#94A3B8", marginBottom:16 }}>Add feedback for this candidate's progress</div>
         <CS/>
         <div style={{ background:"#F0FDFA", border:"1px solid #99F6E4", borderRadius:10, padding:"14px 16px", marginBottom:14 }}>
-          <div style={{ fontSize:12, fontWeight:700, color:"#0F766E", marginBottom:6 }}>💬 Feedback to Team <span style={{ fontWeight:400, color:"#94A3B8" }}>(R Lead, C Lead, Recruiter can see)</span></div>
+          <div style={{ fontSize:12, fontWeight:700, color:"#0F766E", marginBottom:6 }}>Feedback to Team <span style={{ fontWeight:400, color:"#94A3B8" }}>(R Lead, C Lead, Recruiter can see)</span></div>
           <textarea value={form.feedback_to_team||""} onChange={e=>set("feedback_to_team",e.target.value)} placeholder="Write feedback visible to R Lead, C Lead and Recruiter..." style={{ width:"100%", border:"1px solid #99F6E4", borderRadius:8, padding:"8px 12px", fontSize:14, outline:"none", resize:"vertical", boxSizing:"border-box", background:"#fff" }} rows={3}/>
         </div>
         <div style={{ background:"#F5F3FF", border:"1px solid #C4B5FD", borderRadius:10, padding:"14px 16px", marginBottom:14 }}>
-          <div style={{ fontSize:12, fontWeight:700, color:"#7C3AED", marginBottom:6 }}>🔒 Feedback to President <span style={{ fontWeight:400, color:"#94A3B8" }}>(Only President can see)</span></div>
+          <div style={{ fontSize:12, fontWeight:700, color:"#7C3AED", marginBottom:6 }}>Confidential — President Only <span style={{ fontWeight:400, color:"#94A3B8" }}>(Only President can see)</span></div>
           <textarea value={form.feedback_to_president||""} onChange={e=>set("feedback_to_president",e.target.value)} placeholder="Confidential feedback for President only..." style={{ width:"100%", border:"1px solid #C4B5FD", borderRadius:8, padding:"8px 12px", fontSize:14, outline:"none", resize:"vertical", boxSizing:"border-box", background:"#fff" }} rows={3}/>
         </div>
         <Textarea label="Action items" value={form.action_items||""} onChange={e=>set("action_items",e.target.value)} placeholder="Any action items for the team..."/>
@@ -1498,18 +1498,18 @@ function HistPage({user,rc,candidates,logs,getMember,allCands}){
         const cand=allCands.find(c=>c.id===l.candidate_id);const m=getMember(l.user_id);
         return <Card key={l.id} style={{ padding:16 }}>
           <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
-            <div style={{ display:"flex", alignItems:"center", gap:10 }}><Av name={m?.name} role={m?.role} size={34}/><div><div style={{ fontSize:13, fontWeight:700 }}>{m?.name||"?"}</div><div style={{ fontSize:11, color:"#94A3B8" }}>📅 {fmtDate(l.log_date)} · ⏰ {l.log_time}</div></div></div>
+            <div style={{ display:"flex", alignItems:"center", gap:10 }}><Av name={m?.name} role={m?.role} size={34}/><div><div style={{ fontSize:13, fontWeight:700 }}>{m?.name||"?"}</div><div style={{ fontSize:11, color:"#94A3B8" }}> {fmtDate(l.log_date)} · ⏰ {l.log_time}</div></div></div>
             <RoleBadge role={roleMap[l.type]||"recruiter"}/>
           </div>
           <div style={{ background:"#F8FAFC", borderRadius:8, padding:"10px 14px" }}>
             <div style={{ fontSize:12, fontWeight:600, color:"#475569", marginBottom:6 }}>Candidate: {cand?.name||"?"} · {cand?.tech}</div>
-            {l.type==="recruiter"&&<div style={{ fontSize:13 }}>📧 <strong>{l.emails_sent}</strong> emails · 📤 <strong>{l.submissions}</strong> submissions{l.notes&&<div style={{ fontSize:12, color:"#94A3B8", marginTop:4 }}>{l.notes}</div>}</div>}
-            {l.type==="r_lead"&&<><div style={{ fontSize:13 }}>📋 {l.interview_stage||"—"}</div>{l.scheduled_date&&<div style={{ fontSize:12, marginTop:3 }}>🗓️ {fmtDate(l.scheduled_date)}</div>}{l.vendor_issue&&<div style={{ fontSize:12, color:"#DC2626", marginTop:3 }}>⚠️ {l.vendor_feedback}</div>}</>}
-            {l.type==="c_lead"&&<><div style={{ fontSize:13 }}>🖥️ {l.floor_issues}</div>{l.resolution_status&&<div style={{ marginTop:6 }}><StatusBadge status={l.resolution_status}/></div>}</>}
-            {l.type==="interview_coord"&&<><div style={{ fontSize:13 }}>🎤 <strong>{l.session_type}</strong> · {l.sessions_done} sessions</div>{l.feedback&&<div style={{ fontSize:12, color:"#475569", marginTop:4 }}>{l.feedback}</div>}</>}
+            {l.type==="recruiter"&&<div style={{ fontSize:13 }}>Emails: <strong>{l.emails_sent}</strong> emails · Subs: <strong>{l.submissions}</strong> submissions{l.notes&&<div style={{ fontSize:12, color:"#94A3B8", marginTop:4 }}>{l.notes}</div>}</div>}
+            {l.type==="r_lead"&&<><div style={{ fontSize:13 }}> {l.interview_stage||"—"}</div>{l.scheduled_date&&<div style={{ fontSize:12, marginTop:3 }}> {fmtDate(l.scheduled_date)}</div>}{l.vendor_issue&&<div style={{ fontSize:12, color:"#DC2626", marginTop:3 }}>Note: {l.vendor_feedback}</div>}</>}
+            {l.type==="c_lead"&&<><div style={{ fontSize:13 }}>️ {l.floor_issues}</div>{l.resolution_status&&<div style={{ marginTop:6 }}><StatusBadge status={l.resolution_status}/></div>}</>}
+            {l.type==="interview_coord"&&<><div style={{ fontSize:13 }}> <strong>{l.session_type}</strong> · {l.sessions_done} sessions</div>{l.feedback&&<div style={{ fontSize:12, color:"#475569", marginTop:4 }}>{l.feedback}</div>}</>}
             {l.type==="manager_feedback"&&<>
-            <div style={{ fontSize:13, background:"#F0FDFA", padding:"8px 10px", borderRadius:6, marginBottom:6 }}>💬 <strong>Team:</strong> {l.feedback_to_team||l.manager_feedback||"—"}</div>
-            {user.role==="president"&&l.feedback_to_president&&<div style={{ fontSize:13, background:"#F5F3FF", padding:"8px 10px", borderRadius:6, marginBottom:6 }}>🔒 <strong>President only:</strong> {l.feedback_to_president}</div>}
+            <div style={{ fontSize:13, background:"#F0FDFA", padding:"8px 10px", borderRadius:6, marginBottom:6 }}> <strong>Team:</strong> {l.feedback_to_team||l.manager_feedback||"—"}</div>
+            {user.role==="president"&&l.feedback_to_president&&<div style={{ fontSize:13, background:"#F5F3FF", padding:"8px 10px", borderRadius:6, marginBottom:6 }}> <strong>President only:</strong> {l.feedback_to_president}</div>}
             {l.action_items&&<div style={{ fontSize:12, color:"#94A3B8", marginTop:4 }}>Action: {l.action_items}</div>}
           </>}
           </div>
@@ -1603,7 +1603,7 @@ function TeamPage({user,rc,members,candidates,logs,onAddMember,loading}){
         </div>
       </div>;})}
     <Modal open={showAdd} onClose={()=>setShowAdd(false)} title="Add New Team Member">
-      <div style={{ background:"#EFF6FF", border:"1px solid #BFDBFE", borderRadius:8, padding:"10px 14px", fontSize:12, color:"#2563EB", marginBottom:16 }}>🔐 Login auto-created. Default password: <strong>VARS@2026</strong></div>
+      <div style={{ background:"#EFF6FF", border:"1px solid #BFDBFE", borderRadius:8, padding:"10px 14px", fontSize:12, color:"#2563EB", marginBottom:16 }}> Login auto-created. Default password: <strong>VARS@2026</strong></div>
       <Input label="Full name *" value={form.name||""} onChange={e=>set("name",e.target.value)}/>
       <Input label="Work email *" type="email" value={form.email||""} onChange={e=>set("email",e.target.value)}/>
       <Select label="Role *" value={form.role||""} onChange={e=>set("role",e.target.value)}><option value="">-- Select --</option><option value="recruiter">Recruiter</option><option value="r_lead">R Lead</option><option value="c_lead">C Lead</option><option value="interview_coord">Interview Coordinator</option><option value="manager">Manager</option></Select>
@@ -1618,14 +1618,14 @@ function NotifsPage({notifications,onRefresh,onMarkRead,onMarkAllRead}){
   return <div>
     <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:20 }}>
       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:4 }}>
-        <div><div style={{ fontSize:20, fontWeight:700 }}>🔔 Notifications</div><div style={{ fontSize:13, color:"#94A3B8" }}>{notifications.filter(n=>!n.read_at).length} unread · {notifications.length} total</div></div>
-        {notifications.filter(n=>!n.read_at).length>0&&<button onClick={onMarkAllRead} style={{ fontSize:12, color:"#2563EB", background:"#EFF6FF", border:"1px solid #BFDBFE", borderRadius:8, padding:"6px 14px", cursor:"pointer", fontWeight:600 }}>✓ Mark all as read</button>}
+        <div><div style={{ fontSize:20, fontWeight:700 }}> Notifications</div><div style={{ fontSize:13, color:"#94A3B8" }}>{notifications.filter(n=>!n.read_at).length} unread · {notifications.length} total</div></div>
+        {notifications.filter(n=>!n.read_at).length>0&&<button onClick={onMarkAllRead} style={{ fontSize:12, color:"#2563EB", background:"#EFF6FF", border:"1px solid #BFDBFE", borderRadius:8, padding:"6px 14px", cursor:"pointer", fontWeight:600 }}>Mark all as read</button>}
       </div>
       <Btn variant="outline" onClick={onRefresh}>↻ Refresh</Btn>
     </div>
     <div style={{ display:"grid", gap:8 }}>
       {notifications.map(n=><Card key={n.id} onClick={()=>!n.read_at&&onMarkRead&&onMarkRead(n.id)} style={{ padding:"12px 16px", display:"flex", alignItems:"center", gap:12, opacity:n.read_at?0.6:1, background:n.read_at?"#FAFAFA":"#fff", cursor:n.read_at?"default":"pointer", marginBottom:8 }}>
-        <div style={{ fontSize:20 }}>{n.read_at?"🔕":"🔔"}</div>
+        <div style={{ fontSize:20 }}>{n.read_at?"":""}</div>
         <div style={{ flex:1 }}>
           <div style={{ fontSize:13, color:n.read_at?"#94A3B8":"#0F172A", fontWeight:n.read_at?400:500 }}>{n.message}</div>
           <div style={{ fontSize:11, color:"#94A3B8", marginTop:2 }}>{fmtDateTime(n.created_at)}</div>
@@ -1741,7 +1741,7 @@ function InterviewsPage({user,rc,candidates,token,loading,setToast}){
   if(loadingData)return <div style={{padding:40,textAlign:"center",color:"#94A3B8"}}>Loading interviews...</div>;
 
   return <div>
-    <div style={{fontSize:20,fontWeight:700,marginBottom:4}}>🎯 Interviews</div>
+    <div style={{fontSize:20,fontWeight:700,marginBottom:4}}>Interviews</div>
     <div style={{fontSize:13,color:"#94A3B8",marginBottom:20}}>Interview sessions and pipeline tracking</div>
 
     <div style={{display:"flex",gap:4,marginBottom:20,borderBottom:"1px solid #E2E8F0"}}>
@@ -1776,7 +1776,7 @@ function InterviewsPage({user,rc,candidates,token,loading,setToast}){
               <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
                 <span style={{background:"#EFF6FF",color:"#2563EB",fontSize:11,padding:"2px 8px",borderRadius:99,fontWeight:600}}>{roundLabel}</span>
                 <span style={{background:"#F5F3FF",color:"#7C3AED",fontSize:11,padding:"2px 8px",borderRadius:99,fontWeight:600}}>{durationLabel}</span>
-                <span style={{background:fb,color:fc,fontSize:11,padding:"2px 8px",borderRadius:99,fontWeight:600}}>{s.overall_feedback==="went_well"?"✅ Went Well":s.overall_feedback==="okay"?"👍 Okay":"❌ Not Went Well"}</span>
+                <span style={{background:fb,color:fc,fontSize:11,padding:"2px 8px",borderRadius:99,fontWeight:600}}>{s.overall_feedback==="went_well"?"Went Well":s.overall_feedback==="okay"?"Okay":"Not Went Well"}</span>
               </div>
             </div>
             <div style={{background:"#F8FAFC",borderRadius:8,padding:"12px 14px",marginBottom:8}}>
@@ -1784,8 +1784,8 @@ function InterviewsPage({user,rc,candidates,token,loading,setToast}){
               <div style={{fontSize:13,color:"#334155"}}>{s.detailed_feedback}</div>
             </div>
             <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-              {s.interview_mode&&<span style={{background:"#F0FDFA",color:"#0F766E",fontSize:11,padding:"2px 8px",borderRadius:99,fontWeight:600}}>📡 {s.interview_mode==="virtual"?"Virtual":"In-person"}</span>}
-              {s.tech_support_name&&<span style={{background:"#F5F3FF",color:"#7C3AED",fontSize:11,padding:"2px 8px",borderRadius:99,fontWeight:600}}>🛠️ {s.tech_support_name}</span>}
+              {s.interview_mode&&<span style={{background:"#F0FDFA",color:"#0F766E",fontSize:11,padding:"2px 8px",borderRadius:99,fontWeight:600}}> {s.interview_mode==="virtual"?"Virtual":"In-person"}</span>}
+              {s.tech_support_name&&<span style={{background:"#F5F3FF",color:"#7C3AED",fontSize:11,padding:"2px 8px",borderRadius:99,fontWeight:600}}> {s.tech_support_name}</span>}
               {s.support_mode&&<span style={{background:"#EFF6FF",color:"#2563EB",fontSize:11,padding:"2px 8px",borderRadius:99,fontWeight:600}}>{SUPPORT_MODES.find(m=>m.v===s.support_mode)?.l||s.support_mode}</span>}
             </div>
           </Card>;
@@ -1813,7 +1813,7 @@ function InterviewsPage({user,rc,candidates,token,loading,setToast}){
         <div style={{marginBottom:14}}>
           <label style={{display:"block",fontSize:12,fontWeight:500,color:"#475569",marginBottom:8}}>Overall Feedback *</label>
           <div style={{display:"flex",gap:8}}>
-            {[{v:"went_well",l:"✅ Went Well",c:"#16A34A",b:"#F0FDF4"},{v:"okay",l:"👍 Okay",c:"#D97706",b:"#FFFBEB"},{v:"not_went_well",l:"❌ Not Went Well",c:"#DC2626",b:"#FEF2F2"}].map(f=><button key={f.v} type="button" onClick={()=>set("overall_feedback",f.v)} style={{padding:"6px 12px",borderRadius:8,fontSize:12,fontWeight:600,cursor:"pointer",background:form.overall_feedback===f.v?f.b:"#fff",color:form.overall_feedback===f.v?f.c:"#94A3B8",border:`1px solid ${form.overall_feedback===f.v?f.c:"#E2E8F0"}`}}>{f.l}</button>)}
+            {[{v:"went_well",l:"Went Well",c:"#16A34A",b:"#F0FDF4"},{v:"okay",l:"Okay",c:"#D97706",b:"#FFFBEB"},{v:"not_went_well",l:"Not Went Well",c:"#DC2626",b:"#FEF2F2"}].map(f=><button key={f.v} type="button" onClick={()=>set("overall_feedback",f.v)} style={{padding:"6px 12px",borderRadius:8,fontSize:12,fontWeight:600,cursor:"pointer",background:form.overall_feedback===f.v?f.b:"#fff",color:form.overall_feedback===f.v?f.c:"#94A3B8",border:`1px solid ${form.overall_feedback===f.v?f.c:"#E2E8F0"}`}}>{f.l}</button>)}
           </div>
         </div>
         <Textarea label="Detailed Feedback *" value={form.detailed_feedback||""} onChange={e=>set("detailed_feedback",e.target.value)} placeholder="Detailed interview feedback — mandatory..."/>
@@ -1822,7 +1822,7 @@ function InterviewsPage({user,rc,candidates,token,loading,setToast}){
         <div style={{marginBottom:14}}>
           <label style={{display:"block",fontSize:12,fontWeight:500,color:"#475569",marginBottom:8}}>Interview mode *</label>
           <div style={{display:"flex",gap:8}}>
-            {[{v:"virtual",l:"🖥️ Virtual"},{v:"in_person",l:"🤝 In-person"}].map(m=><button key={m.v} type="button" onClick={()=>set("interview_mode",m.v)} style={{padding:"6px 14px",borderRadius:8,fontSize:12,fontWeight:600,cursor:"pointer",background:form.interview_mode===m.v?"#EFF6FF":"#fff",color:form.interview_mode===m.v?"#2563EB":"#94A3B8",border:`1px solid ${form.interview_mode===m.v?"#2563EB":"#E2E8F0"}`}}>{m.l}</button>)}
+            {[{v:"virtual",l:"️ Virtual"},{v:"in_person",l:" In-person"}].map(m=><button key={m.v} type="button" onClick={()=>set("interview_mode",m.v)} style={{padding:"6px 14px",borderRadius:8,fontSize:12,fontWeight:600,cursor:"pointer",background:form.interview_mode===m.v?"#EFF6FF":"#fff",color:form.interview_mode===m.v?"#2563EB":"#94A3B8",border:`1px solid ${form.interview_mode===m.v?"#2563EB":"#E2E8F0"}`}}>{m.l}</button>)}
           </div>
         </div>
         <div style={{marginBottom:14}}>
@@ -1856,7 +1856,7 @@ function InterviewsPage({user,rc,candidates,token,loading,setToast}){
               </div>
               <div style={{display:"flex",gap:8,alignItems:"center"}}>
                 <span style={{background:"#EFF6FF",color:"#2563EB",fontSize:11,padding:"2px 8px",borderRadius:99,fontWeight:600}}>{p.round}</span>
-                <span style={{background:"#FFFBEB",color:"#D97706",fontSize:11,padding:"2px 8px",borderRadius:99,fontWeight:600}}>⏳ {expectingLabel}</span>
+                <span style={{background:"#FFFBEB",color:"#D97706",fontSize:11,padding:"2px 8px",borderRadius:99,fontWeight:600}}> {expectingLabel}</span>
                 <button onClick={()=>{setShowAddUpdate(p.id);setForm({});}} style={{padding:"4px 10px",borderRadius:8,fontSize:12,fontWeight:600,cursor:"pointer",background:"#EFF6FF",color:"#2563EB",border:"1px solid #BFDBFE"}}>+ Update</button>
                 <button onClick={()=>{setShowDeletePipeline(p.id);setForm({});}} style={{padding:"4px 10px",borderRadius:8,fontSize:12,fontWeight:600,cursor:"pointer",background:"#FEF2F2",color:"#DC2626",border:"1px solid #FECACA"}}>Remove</button>
               </div>
@@ -1906,7 +1906,7 @@ function InterviewsPage({user,rc,candidates,token,loading,setToast}){
 
       {/* Delete Pipeline Modal */}
       <Modal open={!!showDeletePipeline} onClose={()=>{setShowDeletePipeline(null);setForm({});}} title="Remove from Pipeline">
-        <div style={{background:"#FEF2F2",border:"1px solid #FECACA",borderRadius:8,padding:"10px 14px",fontSize:13,color:"#DC2626",marginBottom:16}}>⚠️ This will remove the interview from the active pipeline. Reason is mandatory.</div>
+        <div style={{background:"#FEF2F2",border:"1px solid #FECACA",borderRadius:8,padding:"10px 14px",fontSize:13,color:"#DC2626",marginBottom:16}}>Note: This will remove the interview from the active pipeline. Reason is mandatory.</div>
         <Textarea label="Reason for removal *" value={form.delete_reason||""} onChange={e=>set("delete_reason",e.target.value)} placeholder="Why is this being removed from pipeline?"/>
         <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
           <Btn variant="outline" onClick={()=>{setShowDeletePipeline(null);setForm({});}}>Cancel</Btn>
@@ -2013,7 +2013,7 @@ function OverallStatusPage({user,members,candidates,logs,token}){
   const DURATION_MAP={less_30:"<30 min","30_min":"30 min","45_min":"45 min","1_hour":"1 Hour","1_30_hour":"1.5 Hours","2_hours":"2 Hours","3_hours":"3 Hours"};
 
   return <div>
-    <div style={{fontSize:20,fontWeight:700,marginBottom:4}}>📊 Overall Status</div>
+    <div style={{fontSize:20,fontWeight:700,marginBottom:4}}>Overall Status</div>
     <div style={{fontSize:13,color:"#94A3B8",marginBottom:20}}>Drill down: R Lead → Recruiter → Candidate → Period</div>
 
     {/* FILTERS */}
@@ -2053,12 +2053,12 @@ function OverallStatusPage({user,members,candidates,logs,token}){
               <input type="date" value={selToDate} onChange={e=>setSelToDate(e.target.value)} style={{width:"100%",border:"1px solid #E2E8F0",borderRadius:8,padding:"8px 10px",fontSize:13,outline:"none"}}/>
             </div>
           </div>
-          {selFromDate&&selToDate&&<div style={{fontSize:11,color:"#7C3AED",marginTop:6,fontWeight:600}}>📅 {selFromDate} → {selToDate}</div>}
+          {selFromDate&&selToDate&&<div style={{fontSize:11,color:"#7C3AED",marginTop:6,fontWeight:600}}> {selFromDate} → {selToDate}</div>}
         </div>
       </div>
     </Card>
 
-    {!cand&&<div style={{textAlign:"center",padding:60,color:"#94A3B8",fontSize:14}}>👆 Select R Lead → Recruiter → Candidate → Period to see full report</div>}
+    {!cand&&<div style={{textAlign:"center",padding:60,color:"#94A3B8",fontSize:14}}> Select R Lead → Recruiter → Candidate → Period to see full report</div>}
 
     {cand&&<div>
       {/* CANDIDATE HEADER */}
@@ -2102,7 +2102,7 @@ function OverallStatusPage({user,members,candidates,logs,token}){
 
       {/* EMAILS EXPANDED */}
       {expandedSection==="emails"&&<Card style={{marginBottom:14,border:"2px solid #2563EB"}}>
-        <CardHeader title="📧 Day-wise Emails & Submissions — Full Detail"/>
+        <CardHeader title="Emails: Day-wise Emails & Submissions — Full Detail"/>
         <div style={{padding:"0 0 8px"}}>
           {dayBreakdown.length===0&&<div style={{padding:"16px",fontSize:13,color:"#94A3B8"}}>No recruiter logs for this period.</div>}
           {dayBreakdown.map(([date,data])=>{
@@ -2111,14 +2111,14 @@ function OverallStatusPage({user,members,candidates,logs,token}){
               <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
                 <div style={{fontSize:13,fontWeight:700}}>{fmtDate(date)}</div>
                 <div style={{display:"flex",gap:12}}>
-                  <span style={{fontSize:13,color:"#2563EB",fontWeight:700}}>📧 {data.emails} emails</span>
-                  <span style={{fontSize:13,color:"#7C3AED",fontWeight:700}}>📤 {data.subs} submissions</span>
+                  <span style={{fontSize:13,color:"#2563EB",fontWeight:700}}>Emails: {data.emails} emails</span>
+                  <span style={{fontSize:13,color:"#7C3AED",fontWeight:700}}>Subs: {data.subs} submissions</span>
                 </div>
               </div>
               {dayLogs.map(l=><div key={l.id} style={{background:"#F8FAFC",borderRadius:8,padding:"10px 12px",marginBottom:6}}>
-                {l.reason_less_emails&&<div style={{fontSize:12,color:"#D97706",marginBottom:4}}>⚠️ Less emails reason: {l.reason_less_emails}</div>}
-                {l.reason_zero_subs&&<div style={{fontSize:12,color:"#DC2626",marginBottom:4}}>⚠️ Zero subs reason: {l.reason_zero_subs}</div>}
-                {l.issue_description&&<div style={{fontSize:12,color:"#475569",marginBottom:4}}>🚨 Issue: {l.issue_description}</div>}
+                {l.reason_less_emails&&<div style={{fontSize:12,color:"#D97706",marginBottom:4}}>Note: Less emails reason: {l.reason_less_emails}</div>}
+                {l.reason_zero_subs&&<div style={{fontSize:12,color:"#DC2626",marginBottom:4}}>Note: Zero subs reason: {l.reason_zero_subs}</div>}
+                {l.issue_description&&<div style={{fontSize:12,color:"#475569",marginBottom:4}}>Issue: {l.issue_description}</div>}
                 {l.issue_status&&<div style={{fontSize:11,marginBottom:4}}><span style={{background:l.issue_status==="solved"?"#F0FDF4":"#FFFBEB",color:l.issue_status==="solved"?"#16A34A":"#D97706",padding:"1px 7px",borderRadius:99,fontWeight:600}}>Status: {l.issue_status}</span></div>}
                 {l.notes&&<div style={{fontSize:12,color:"#94A3B8"}}>Notes: {l.notes}</div>}
               </div>)}
@@ -2127,8 +2127,8 @@ function OverallStatusPage({user,members,candidates,logs,token}){
           {dayBreakdown.length>0&&<div style={{display:"flex",justifyContent:"space-between",padding:"12px 16px",background:"#EFF6FF",fontWeight:700,fontSize:14}}>
             <span>Total for period</span>
             <div style={{display:"flex",gap:16}}>
-              <span style={{color:"#2563EB"}}>📧 {totalEmails} emails</span>
-              <span style={{color:"#7C3AED"}}>📤 {totalSubs} submissions</span>
+              <span style={{color:"#2563EB"}}>Emails: {totalEmails} emails</span>
+              <span style={{color:"#7C3AED"}}>Subs: {totalSubs} submissions</span>
             </div>
           </div>}
         </div>
@@ -2136,19 +2136,19 @@ function OverallStatusPage({user,members,candidates,logs,token}){
 
       {/* SUBMISSIONS EXPANDED */}
       {expandedSection==="submissions"&&<Card style={{marginBottom:14,border:"2px solid #7C3AED"}}>
-        <CardHeader title="📤 Submissions — Full Detail"/>
+        <CardHeader title="Subs: Submissions — Full Detail"/>
         <div style={{padding:"0 0 8px"}}>
           {recLogs.length===0&&<div style={{padding:"16px",fontSize:13,color:"#94A3B8"}}>No submissions data for this period.</div>}
           {recLogs.map(l=><div key={l.id} style={{padding:"12px 16px",borderBottom:"1px solid #F1F5F9"}}>
             <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
               <span style={{fontSize:13,fontWeight:700}}>{fmtDate(l.log_date)} · {l.log_time}</span>
               <div style={{display:"flex",gap:10}}>
-                <span style={{fontSize:13,color:"#2563EB",fontWeight:700}}>📧 {l.emails_sent}</span>
-                <span style={{fontSize:13,color:"#7C3AED",fontWeight:700}}>📤 {l.submissions}</span>
+                <span style={{fontSize:13,color:"#2563EB",fontWeight:700}}>Emails: {l.emails_sent}</span>
+                <span style={{fontSize:13,color:"#7C3AED",fontWeight:700}}>Subs: {l.submissions}</span>
               </div>
             </div>
-            {l.reason_less_emails&&<div style={{fontSize:12,color:"#D97706",background:"#FFFBEB",padding:"6px 10px",borderRadius:6,marginBottom:4}}>⚠️ Less emails: {l.reason_less_emails}</div>}
-            {l.reason_zero_subs&&<div style={{fontSize:12,color:"#DC2626",background:"#FEF2F2",padding:"6px 10px",borderRadius:6,marginBottom:4}}>⚠️ Zero submissions: {l.reason_zero_subs}</div>}
+            {l.reason_less_emails&&<div style={{fontSize:12,color:"#D97706",background:"#FFFBEB",padding:"6px 10px",borderRadius:6,marginBottom:4}}>Low emails: {l.reason_less_emails}</div>}
+            {l.reason_zero_subs&&<div style={{fontSize:12,color:"#DC2626",background:"#FEF2F2",padding:"6px 10px",borderRadius:6,marginBottom:4}}>Note: Zero submissions: {l.reason_zero_subs}</div>}
             {l.notes&&<div style={{fontSize:12,color:"#94A3B8"}}>Notes: {l.notes}</div>}
           </div>)}
         </div>
@@ -2156,7 +2156,7 @@ function OverallStatusPage({user,members,candidates,logs,token}){
 
       {/* INTERVIEWS EXPANDED */}
       {expandedSection==="interviews"&&<Card style={{marginBottom:14,border:"2px solid #16A34A"}}>
-        <CardHeader title="🎯 Interviews — Full Detail"/>
+        <CardHeader title="Interviews — Full Detail"/>
         <div style={{padding:"0 0 8px"}}>
           {candSessions.length===0&&<div style={{padding:"16px",fontSize:13,color:"#94A3B8"}}>No interviews this period.</div>}
           {candSessions.map(s=><div key={s.id} style={{padding:"16px",borderBottom:"1px solid #F1F5F9"}}>
@@ -2165,12 +2165,12 @@ function OverallStatusPage({user,members,candidates,logs,token}){
                 <div style={{fontSize:15,fontWeight:700}}>{ROUNDS_MAP[s.round]||s.round}</div>
                 <div style={{fontSize:12,color:"#94A3B8"}}>{fmtDate(s.interview_date)}</div>
               </div>
-              <span style={{fontSize:12,background:s.overall_feedback==="went_well"?"#F0FDF4":s.overall_feedback==="okay"?"#FFFBEB":"#FEF2F2",color:s.overall_feedback==="went_well"?"#16A34A":s.overall_feedback==="okay"?"#D97706":"#DC2626",padding:"4px 12px",borderRadius:99,fontWeight:700,height:"fit-content"}}>{s.overall_feedback==="went_well"?"✅ Went Well":s.overall_feedback==="okay"?"👍 Okay":"❌ Not Went Well"}</span>
+              <span style={{fontSize:12,background:s.overall_feedback==="went_well"?"#F0FDF4":s.overall_feedback==="okay"?"#FFFBEB":"#FEF2F2",color:s.overall_feedback==="went_well"?"#16A34A":s.overall_feedback==="okay"?"#D97706":"#DC2626",padding:"4px 12px",borderRadius:99,fontWeight:700,height:"fit-content"}}>{s.overall_feedback==="went_well"?"Went Well":s.overall_feedback==="okay"?"Okay":"Not Went Well"}</span>
             </div>
             <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:10}}>
               <span style={{background:"#F5F3FF",color:"#7C3AED",fontSize:11,padding:"2px 8px",borderRadius:99,fontWeight:600}}>⏱️ {DURATION_MAP[s.duration]||s.duration}</span>
-              <span style={{background:"#EFF6FF",color:"#2563EB",fontSize:11,padding:"2px 8px",borderRadius:99,fontWeight:600}}>📡 {s.interview_mode==="virtual"?"Virtual":"In-person"}</span>
-              {s.tech_support_name&&<span style={{background:"#F0FDF4",color:"#16A34A",fontSize:11,padding:"2px 8px",borderRadius:99,fontWeight:600}}>🛠️ {s.tech_support_name}</span>}
+              <span style={{background:"#EFF6FF",color:"#2563EB",fontSize:11,padding:"2px 8px",borderRadius:99,fontWeight:600}}> {s.interview_mode==="virtual"?"Virtual":"In-person"}</span>
+              {s.tech_support_name&&<span style={{background:"#F0FDF4",color:"#16A34A",fontSize:11,padding:"2px 8px",borderRadius:99,fontWeight:600}}> {s.tech_support_name}</span>}
               {s.support_mode&&<span style={{background:"#FFFBEB",color:"#D97706",fontSize:11,padding:"2px 8px",borderRadius:99,fontWeight:600}}>{s.support_mode}</span>}
             </div>
             <div style={{background:"#F8FAFC",borderRadius:8,padding:"12px"}}>
@@ -2183,7 +2183,7 @@ function OverallStatusPage({user,members,candidates,logs,token}){
 
       {/* PIPELINE EXPANDED */}
       {expandedSection==="pipeline"&&<Card style={{marginBottom:14,border:"2px solid #D97706"}}>
-        <CardHeader title="📋 Pipeline Interviews — Full Detail"/>
+        <CardHeader title="Pipeline Interviews — Full Detail"/>
         <div style={{padding:"0 0 8px"}}>
           {candPipeline.length===0&&<div style={{padding:"16px",fontSize:13,color:"#94A3B8"}}>No pipeline interviews.</div>}
           {candPipeline.map(p=>{
@@ -2196,7 +2196,7 @@ function OverallStatusPage({user,members,candidates,logs,token}){
                 </div>
                 <div style={{display:"flex",gap:8,alignItems:"center"}}>
                   <span style={{background:{"1_week":"#FFFBEB","2_weeks":"#EFF6FF","not_sure":"#F1F5F9"}[p.expecting]||"#F1F5F9",color:{"1_week":"#D97706","2_weeks":"#2563EB","not_sure":"#475569"}[p.expecting]||"#475569",fontSize:11,padding:"2px 8px",borderRadius:99,fontWeight:600}}>{{"1_week":"In 1 week","2_weeks":"In 2 weeks","not_sure":"Not sure"}[p.expecting]||p.expecting}</span>
-                  <span style={{background:p.status==="active"?"#F0FDF4":"#FEF2F2",color:p.status==="active"?"#16A34A":"#DC2626",fontSize:11,padding:"2px 8px",borderRadius:99,fontWeight:600}}>{p.status==="active"?"🟢 Active":"🔴 Removed"}</span>
+                  <span style={{background:p.status==="active"?"#F0FDF4":"#FEF2F2",color:p.status==="active"?"#16A34A":"#DC2626",fontSize:11,padding:"2px 8px",borderRadius:99,fontWeight:600}}>{p.status==="active"?"Active":"Removed"}</span>
                 </div>
               </div>
               {p.delete_reason&&<div style={{background:"#FEF2F2",borderRadius:8,padding:"8px 12px",marginBottom:8,fontSize:12,color:"#DC2626"}}>Removal reason: {p.delete_reason}</div>}
@@ -2216,7 +2216,7 @@ function OverallStatusPage({user,members,candidates,logs,token}){
 
       {/* MOCKS EXPANDED */}
       {expandedSection==="mocks"&&<Card style={{marginBottom:14,border:"2px solid #DC2626"}}>
-        <CardHeader title="🎤 Mock Sessions — Full Detail"/>
+        <CardHeader title=" Mock Sessions — Full Detail"/>
         <div style={{padding:"0 0 8px"}}>
           {candLogs.filter(l=>l.type==="interview_coord").length===0&&<div style={{padding:"16px",fontSize:13,color:"#94A3B8"}}>No mock sessions this period.</div>}
           {candLogs.filter(l=>l.type==="interview_coord").map(l=><div key={l.id} style={{padding:"16px",borderBottom:"1px solid #F1F5F9"}}>
@@ -2231,7 +2231,7 @@ function OverallStatusPage({user,members,candidates,logs,token}){
               <div style={{fontSize:13,color:"#334155",lineHeight:1.6}}>{l.feedback}</div>
             </div>}
             {l.tmr_with_whom&&<div style={{background:"#EFF6FF",borderRadius:8,padding:"10px 12px"}}>
-              <div style={{fontSize:12,fontWeight:600,color:"#2563EB",marginBottom:6}}>🗓️ Tomorrow's Interview:</div>
+              <div style={{fontSize:12,fontWeight:600,color:"#2563EB",marginBottom:6}}>Tomorrow's Interview:</div>
               <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
                 <span style={{fontSize:12,color:"#475569"}}>With: {l.tmr_with_whom}</span>
                 {l.tmr_time&&<span style={{fontSize:12,color:"#475569"}}>· Time: {l.tmr_time}</span>}
@@ -2245,21 +2245,21 @@ function OverallStatusPage({user,members,candidates,logs,token}){
 
       {/* MANAGER FEEDBACK EXPANDED */}
       {expandedSection==="manager"&&<Card style={{marginBottom:14,border:"2px solid #0F766E"}}>
-        <CardHeader title="👔 Manager Feedback & Notes — Full Detail"/>
+        <CardHeader title="Manager Feedback & Notes — Full Detail"/>
         <div style={{padding:"0 0 8px"}}>
           {candLogs.filter(l=>l.type==="manager_feedback").length===0&&<div style={{padding:"16px",fontSize:13,color:"#94A3B8"}}>No manager feedback for this period.</div>}
           {candLogs.filter(l=>l.type==="manager_feedback").map(l=><div key={l.id} style={{padding:"16px",borderBottom:"1px solid #F1F5F9"}}>
             <div style={{fontSize:13,fontWeight:700,color:"#475569",marginBottom:10}}>{getMember(l.user_id)?.name} · {fmtDate(l.log_date)} · {l.log_time}</div>
             {(l.feedback_to_team||l.manager_feedback)&&<div style={{background:"#F0FDFA",border:"1px solid #99F6E4",borderRadius:8,padding:"12px 14px",marginBottom:10}}>
-              <div style={{fontSize:12,fontWeight:700,color:"#0F766E",marginBottom:6}}>💬 Public Feedback (visible to all team):</div>
+              <div style={{fontSize:12,fontWeight:700,color:"#0F766E",marginBottom:6}}>Public Feedback (visible to all team):</div>
               <div style={{fontSize:13,color:"#334155",lineHeight:1.6}}>{l.feedback_to_team||l.manager_feedback}</div>
             </div>}
             {l.feedback_to_president&&<div style={{background:"#F5F3FF",border:"1px solid #DDD6FE",borderRadius:8,padding:"12px 14px"}}>
-              <div style={{fontSize:12,fontWeight:700,color:"#7C3AED",marginBottom:6}}>🔒 Confidential (President only):</div>
+              <div style={{fontSize:12,fontWeight:700,color:"#7C3AED",marginBottom:6}}>Confidential (President only):</div>
               <div style={{fontSize:13,color:"#334155",lineHeight:1.6}}>{l.feedback_to_president}</div>
             </div>}
             {l.action_items&&<div style={{marginTop:10,background:"#FFFBEB",border:"1px solid #FDE68A",borderRadius:8,padding:"10px 12px"}}>
-              <div style={{fontSize:12,fontWeight:700,color:"#D97706",marginBottom:4}}>📌 Action Items:</div>
+              <div style={{fontSize:12,fontWeight:700,color:"#D97706",marginBottom:4}}> Action Items:</div>
               <div style={{fontSize:13,color:"#334155"}}>{l.action_items}</div>
             </div>}
           </div>)}
@@ -2268,7 +2268,7 @@ function OverallStatusPage({user,members,candidates,logs,token}){
 
       {/* PRESIDENT PERSONAL NOTES */}
       <Card>
-        <CardHeader title="📝 My Personal Notes" action={<Btn variant="outline" onClick={()=>setShowNoteInput(!showNoteInput)} style={{fontSize:12,padding:"5px 12px"}}>+ Add Note</Btn>}/>
+        <CardHeader title="My Personal Notes" action={<Btn variant="outline" onClick={()=>setShowNoteInput(!showNoteInput)} style={{fontSize:12,padding:"5px 12px"}}>+ Add Note</Btn>}/>
         {showNoteInput&&<div style={{padding:"14px 16px",borderBottom:"1px solid #E2E8F0"}}>
           <textarea value={newNote} onChange={e=>setNewNote(e.target.value)} placeholder="Add your private note for this candidate this period..." style={{width:"100%",border:"1px solid #E2E8F0",borderRadius:8,padding:"8px 12px",fontSize:14,outline:"none",resize:"vertical",boxSizing:"border-box"}} rows={3}/>
           <div style={{display:"flex",gap:8,justifyContent:"flex-end",marginTop:8}}>
@@ -2463,7 +2463,7 @@ function StatusMeetingPage({user,rc,members,candidates,allCandidates,logs,token,
     </div>
     <div class="portal-title">Mpower - VARS IMS</div>
     <div class="portal-sub">Internal Management System</div>
-    <div class="report-title">📞 Status Meeting Report</div>
+    <div class="report-title">Status Meeting Report</div>
   </div>
 
   <!-- Candidate Info -->
@@ -2476,7 +2476,7 @@ function StatusMeetingPage({user,rc,members,candidates,allCandidates,logs,token,
       <span class="team-badge badge-clead">C Lead: ${getMemberName(cand?.c_lead_id)}</span>
       <span class="team-badge badge-ic">IC: ${getMemberName(cand?.interview_coord_id)}</span>
     </div>
-    <div class="period-badge">📅 Period: ${periodLabel}</div>
+    <div class="period-badge">Period: ${periodLabel}</div>
   </div>
 
   <!-- Stats Summary -->
@@ -2490,34 +2490,34 @@ function StatusMeetingPage({user,rc,members,candidates,allCandidates,logs,token,
 
   <!-- Recruiter Section -->
   <div class="section">
-    <div class="section-header section-rec">👤 Recruiter — ${getMemberName(cand?.recruiter_id)}</div>
+    <div class="section-header section-rec">Recruiter — ${getMemberName(cand?.recruiter_id)}</div>
     <div class="section-body">
       ${recLogs.length === 0 ? '<div class="no-data">No recruiter logs for this period.</div>' :
         recLogs.map(l => `
           <div class="row">
             <span class="label">${l.log_date}</span>
-            <span class="value">📧 ${l.emails_sent || 0} emails &nbsp;·&nbsp; 📤 ${l.submissions || 0} submissions</span>
+            <span class="value">Emails: ${l.emails_sent || 0} emails &nbsp;·&nbsp; Subs: ${l.submissions || 0} submissions</span>
           </div>
-          ${l.reason_less_emails ? `<div style="font-size:11px;color:#D97706;margin-bottom:4px;">⚠️ Less emails: ${l.reason_less_emails}</div>` : ''}
-          ${l.reason_zero_subs ? `<div style="font-size:11px;color:#DC2626;margin-bottom:4px;">⚠️ Zero subs: ${l.reason_zero_subs}</div>` : ''}
-          ${l.issue_description ? `<div style="font-size:11px;color:#475569;margin-bottom:4px;">🚨 Issue: ${l.issue_description} (${l.issue_status || ''})</div>` : ''}
+          ${l.reason_less_emails ? `<div style="font-size:11px;color:#D97706;margin-bottom:4px;">Low emails: ${l.reason_less_emails}</div>` : ''}
+          ${l.reason_zero_subs ? `<div style="font-size:11px;color:#DC2626;margin-bottom:4px;">Zero submissions: ${l.reason_zero_subs}</div>` : ''}
+          ${l.issue_description ? `<div style="font-size:11px;color:#475569;margin-bottom:4px;">Issue: ${l.issue_description} (${l.issue_status || ''})</div>` : ''}
         `).join('')}
       <div class="row" style="background:#EFF6FF;padding:8px;border-radius:6px;margin-top:8px;">
         <span style="font-weight:700">Total</span>
-        <span style="font-weight:700;color:#2563EB">📧 ${totalEmails} &nbsp;·&nbsp; 📤 ${totalSubs}</span>
+        <span style="font-weight:700;color:#2563EB">Emails: ${totalEmails} &nbsp;·&nbsp; Subs: ${totalSubs}</span>
       </div>
     </div>
   </div>
 
   <!-- R Lead Section -->
   <div class="section">
-    <div class="section-header section-rlead">📋 R Lead — ${getMemberName(cand?.r_lead_id)}</div>
+    <div class="section-header section-rlead">R Lead — ${getMemberName(cand?.r_lead_id)}</div>
     <div class="section-body">
       <div style="font-weight:600;font-size:12px;margin-bottom:8px;color:#475569;">Vendor Mocks:</div>
       ${rLeadLogs.length === 0 ? '<div class="no-data">No R Lead logs this period.</div>' :
         rLeadLogs.map(l => `
           <div class="interview-card">
-            <div class="row"><span class="label">${l.log_date}</span><span class="value">${l.vendor_mock_conducted === 'yes' ? '✅ Conducted' : '❌ Not Conducted'}</span></div>
+            <div class="row"><span class="label">${l.log_date}</span><span class="value">${l.vendor_mock_conducted === 'yes' ? 'Conducted' : 'Not Conducted'}</span></div>
             ${l.vendor_mock_feedback ? `<div style="font-size:12px;color:#475569;margin-top:4px;">Feedback: ${l.vendor_mock_feedback}</div>` : ''}
             ${l.vendor_mock_reason ? `<div style="font-size:12px;color:#DC2626;margin-top:4px;">Reason: ${l.vendor_mock_reason}</div>` : ''}
           </div>
@@ -2528,7 +2528,7 @@ function StatusMeetingPage({user,rc,members,candidates,allCandidates,logs,token,
           const updates = pipelineUpdates.filter(u=>u.pipeline_id===p.id).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
           return `<div class="interview-card">
             <div class="interview-title">${p.interview_with} · ${p.round}</div>
-            <div style="font-size:11px;color:${p.status==='active'?'#16A34A':'#DC2626'};margin-bottom:6px;">${p.status==='active'?'🟢 Active':'🔴 Removed'}</div>
+            <div style="font-size:11px;color:${p.status==='active'?'#16A34A':'#DC2626'};margin-bottom:6px;">${p.status==='active'?'Active':'Removed'}</div>
             ${updates.slice(0,3).map(u=>`<div style="font-size:11px;color:#475569;border-left:2px solid #BFDBFE;padding-left:8px;margin-bottom:4px;">${u.update_text}</div>`).join('')}
           </div>`;
         }).join('')}
@@ -2537,7 +2537,7 @@ function StatusMeetingPage({user,rc,members,candidates,allCandidates,logs,token,
 
   <!-- C Lead Section -->
   <div class="section">
-    <div class="section-header section-clead">🖥️ C Lead — ${getMemberName(cand?.c_lead_id)}</div>
+    <div class="section-header section-clead">C Lead — ${getMemberName(cand?.c_lead_id)}</div>
     <div class="section-body">
       ${cLeadLogs.length === 0 ? '<div class="no-data">No C Lead logs this period.</div>' :
         cLeadLogs.map(l => `
@@ -2552,21 +2552,21 @@ function StatusMeetingPage({user,rc,members,candidates,allCandidates,logs,token,
 
   <!-- IC Section -->
   <div class="section">
-    <div class="section-header section-ic">🎤 Interview Coordinator — ${getMemberName(cand?.interview_coord_id)}</div>
+    <div class="section-header section-ic">Interview Coordinator — ${getMemberName(cand?.interview_coord_id)}</div>
     <div class="section-body">
       <div style="font-weight:600;font-size:12px;margin-bottom:8px;color:#475569;">Interviews (${candSessions.length}):</div>
       ${candSessions.length === 0 ? '<div class="no-data">No interviews this period.</div>' :
         candSessions.map(s => `
           <div class="interview-card">
             <div class="interview-title">${ROUNDS_MAP[s.round]||s.round}</div>
-            ${s.with_whom ? `<div class="interview-with">🏢 ${s.with_whom}</div>` : ''}
+            ${s.with_whom ? `<div class="interview-with"> ${s.with_whom}</div>` : ''}
             <div style="margin-bottom:6px;">
-              <span class="badge ${s.overall_feedback==='went_well'?'badge-well':s.overall_feedback==='okay'?'badge-ok':'badge-bad'}">${s.overall_feedback==='went_well'?'✅ Went Well':s.overall_feedback==='okay'?'👍 Okay':'❌ Not Went Well'}</span>
+              <span class="badge ${s.overall_feedback==='went_well'?'badge-well':s.overall_feedback==='okay'?'badge-ok':'badge-bad'}">${s.overall_feedback==='went_well'?'Went Well':s.overall_feedback==='okay'?'Okay':'Not Went Well'}</span>
               <span class="badge" style="background:#F5F3FF;color:#7C3AED;">${DURATION_MAP[s.duration]||s.duration}</span>
               <span class="badge" style="background:#EFF6FF;color:#2563EB;">${s.interview_mode==='virtual'?'Virtual':'In-person'}</span>
             </div>
             ${s.detailed_feedback ? `<div style="font-size:12px;color:#475569;">${s.detailed_feedback}</div>` : ''}
-            ${s.tech_support_name ? `<div style="font-size:11px;color:#16A34A;margin-top:4px;">🛠️ ${s.tech_support_name} — ${s.support_mode||''}</div>` : ''}
+            ${s.tech_support_name ? `<div style="font-size:11px;color:#16A34A;margin-top:4px;"> ${s.tech_support_name} — ${s.support_mode||''}</div>` : ''}
           </div>
         `).join('')}
       <div style="font-weight:600;font-size:12px;margin:12px 0 8px;color:#475569;">Mock Sessions (${icLogs.length}):</div>
@@ -2582,21 +2582,21 @@ function StatusMeetingPage({user,rc,members,candidates,allCandidates,logs,token,
 
   <!-- Manager Feedback -->
   <div class="section">
-    <div class="section-header section-mgr">👔 Manager Feedback</div>
+    <div class="section-header section-mgr">Manager Feedback</div>
     <div class="section-body">
       ${[...mgrLogs, ...candStatusNotes].length === 0 ? '<div class="no-data">No manager feedback for this period.</div>' : ''}
       ${mgrLogs.map(l => `
         <div style="margin-bottom:12px;">
           <div style="font-size:12px;font-weight:600;color:#475569;margin-bottom:6px;">${getMemberName(l.user_id)} · ${l.log_date}</div>
-          ${(l.feedback_to_team||l.manager_feedback) ? `<div class="feedback-box">💬 ${l.feedback_to_team||l.manager_feedback}</div>` : ''}
-          ${(user.role==='president' && l.feedback_to_president) ? `<div class="confidential-box"><div class="conf-label">🔒 Confidential (President only)</div>${l.feedback_to_president}</div>` : ''}
+          ${(l.feedback_to_team||l.manager_feedback) ? `<div class="feedback-box"> ${l.feedback_to_team||l.manager_feedback}</div>` : ''}
+          ${(user.role==='president' && l.feedback_to_president) ? `<div class="confidential-box"><div class="conf-label">Confidential (President only)</div>${l.feedback_to_president}</div>` : ''}
         </div>
       `).join('')}
       ${candStatusNotes.map(n => `
         <div style="margin-bottom:12px;">
           <div style="font-size:12px;font-weight:600;color:#475569;margin-bottom:6px;">${getMemberName(n.manager_id)} · Status Meeting Note</div>
-          ${n.public_feedback ? `<div class="feedback-box">💬 ${n.public_feedback}</div>` : ''}
-          ${(user.role==='president' && n.confidential_note) ? `<div class="confidential-box"><div class="conf-label">🔒 Confidential (President only)</div>${n.confidential_note}</div>` : ''}
+          ${n.public_feedback ? `<div class="feedback-box"> ${n.public_feedback}</div>` : ''}
+          ${(user.role==='president' && n.confidential_note) ? `<div class="confidential-box"><div class="conf-label">Confidential (President only)</div>${n.confidential_note}</div>` : ''}
         </div>
       `).join('')}
     </div>
@@ -2618,8 +2618,8 @@ function StatusMeetingPage({user,rc,members,candidates,allCandidates,logs,token,
 
   return <div>
     <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:4}}>
-      <div style={{fontSize:20,fontWeight:700}}>📞 Status Meeting</div>
-      {cand&&<button onClick={downloadPDF} style={{background:"#2563EB",color:"#fff",border:"none",borderRadius:8,padding:"8px 16px",fontSize:13,fontWeight:600,cursor:"pointer",display:"flex",alignItems:"center",gap:6}}>📥 Download PDF Report</button>}
+      <div style={{fontSize:20,fontWeight:700}}>Status Meeting</div>
+      {cand&&<button onClick={downloadPDF} style={{background:"#2563EB",color:"#fff",border:"none",borderRadius:8,padding:"8px 16px",fontSize:13,fontWeight:600,cursor:"pointer",display:"flex",alignItems:"center",gap:6}}>Download PDF Report</button>}
     </div>
     <div style={{fontSize:13,color:"#94A3B8",marginBottom:20}}>Select candidate + period to view full status — everyone sees all sections</div>
 
@@ -2668,7 +2668,7 @@ function StatusMeetingPage({user,rc,members,candidates,allCandidates,logs,token,
       </div>
     </Card>
 
-    {!cand&&<div style={{textAlign:"center",padding:60,color:"#94A3B8",fontSize:14}}>👆 Select a candidate to view status meeting data</div>}
+    {!cand&&<div style={{textAlign:"center",padding:60,color:"#94A3B8",fontSize:14}}> Select a candidate to view status meeting data</div>}
 
     {cand&&<div>
       {/* CANDIDATE HEADER */}
@@ -2696,23 +2696,23 @@ function StatusMeetingPage({user,rc,members,candidates,allCandidates,logs,token,
       {/* TABS */}
       <div style={{display:"flex",gap:2,marginBottom:16,borderBottom:"1px solid #E2E8F0",overflowX:"auto"}}>
         {[
-          {id:"overview",l:"📋 Overview"},
-          {id:"interviews",l:`🎯 Interviews (${candSessions.length})`},
-          {id:"pipeline",l:`📋 Pipeline (${candPipeline.filter(p=>p.status==="active").length})`},
-          {id:"screening",l:`📞 Screening Calls (${candScreeningCalls.length})`},
-          {id:"manager",l:"👔 Manager Notes"},
+          {id:"overview",l:" Overview"},
+          {id:"interviews",l:`Interviews (${candSessions.length})`},
+          {id:"pipeline",l:` Pipeline (${candPipeline.filter(p=>p.status==="active").length})`},
+          {id:"screening",l:` Screening Calls (${candScreeningCalls.length})`},
+          {id:"manager",l:"Manager Notes"},
         ].map(t=><button key={t.id} onClick={()=>{setActiveTab(t.id);setSelectedInterview(null);setSelectedPipeline(null);}} style={{padding:"8px 14px",fontSize:12,fontWeight:600,cursor:"pointer",background:"none",border:"none",borderBottom:`2px solid ${activeTab===t.id?"#2563EB":"transparent"}`,color:activeTab===t.id?"#2563EB":"#94A3B8",marginBottom:-1,whiteSpace:"nowrap"}}>{t.l}</button>)}
       </div>
 
       {/* OVERVIEW TAB */}
       {activeTab==="overview"&&<>
-      {/* 👤 RECRUITER SECTION */}
+      {/*  RECRUITER SECTION */}
       <Card style={{marginBottom:12,border:"1px solid #BBF7D0"}}>
         <div style={{padding:"14px 18px",borderBottom:"1px solid #BBF7D0",background:"#F0FDF4",borderRadius:"10px 10px 0 0",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-          <div style={{fontWeight:700,fontSize:14,color:"#16A34A"}}>👤 Recruiter — {getMember(cand.recruiter_id)?.name||"?"}</div>
+          <div style={{fontWeight:700,fontSize:14,color:"#16A34A"}}>Recruiter — {getMember(cand.recruiter_id)?.name||"?"}</div>
           <div style={{display:"flex",gap:12}}>
-            <span style={{fontSize:12,fontWeight:700,color:"#2563EB",background:"#EFF6FF",padding:"3px 10px",borderRadius:99}}>📧 {totalEmails} emails</span>
-            <span style={{fontSize:12,fontWeight:700,color:"#7C3AED",background:"#F5F3FF",padding:"3px 10px",borderRadius:99}}>📤 {totalSubs} submissions</span>
+            <span style={{fontSize:12,fontWeight:700,color:"#2563EB",background:"#EFF6FF",padding:"3px 10px",borderRadius:99}}>Emails: {totalEmails} emails</span>
+            <span style={{fontSize:12,fontWeight:700,color:"#7C3AED",background:"#F5F3FF",padding:"3px 10px",borderRadius:99}}>Subs: {totalSubs} submissions</span>
           </div>
         </div>
         <div style={{padding:"0 0 8px"}}>
@@ -2721,21 +2721,21 @@ function StatusMeetingPage({user,rc,members,candidates,allCandidates,logs,token,
             <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
               <span style={{fontSize:13,fontWeight:600}}>{fmtDate(l.log_date)}</span>
               <div style={{display:"flex",gap:10}}>
-                <span style={{fontSize:12,color:"#2563EB",fontWeight:600}}>📧 {l.emails_sent}</span>
-                <span style={{fontSize:12,color:"#7C3AED",fontWeight:600}}>📤 {l.submissions}</span>
+                <span style={{fontSize:12,color:"#2563EB",fontWeight:600}}>Emails: {l.emails_sent}</span>
+                <span style={{fontSize:12,color:"#7C3AED",fontWeight:600}}>Subs: {l.submissions}</span>
               </div>
             </div>
-            {l.reason_less_emails&&<div style={{fontSize:11,color:"#D97706",background:"#FFFBEB",padding:"4px 8px",borderRadius:4,marginBottom:3}}>⚠️ Less emails: {l.reason_less_emails}</div>}
-            {l.reason_zero_subs&&<div style={{fontSize:11,color:"#DC2626",background:"#FEF2F2",padding:"4px 8px",borderRadius:4,marginBottom:3}}>⚠️ Zero subs: {l.reason_zero_subs}</div>}
-            {l.issue_description&&<div style={{fontSize:11,color:"#475569",background:"#F8FAFC",padding:"4px 8px",borderRadius:4}}>🚨 {l.issue_description} — <span style={{fontWeight:600}}>{l.issue_status}</span></div>}
+            {l.reason_less_emails&&<div style={{fontSize:11,color:"#D97706",background:"#FFFBEB",padding:"4px 8px",borderRadius:4,marginBottom:3}}>Low emails: {l.reason_less_emails}</div>}
+            {l.reason_zero_subs&&<div style={{fontSize:11,color:"#DC2626",background:"#FEF2F2",padding:"4px 8px",borderRadius:4,marginBottom:3}}>Zero submissions: {l.reason_zero_subs}</div>}
+            {l.issue_description&&<div style={{fontSize:11,color:"#475569",background:"#F8FAFC",padding:"4px 8px",borderRadius:4}}> {l.issue_description} — <span style={{fontWeight:600}}>{l.issue_status}</span></div>}
           </div>)}
         </div>
       </Card>
 
-      {/* 📋 R LEAD SECTION */}
+      {/*  R LEAD SECTION */}
       <Card style={{marginBottom:12,border:"1px solid #BFDBFE"}}>
         <div style={{padding:"14px 18px",borderBottom:"1px solid #BFDBFE",background:"#EFF6FF",borderRadius:"10px 10px 0 0"}}>
-          <div style={{fontWeight:700,fontSize:14,color:"#2563EB"}}>📋 R Lead — {getMember(cand.r_lead_id)?.name||"?"}</div>
+          <div style={{fontWeight:700,fontSize:14,color:"#2563EB"}}>R Lead — {getMember(cand.r_lead_id)?.name||"?"}</div>
         </div>
         <div style={{padding:"0 0 8px"}}>
           {/* Vendor Mocks */}
@@ -2745,7 +2745,7 @@ function StatusMeetingPage({user,rc,members,candidates,allCandidates,logs,token,
             {rLeadLogs.map(l=><div key={l.id} style={{background:"#F8FAFC",borderRadius:8,padding:"10px 12px",marginBottom:6}}>
               <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
                 <span style={{fontSize:12,fontWeight:600}}>{fmtDate(l.log_date)}</span>
-                <span style={{fontSize:11,background:l.vendor_mock_conducted==="yes"?"#F0FDF4":"#FEF2F2",color:l.vendor_mock_conducted==="yes"?"#16A34A":"#DC2626",padding:"1px 7px",borderRadius:99,fontWeight:600}}>{l.vendor_mock_conducted==="yes"?"✅ Conducted":"❌ Not Conducted"}</span>
+                <span style={{fontSize:11,background:l.vendor_mock_conducted==="yes"?"#F0FDF4":"#FEF2F2",color:l.vendor_mock_conducted==="yes"?"#16A34A":"#DC2626",padding:"1px 7px",borderRadius:99,fontWeight:600}}>{l.vendor_mock_conducted==="yes"?"Conducted":"Not Conducted"}</span>
               </div>
               {l.vendor_mock_feedback&&<div style={{fontSize:12,color:"#475569"}}>Feedback: {l.vendor_mock_feedback}</div>}
               {l.vendor_mock_reason&&<div style={{fontSize:12,color:"#DC2626"}}>Reason: {l.vendor_mock_reason}</div>}
@@ -2772,10 +2772,10 @@ function StatusMeetingPage({user,rc,members,candidates,allCandidates,logs,token,
         </div>
       </Card>
 
-      {/* 🖥️ C LEAD SECTION */}
+      {/* ️ C LEAD SECTION */}
       <Card style={{marginBottom:12,border:"1px solid #FDE68A"}}>
         <div style={{padding:"14px 18px",borderBottom:"1px solid #FDE68A",background:"#FFFBEB",borderRadius:"10px 10px 0 0"}}>
-          <div style={{fontWeight:700,fontSize:14,color:"#D97706"}}>🖥️ C Lead — {getMember(cand.c_lead_id)?.name||"?"}</div>
+          <div style={{fontWeight:700,fontSize:14,color:"#D97706"}}>C Lead — {getMember(cand.c_lead_id)?.name||"?"}</div>
         </div>
         <div style={{padding:"0 0 8px"}}>
           {cLeadLogs.length===0&&<div style={{padding:"14px 16px",fontSize:13,color:"#94A3B8"}}>No C Lead logs this period.</div>}
@@ -2784,16 +2784,16 @@ function StatusMeetingPage({user,rc,members,candidates,allCandidates,logs,token,
               <span style={{fontSize:13,fontWeight:600}}>{fmtDate(l.log_date)}</span>
               <span style={{fontSize:11,background:l.resolution_status==="solved"?"#F0FDF4":l.resolution_status==="no_issues"?"#F1F5F9":"#FFFBEB",color:l.resolution_status==="solved"?"#16A34A":l.resolution_status==="no_issues"?"#475569":"#D97706",padding:"1px 7px",borderRadius:99,fontWeight:600}}>{l.resolution_status}</span>
             </div>
-            {l.floor_issues&&<div style={{fontSize:12,color:"#475569",marginBottom:4}}>🖥️ {l.floor_issues}</div>}
+            {l.floor_issues&&<div style={{fontSize:12,color:"#475569",marginBottom:4}}>️ {l.floor_issues}</div>}
             {l.clead_informed_to?.length>0&&<div style={{fontSize:11,color:"#94A3B8"}}>Informed: {Array.isArray(l.clead_informed_to)?l.clead_informed_to.join(", "):l.clead_informed_to}</div>}
           </div>)}
         </div>
       </Card>
 
-      {/* 🎤 IC SECTION */}
+      {/* IC SECTION */}
       <Card style={{marginBottom:12,border:"1px solid #FECACA"}}>
         <div style={{padding:"14px 18px",borderBottom:"1px solid #FECACA",background:"#FEF2F2",borderRadius:"10px 10px 0 0"}}>
-          <div style={{fontWeight:700,fontSize:14,color:"#DC2626"}}>🎤 Interview Coordinator — {getMember(cand.interview_coord_id)?.name||"?"}</div>
+          <div style={{fontWeight:700,fontSize:14,color:"#DC2626"}}>Interview Coordinator — {getMember(cand.interview_coord_id)?.name||"?"}</div>
         </div>
         <div style={{padding:"0 0 8px"}}>
           {/* Interview sessions */}
@@ -2803,9 +2803,9 @@ function StatusMeetingPage({user,rc,members,candidates,allCandidates,logs,token,
               <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
                 <div>
                   <span style={{fontSize:12,fontWeight:600}}>{ROUNDS_MAP[s.round]||s.round} · {fmtDate(s.interview_date)}</span>
-                  {s.with_whom&&<div style={{fontSize:11,color:"#2563EB",fontWeight:600,marginTop:2}}>🏢 {s.with_whom}</div>}
+                  {s.with_whom&&<div style={{fontSize:11,color:"#2563EB",fontWeight:600,marginTop:2}}> {s.with_whom}</div>}
                 </div>
-                <span style={{fontSize:11,background:s.overall_feedback==="went_well"?"#F0FDF4":s.overall_feedback==="okay"?"#FFFBEB":"#FEF2F2",color:s.overall_feedback==="went_well"?"#16A34A":s.overall_feedback==="okay"?"#D97706":"#DC2626",padding:"1px 7px",borderRadius:99,fontWeight:600}}>{s.overall_feedback==="went_well"?"✅ Went Well":s.overall_feedback==="okay"?"👍 Okay":"❌ Not Went Well"}</span>
+                <span style={{fontSize:11,background:s.overall_feedback==="went_well"?"#F0FDF4":s.overall_feedback==="okay"?"#FFFBEB":"#FEF2F2",color:s.overall_feedback==="went_well"?"#16A34A":s.overall_feedback==="okay"?"#D97706":"#DC2626",padding:"1px 7px",borderRadius:99,fontWeight:600}}>{s.overall_feedback==="went_well"?"Went Well":s.overall_feedback==="okay"?"Okay":"Not Went Well"}</span>
               </div>
               <div style={{fontSize:12,color:"#475569"}}>{s.detailed_feedback?.substring(0,100)}{s.detailed_feedback?.length>100?"...":""}</div>
             </div>)}
@@ -2820,7 +2820,7 @@ function StatusMeetingPage({user,rc,members,candidates,allCandidates,logs,token,
                 <span style={{fontSize:11,color:"#94A3B8"}}>{fmtDate(l.log_date)}</span>
               </div>
               {l.feedback&&<div style={{fontSize:12,color:"#475569"}}>{l.feedback?.substring(0,100)}{l.feedback?.length>100?"...":""}</div>}
-              {l.tmr_with_whom&&<div style={{fontSize:11,color:"#2563EB",marginTop:4}}>🗓️ Tmr interview: {l.tmr_with_whom} · {l.tmr_time} · {l.tmr_mode}</div>}
+              {l.tmr_with_whom&&<div style={{fontSize:11,color:"#2563EB",marginTop:4}}>Tomorrow: {l.tmr_with_whom} · {l.tmr_time} · {l.tmr_mode}</div>}
             </div>)}
           </div>
         </div>
@@ -2840,11 +2840,11 @@ function StatusMeetingPage({user,rc,members,candidates,allCandidates,logs,token,
                 <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
                   <div>
                     <div style={{fontSize:15,fontWeight:700}}>{ROUNDS_MAP[s.round]||s.round}</div>
-                    {s.with_whom&&<div style={{fontSize:13,color:"#2563EB",fontWeight:700,marginTop:2}}>🏢 {s.with_whom}</div>}
-                    <div style={{fontSize:12,color:"#94A3B8",marginTop:2}}>{fmtDate(s.interview_date)} · {s.interview_mode==="virtual"?"🖥️ Virtual":"🤝 In-person"}</div>
+                    {s.with_whom&&<div style={{fontSize:13,color:"#2563EB",fontWeight:700,marginTop:2}}> {s.with_whom}</div>}
+                    <div style={{fontSize:12,color:"#94A3B8",marginTop:2}}>{fmtDate(s.interview_date)} · {s.interview_mode==="virtual"?"️ Virtual":" In-person"}</div>
                   </div>
                   <div style={{display:"flex",gap:8,alignItems:"center"}}>
-                    <span style={{fontSize:12,background:s.overall_feedback==="went_well"?"#F0FDF4":s.overall_feedback==="okay"?"#FFFBEB":"#FEF2F2",color:s.overall_feedback==="went_well"?"#16A34A":s.overall_feedback==="okay"?"#D97706":"#DC2626",padding:"4px 12px",borderRadius:99,fontWeight:700}}>{s.overall_feedback==="went_well"?"✅ Went Well":s.overall_feedback==="okay"?"👍 Okay":"❌ Not Went Well"}</span>
+                    <span style={{fontSize:12,background:s.overall_feedback==="went_well"?"#F0FDF4":s.overall_feedback==="okay"?"#FFFBEB":"#FEF2F2",color:s.overall_feedback==="went_well"?"#16A34A":s.overall_feedback==="okay"?"#D97706":"#DC2626",padding:"4px 12px",borderRadius:99,fontWeight:700}}>{s.overall_feedback==="went_well"?"Went Well":s.overall_feedback==="okay"?"Okay":"Not Went Well"}</span>
                     <span style={{fontSize:12,color:"#2563EB",fontWeight:600}}>View details →</span>
                   </div>
                 </div>
@@ -2859,19 +2859,19 @@ function StatusMeetingPage({user,rc,members,candidates,allCandidates,logs,token,
             <div style={{display:"flex",justifyContent:"space-between",marginBottom:16}}>
               <div>
                 <div style={{fontSize:20,fontWeight:800}}>{{round_1:"Round 1",round_2:"Round 2",round_3:"Round 3",round_4:"Round 4",round_5:"Round 5",round_6:"Round 6",final:"Final"}[selectedInterview.round]||selectedInterview.round}</div>
-                {selectedInterview.with_whom&&<div style={{fontSize:14,color:"#2563EB",fontWeight:700,marginTop:4}}>🏢 {selectedInterview.with_whom}</div>}
+                {selectedInterview.with_whom&&<div style={{fontSize:14,color:"#2563EB",fontWeight:700,marginTop:4}}> {selectedInterview.with_whom}</div>}
                 <div style={{fontSize:13,color:"#94A3B8",marginTop:2}}>{fmtDate(selectedInterview.interview_date)}</div>
                 {selectedInterview.tech_support_name&&<div style={{display:"flex",alignItems:"center",gap:6,marginTop:6}}>
-                  <span style={{background:"#F0FDF4",color:"#16A34A",fontSize:12,padding:"3px 10px",borderRadius:99,fontWeight:700}}>🛠️ Tech Support: {selectedInterview.tech_support_name}</span>
+                  <span style={{background:"#F0FDF4",color:"#16A34A",fontSize:12,padding:"3px 10px",borderRadius:99,fontWeight:700}}>Tech Support: {selectedInterview.tech_support_name}</span>
                   {selectedInterview.support_mode&&<span style={{background:"#EFF6FF",color:"#2563EB",fontSize:12,padding:"3px 10px",borderRadius:99,fontWeight:600}}>Mode: {selectedInterview.support_mode}</span>}
                 </div>}
               </div>
-              <span style={{fontSize:13,background:selectedInterview.overall_feedback==="went_well"?"#F0FDF4":selectedInterview.overall_feedback==="okay"?"#FFFBEB":"#FEF2F2",color:selectedInterview.overall_feedback==="went_well"?"#16A34A":selectedInterview.overall_feedback==="okay"?"#D97706":"#DC2626",padding:"6px 16px",borderRadius:99,fontWeight:700,height:"fit-content"}}>{selectedInterview.overall_feedback==="went_well"?"✅ Went Well":selectedInterview.overall_feedback==="okay"?"👍 Okay":"❌ Not Went Well"}</span>
+              <span style={{fontSize:13,background:selectedInterview.overall_feedback==="went_well"?"#F0FDF4":selectedInterview.overall_feedback==="okay"?"#FFFBEB":"#FEF2F2",color:selectedInterview.overall_feedback==="went_well"?"#16A34A":selectedInterview.overall_feedback==="okay"?"#D97706":"#DC2626",padding:"6px 16px",borderRadius:99,fontWeight:700,height:"fit-content"}}>{selectedInterview.overall_feedback==="went_well"?"Went Well":selectedInterview.overall_feedback==="okay"?"Okay":"Not Went Well"}</span>
             </div>
             <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:16}}>
               <span style={{background:"#F5F3FF",color:"#7C3AED",fontSize:12,padding:"3px 10px",borderRadius:99,fontWeight:600}}>⏱️ {{less_30:"<30 min","30_min":"30 min","45_min":"45 min","1_hour":"1 Hour","1_30_hour":"1.5 Hours","2_hours":"2 Hours","3_hours":"3 Hours"}[selectedInterview.duration]||selectedInterview.duration}</span>
-              <span style={{background:"#EFF6FF",color:"#2563EB",fontSize:12,padding:"3px 10px",borderRadius:99,fontWeight:600}}>📡 {selectedInterview.interview_mode==="virtual"?"Virtual":"In-person"}</span>
-              {selectedInterview.tech_support_name&&<span style={{background:"#F0FDF4",color:"#16A34A",fontSize:12,padding:"3px 10px",borderRadius:99,fontWeight:600}}>🛠️ {selectedInterview.tech_support_name}</span>}
+              <span style={{background:"#EFF6FF",color:"#2563EB",fontSize:12,padding:"3px 10px",borderRadius:99,fontWeight:600}}> {selectedInterview.interview_mode==="virtual"?"Virtual":"In-person"}</span>
+              {selectedInterview.tech_support_name&&<span style={{background:"#F0FDF4",color:"#16A34A",fontSize:12,padding:"3px 10px",borderRadius:99,fontWeight:600}}> {selectedInterview.tech_support_name}</span>}
               {selectedInterview.support_mode&&<span style={{background:"#FFFBEB",color:"#D97706",fontSize:12,padding:"3px 10px",borderRadius:99,fontWeight:600}}>Support: {selectedInterview.support_mode}</span>}
             </div>
             <div style={{background:"#F8FAFC",borderRadius:10,padding:16}}>
@@ -2896,7 +2896,7 @@ function StatusMeetingPage({user,rc,members,candidates,allCandidates,logs,token,
                     <div style={{fontSize:12,color:"#94A3B8"}}>{p.round} · Added {fmtDate(p.created_at?.split("T")[0])}</div>
                   </div>
                   <div style={{display:"flex",gap:8,alignItems:"center"}}>
-                    <span style={{background:p.status==="active"?"#F0FDF4":"#FEF2F2",color:p.status==="active"?"#16A34A":"#DC2626",fontSize:11,padding:"2px 8px",borderRadius:99,fontWeight:600}}>{p.status==="active"?"🟢 Active":"🔴 Removed"}</span>
+                    <span style={{background:p.status==="active"?"#F0FDF4":"#FEF2F2",color:p.status==="active"?"#16A34A":"#DC2626",fontSize:11,padding:"2px 8px",borderRadius:99,fontWeight:600}}>{p.status==="active"?"Active":"Removed"}</span>
                     <span style={{fontSize:12,color:"#2563EB",fontWeight:600}}>View details →</span>
                   </div>
                 </div>
@@ -2915,7 +2915,7 @@ function StatusMeetingPage({user,rc,members,candidates,allCandidates,logs,token,
               </div>
               <div style={{display:"flex",gap:8}}>
                 <span style={{background:{["1_week"]:"#FFFBEB","2_weeks":"#EFF6FF","not_sure":"#F1F5F9"}[selectedPipeline.expecting]||"#F1F5F9",color:{["1_week"]:"#D97706","2_weeks":"#2563EB","not_sure":"#475569"}[selectedPipeline.expecting]||"#475569",fontSize:12,padding:"3px 10px",borderRadius:99,fontWeight:600}}>{{"1_week":"In 1 week","2_weeks":"In 2 weeks","not_sure":"Not sure"}[selectedPipeline.expecting]||selectedPipeline.expecting}</span>
-                <span style={{background:selectedPipeline.status==="active"?"#F0FDF4":"#FEF2F2",color:selectedPipeline.status==="active"?"#16A34A":"#DC2626",fontSize:12,padding:"3px 10px",borderRadius:99,fontWeight:700}}>{selectedPipeline.status==="active"?"🟢 Active":"🔴 Removed"}</span>
+                <span style={{background:selectedPipeline.status==="active"?"#F0FDF4":"#FEF2F2",color:selectedPipeline.status==="active"?"#16A34A":"#DC2626",fontSize:12,padding:"3px 10px",borderRadius:99,fontWeight:700}}>{selectedPipeline.status==="active"?"Active":"Removed"}</span>
               </div>
             </div>
             {selectedPipeline.delete_reason&&<div style={{background:"#FEF2F2",borderRadius:8,padding:"10px 14px",marginBottom:16,fontSize:13,color:"#DC2626"}}>Removal reason: {selectedPipeline.delete_reason}</div>}
@@ -2945,7 +2945,7 @@ function StatusMeetingPage({user,rc,members,candidates,allCandidates,logs,token,
                 <div style={{fontSize:15,fontWeight:700}}>{sc.with_whom||"—"}</div>
                 <div style={{fontSize:12,color:"#94A3B8"}}>{sc.company_name} · {fmtDate(sc.call_date)}</div>
               </div>
-              <span style={{background:{positive:"#F0FDF4",negative:"#FEF2F2",pending:"#FFFBEB",no_show:"#F1F5F9"}[sc.outcome]||"#F1F5F9",color:{positive:"#16A34A",negative:"#DC2626",pending:"#D97706",no_show:"#475569"}[sc.outcome]||"#475569",fontSize:12,padding:"3px 10px",borderRadius:99,fontWeight:600}}>{sc.outcome==="positive"?"✅ Positive":sc.outcome==="negative"?"❌ Negative":sc.outcome==="pending"?"⏳ Pending":sc.outcome==="no_show"?"👻 No Show":"—"}</span>
+              <span style={{background:{positive:"#F0FDF4",negative:"#FEF2F2",pending:"#FFFBEB",no_show:"#F1F5F9"}[sc.outcome]||"#F1F5F9",color:{positive:"#16A34A",negative:"#DC2626",pending:"#D97706",no_show:"#475569"}[sc.outcome]||"#475569",fontSize:12,padding:"3px 10px",borderRadius:99,fontWeight:600}}>{sc.outcome==="positive"?" Positive":sc.outcome==="negative"?" Negative":sc.outcome==="pending"?" Pending":sc.outcome==="no_show"?" No Show":"—"}</span>
             </div>
             {sc.company_details&&<div style={{fontSize:12,color:"#475569",background:"#F8FAFC",padding:"8px 12px",borderRadius:8,marginBottom:8}}>Company: {sc.company_details}</div>}
             {sc.feedback&&<div style={{fontSize:13,color:"#334155",background:"#F0FDFA",border:"1px solid #99F6E4",padding:"10px 14px",borderRadius:8}}>
@@ -2956,23 +2956,23 @@ function StatusMeetingPage({user,rc,members,candidates,allCandidates,logs,token,
         </div>
       </div>}
 
-      {/* 👔 MANAGER SECTION */}
+      {/*  MANAGER SECTION */}
       {(user.role==="manager"||user.role==="president"||rc.canViewAll)&&activeTab==="manager"&&<Card style={{marginBottom:12,border:"1px solid #99F6E4"}}>
         <div style={{padding:"14px 18px",borderBottom:"1px solid #99F6E4",background:"#F0FDFA",borderRadius:"10px 10px 0 0"}}>
-          <div style={{fontWeight:700,fontSize:14,color:"#0F766E"}}>👔 Manager Feedback</div>
+          <div style={{fontWeight:700,fontSize:14,color:"#0F766E"}}>Manager Feedback</div>
         </div>
         <div style={{padding:"0 0 8px"}}>
           {/* Existing feedbacks */}
           {[...mgrLogs,...candStatusNotes].length===0&&<div style={{padding:"14px 16px",fontSize:13,color:"#94A3B8"}}>No manager feedback for this period.</div>}
           {mgrLogs.map(l=><div key={l.id} style={{padding:"12px 16px",borderBottom:"1px solid #F1F5F9"}}>
             <div style={{fontSize:12,fontWeight:600,color:"#475569",marginBottom:8}}>{getMember(l.user_id)?.name} · {fmtDate(l.log_date)}</div>
-            {(l.feedback_to_team||l.manager_feedback)&&<div style={{background:"#F0FDFA",borderRadius:8,padding:"10px 12px",marginBottom:8,fontSize:13}}>💬 {l.feedback_to_team||l.manager_feedback}</div>}
-            {user.role==="president"&&l.feedback_to_president&&<div style={{background:"#F5F3FF",borderRadius:8,padding:"10px 12px",fontSize:13}}>🔒 Confidential: {l.feedback_to_president}</div>}
+            {(l.feedback_to_team||l.manager_feedback)&&<div style={{background:"#F0FDFA",borderRadius:8,padding:"10px 12px",marginBottom:8,fontSize:13}}> {l.feedback_to_team||l.manager_feedback}</div>}
+            {user.role==="president"&&l.feedback_to_president&&<div style={{background:"#F5F3FF",borderRadius:8,padding:"10px 12px",fontSize:13}}>Confidential: {l.feedback_to_president}</div>}
           </div>)}
           {candStatusNotes.map(n=><div key={n.id} style={{padding:"12px 16px",borderBottom:"1px solid #F1F5F9"}}>
             <div style={{fontSize:12,fontWeight:600,color:"#475569",marginBottom:8}}>{getMember(n.manager_id)?.name} · Status Meeting Note · {fmtDate(n.created_at?.split("T")[0])}</div>
-            {n.public_feedback&&<div style={{background:"#F0FDFA",borderRadius:8,padding:"10px 12px",marginBottom:8,fontSize:13}}>💬 {n.public_feedback}</div>}
-            {user.role==="president"&&n.confidential_note&&<div style={{background:"#F5F3FF",borderRadius:8,padding:"10px 12px",fontSize:13}}>🔒 Confidential: {n.confidential_note}</div>}
+            {n.public_feedback&&<div style={{background:"#F0FDFA",borderRadius:8,padding:"10px 12px",marginBottom:8,fontSize:13}}> {n.public_feedback}</div>}
+            {user.role==="president"&&n.confidential_note&&<div style={{background:"#F5F3FF",borderRadius:8,padding:"10px 12px",fontSize:13}}>Confidential: {n.confidential_note}</div>}
           </div>)}
           {/* Manager add feedback */}
           {(user.role==="manager")&&<div style={{padding:"14px 16px",background:"#FAFAFA",borderTop:"1px solid #E2E8F0"}}>
@@ -2982,7 +2982,7 @@ function StatusMeetingPage({user,rc,members,candidates,allCandidates,logs,token,
               <textarea value={form.public_feedback||""} onChange={e=>set("public_feedback",e.target.value)} placeholder="Write public feedback for this period..." style={{width:"100%",border:"1px solid #99F6E4",borderRadius:8,padding:"8px 12px",fontSize:13,outline:"none",resize:"vertical",boxSizing:"border-box",background:"#fff"}} rows={3}/>
             </div>
             <div style={{marginBottom:12}}>
-              <label style={{display:"block",fontSize:12,fontWeight:500,color:"#475569",marginBottom:5}}>🔒 Confidential Note <span style={{fontSize:10,color:"#7C3AED"}}>(President only)</span></label>
+              <label style={{display:"block",fontSize:12,fontWeight:500,color:"#475569",marginBottom:5}}> Confidential Note <span style={{fontSize:10,color:"#7C3AED"}}>(President only)</span></label>
               <textarea value={form.confidential_note||""} onChange={e=>set("confidential_note",e.target.value)} placeholder="Confidential note for President only..." style={{width:"100%",border:"1px solid #DDD6FE",borderRadius:8,padding:"8px 12px",fontSize:13,outline:"none",resize:"vertical",boxSizing:"border-box",background:"#fff"}} rows={2}/>
             </div>
             <Btn onClick={saveManagerNote} disabled={saving}>{saving?"Saving...":"Save Feedback"}</Btn>
@@ -2990,9 +2990,9 @@ function StatusMeetingPage({user,rc,members,candidates,allCandidates,logs,token,
         </div>
       </Card>}
 
-      {/* 👑 PRESIDENT PERSONAL NOTES */}
+      {/*  PRESIDENT PERSONAL NOTES */}
       {user.role==="president"&&<Card style={{marginBottom:12,border:"1px solid #DDD6FE"}}>
-        <CardHeader title="📝 My Personal Notes" action={<Btn variant="outline" onClick={()=>set("show_note_input",!form.show_note_input)} style={{fontSize:12,padding:"5px 12px"}}>+ Add Note</Btn>}/>
+        <CardHeader title="My Personal Notes" action={<Btn variant="outline" onClick={()=>set("show_note_input",!form.show_note_input)} style={{fontSize:12,padding:"5px 12px"}}>+ Add Note</Btn>}/>
         {form.show_note_input&&<div style={{padding:"14px 16px",borderBottom:"1px solid #E2E8F0"}}>
           <textarea value={form.pres_note||""} onChange={e=>set("pres_note",e.target.value)} placeholder="Your private note for this candidate..." style={{width:"100%",border:"1px solid #E2E8F0",borderRadius:8,padding:"8px 12px",fontSize:13,outline:"none",resize:"vertical",boxSizing:"border-box"}} rows={3}/>
           <div style={{display:"flex",gap:8,justifyContent:"flex-end",marginTop:8}}>
@@ -3068,7 +3068,7 @@ function ProfileDropdown({user,rc,onClose,onLogout,token}){
 
       {/* Tabs */}
       <div style={{display:"flex",borderBottom:"1px solid #E2E8F0"}}>
-        {[{id:"profile",l:"👤 Profile"},{id:"password",l:"🔐 Password"}].map(t=>
+        {[{id:"profile",l:" Profile"},{id:"password",l:" Password"}].map(t=>
           <button key={t.id} onClick={()=>{setTab(t.id);setMsg(null);setForm({});}} style={{flex:1,padding:"10px",fontSize:12,fontWeight:600,cursor:"pointer",background:"none",border:"none",borderBottom:`2px solid ${tab===t.id?"#2563EB":"transparent"}`,color:tab===t.id?"#2563EB":"#94A3B8"}}>{t.l}</button>
         )}
       </div>
@@ -3108,10 +3108,10 @@ function ProfileDropdown({user,rc,onClose,onLogout,token}){
               {r:"1 number",p:/[0-9]/.test(form.new_pass||"")},
               {r:"No repeated numbers",p:form.new_pass?.length>0&&!/(\d)\1/.test(form.new_pass||"")},
             ].map((r,i)=><div key={i} style={{fontSize:11,color:!form.new_pass?"#94A3B8":r.p?"#16A34A":"#DC2626",marginBottom:2}}>
-              {!form.new_pass?"○":r.p?"✅":"❌"} {r.r}
+              {!form.new_pass?"○":r.p?"":""} {r.r}
             </div>)}
           </div>
-          {msg&&<div style={{background:msg.t==="success"?"#F0FDF4":"#FEF2F2",border:`1px solid ${msg.t==="success"?"#BBF7D0":"#FECACA"}`,borderRadius:8,padding:"8px 12px",fontSize:12,color:msg.t==="success"?"#16A34A":"#DC2626",marginBottom:10}}>{msg.t==="success"?"✅":"⚠️"} {msg.m}</div>}
+          {msg&&<div style={{background:msg.t==="success"?"#F0FDF4":"#FEF2F2",border:`1px solid ${msg.t==="success"?"#BBF7D0":"#FECACA"}`,borderRadius:8,padding:"8px 12px",fontSize:12,color:msg.t==="success"?"#16A34A":"#DC2626",marginBottom:10}}>{msg.t==="success"?"":"Note:"} {msg.m}</div>}
           <button onClick={changePassword} disabled={loading||!passValid} style={{width:"100%",background:loading||!passValid?"#94A3B8":"#2563EB",color:"#fff",border:"none",borderRadius:8,padding:"9px",fontSize:13,fontWeight:600,cursor:loading||!passValid?"not-allowed":"pointer"}}>
             {loading?"Updating...":"Update Password"}
           </button>
@@ -3137,11 +3137,11 @@ function PresidentDailyView({logs,members,candidates,token,user}){
   },[token]);
 
   const ROLES=[
-    {id:"recruiter",label:"👤 Recruiter",color:"#16A34A",bg:"#F0FDF4"},
-    {id:"r_lead",label:"📋 R Lead",color:"#2563EB",bg:"#EFF6FF"},
-    {id:"c_lead",label:"🖥️ C Lead",color:"#D97706",bg:"#FFFBEB"},
-    {id:"interview_coord",label:"🎤 IC",color:"#DC2626",bg:"#FEF2F2"},
-    {id:"manager_feedback",label:"👔 Manager",color:"#0F766E",bg:"#F0FDFA"},
+    {id:"recruiter",label:"Recruiter",color:"#16A34A",bg:"#F0FDF4"},
+    {id:"r_lead",label:"R Lead",color:"#2563EB",bg:"#EFF6FF"},
+    {id:"c_lead",label:"C Lead",color:"#D97706",bg:"#FFFBEB"},
+    {id:"interview_coord",label:"IC",color:"#DC2626",bg:"#FEF2F2"},
+    {id:"manager_feedback",label:"Manager",color:"#0F766E",bg:"#F0FDFA"},
   ];
 
   const roleMembers=members.filter(m=>{
@@ -3181,12 +3181,12 @@ function PresidentDailyView({logs,members,candidates,token,user}){
 
   return <div>
     {/* Header */}
-    <div style={{fontSize:15,fontWeight:700,marginBottom:4}}>👑 President — Daily Activity View</div>
+    <div style={{fontSize:15,fontWeight:700,marginBottom:4}}>President — Daily Activity View</div>
     <div style={{fontSize:12,color:"#94A3B8",marginBottom:16}}>See what each team member did on any day</div>
 
     {/* Date picker */}
     <div style={{marginBottom:16}}>
-      <label style={{display:"block",fontSize:12,fontWeight:600,color:"#475569",marginBottom:6}}>📅 Select Date</label>
+      <label style={{display:"block",fontSize:12,fontWeight:600,color:"#475569",marginBottom:6}}>Select Date</label>
       <input type="date" value={selDate} onChange={e=>{setSelDate(e.target.value);setSelMember("");}} max={today()} style={{border:"1px solid #E2E8F0",borderRadius:8,padding:"8px 12px",fontSize:14,outline:"none",background:"#fff"}}/>
     </div>
 
@@ -3208,7 +3208,7 @@ function PresidentDailyView({logs,members,candidates,token,user}){
           return <button key={m.id} onClick={()=>setSelMember(m.id)} style={{padding:"8px 14px",borderRadius:10,fontSize:12,fontWeight:600,cursor:"pointer",background:selMember===m.id?"#EFF6FF":"#fff",color:selMember===m.id?"#2563EB":"#475569",border:`1px solid ${selMember===m.id?"#2563EB":"#E2E8F0"}`,display:"flex",alignItems:"center",gap:6}}>
             <span style={{width:8,height:8,borderRadius:"50%",background:hasLog?"#16A34A":"#DC2626",display:"inline-block"}}/>
             {m.name}
-            <span style={{fontSize:10,color:hasLog?"#16A34A":"#DC2626"}}>{hasLog?"✓ Submitted":"✗ Pending"}</span>
+            <span style={{fontSize:10,color:hasLog?"#16A34A":"#DC2626"}}>{hasLog?" Submitted":" Pending"}</span>
           </button>;
         })}
         {roleMembers.length===0&&<div style={{fontSize:13,color:"#94A3B8"}}>No {ROLES.find(r=>r.id===selRole)?.label} members found.</div>}
@@ -3218,9 +3218,9 @@ function PresidentDailyView({logs,members,candidates,token,user}){
     {/* Selected member logs */}
     {selMember&&<div style={{marginBottom:16}}>
       <div style={{fontSize:13,fontWeight:700,color:"#475569",marginBottom:10}}>
-        📋 {members.find(m=>m.id===selMember)?.name} — {selDate}
+         {members.find(m=>m.id===selMember)?.name} — {selDate}
       </div>
-      {memberLogs.length===0&&<div style={{background:"#FEF2F2",border:"1px solid #FECACA",borderRadius:10,padding:"16px",fontSize:13,color:"#DC2626",textAlign:"center"}}>❌ No log submitted for this date.</div>}
+      {memberLogs.length===0&&<div style={{background:"#FEF2F2",border:"1px solid #FECACA",borderRadius:10,padding:"16px",fontSize:13,color:"#DC2626",textAlign:"center"}}> No log submitted for this date.</div>}
       {memberLogs.map(l=>{
         const cand=getCand(l.candidate_id);
         return <div key={l.id} style={{background:"#F8FAFC",border:"1px solid #E2E8F0",borderRadius:10,padding:"14px 16px",marginBottom:10}}>
@@ -3232,19 +3232,19 @@ function PresidentDailyView({logs,members,candidates,token,user}){
           {/* Recruiter logs */}
           {l.type==="recruiter"&&<>
             <div style={{display:"flex",gap:12,marginBottom:8}}>
-              <span style={{background:"#EFF6FF",color:"#2563EB",fontSize:12,padding:"3px 10px",borderRadius:99,fontWeight:600}}>📧 {l.emails_sent} emails</span>
-              <span style={{background:"#F5F3FF",color:"#7C3AED",fontSize:12,padding:"3px 10px",borderRadius:99,fontWeight:600}}>📤 {l.submissions} submissions</span>
+              <span style={{background:"#EFF6FF",color:"#2563EB",fontSize:12,padding:"3px 10px",borderRadius:99,fontWeight:600}}>Emails: {l.emails_sent} emails</span>
+              <span style={{background:"#F5F3FF",color:"#7C3AED",fontSize:12,padding:"3px 10px",borderRadius:99,fontWeight:600}}>Subs: {l.submissions} submissions</span>
             </div>
-            {l.reason_less_emails&&<div style={{fontSize:12,color:"#D97706",background:"#FFFBEB",padding:"6px 10px",borderRadius:6,marginBottom:6}}>⚠️ Less emails: {l.reason_less_emails}</div>}
-            {l.reason_zero_subs&&<div style={{fontSize:12,color:"#DC2626",background:"#FEF2F2",padding:"6px 10px",borderRadius:6,marginBottom:6}}>⚠️ Zero subs: {l.reason_zero_subs}</div>}
-            {l.issue_description&&<div style={{fontSize:12,color:"#475569",background:"#F1F5F9",padding:"6px 10px",borderRadius:6,marginBottom:6}}>🚨 Issue: {l.issue_description} — <strong>{l.issue_status}</strong></div>}
+            {l.reason_less_emails&&<div style={{fontSize:12,color:"#D97706",background:"#FFFBEB",padding:"6px 10px",borderRadius:6,marginBottom:6}}>Low emails: {l.reason_less_emails}</div>}
+            {l.reason_zero_subs&&<div style={{fontSize:12,color:"#DC2626",background:"#FEF2F2",padding:"6px 10px",borderRadius:6,marginBottom:6}}>Zero submissions: {l.reason_zero_subs}</div>}
+            {l.issue_description&&<div style={{fontSize:12,color:"#475569",background:"#F1F5F9",padding:"6px 10px",borderRadius:6,marginBottom:6}}>Issue: {l.issue_description} — <strong>{l.issue_status}</strong></div>}
             {l.notes&&<div style={{fontSize:12,color:"#94A3B8"}}>Notes: {l.notes}</div>}
           </>}
 
           {/* R Lead logs */}
           {l.type==="r_lead"&&<>
             <div style={{marginBottom:6}}>
-              <span style={{background:l.vendor_mock_conducted==="yes"?"#F0FDF4":"#FEF2F2",color:l.vendor_mock_conducted==="yes"?"#16A34A":"#DC2626",fontSize:12,padding:"3px 10px",borderRadius:99,fontWeight:600}}>{l.vendor_mock_conducted==="yes"?"✅ Mock Conducted":"❌ Not Conducted"}</span>
+              <span style={{background:l.vendor_mock_conducted==="yes"?"#F0FDF4":"#FEF2F2",color:l.vendor_mock_conducted==="yes"?"#16A34A":"#DC2626",fontSize:12,padding:"3px 10px",borderRadius:99,fontWeight:600}}>{l.vendor_mock_conducted==="yes"?" Mock Conducted":"Not Conducted"}</span>
             </div>
             {l.vendor_mock_feedback&&<div style={{fontSize:12,color:"#475569",background:"#F0FDF4",padding:"8px 10px",borderRadius:6,marginBottom:6}}>Feedback: {l.vendor_mock_feedback}</div>}
             {l.vendor_mock_reason&&<div style={{fontSize:12,color:"#DC2626",background:"#FEF2F2",padding:"6px 10px",borderRadius:6}}>Reason: {l.vendor_mock_reason}</div>}
@@ -3252,7 +3252,7 @@ function PresidentDailyView({logs,members,candidates,token,user}){
 
           {/* C Lead logs */}
           {l.type==="c_lead"&&<>
-            {l.floor_issues&&<div style={{fontSize:12,color:"#475569",background:"#FFFBEB",padding:"8px 10px",borderRadius:6,marginBottom:6}}>🖥️ {l.floor_issues}</div>}
+            {l.floor_issues&&<div style={{fontSize:12,color:"#475569",background:"#FFFBEB",padding:"8px 10px",borderRadius:6,marginBottom:6}}>️ {l.floor_issues}</div>}
             <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
               {l.resolution_status&&<span style={{background:"#F0FDF4",color:"#16A34A",fontSize:11,padding:"2px 8px",borderRadius:99,fontWeight:600}}>{l.resolution_status}</span>}
               {Array.isArray(l.clead_informed_to)&&l.clead_informed_to.map(p=><span key={p} style={{background:"#EFF6FF",color:"#2563EB",fontSize:11,padding:"2px 8px",borderRadius:99,fontWeight:600}}>{p}</span>)}
@@ -3265,13 +3265,13 @@ function PresidentDailyView({logs,members,candidates,token,user}){
               <span style={{background:"#FEF2F2",color:"#DC2626",fontSize:12,padding:"3px 10px",borderRadius:99,fontWeight:600}}>{l.session_type} · {l.sessions_done} sessions</span>
             </div>
             {l.feedback&&<div style={{fontSize:12,color:"#475569",background:"#F8FAFC",padding:"8px 10px",borderRadius:6,marginBottom:6}}>{l.feedback}</div>}
-            {l.tmr_with_whom&&<div style={{fontSize:12,color:"#2563EB",background:"#EFF6FF",padding:"6px 10px",borderRadius:6}}>🗓️ Tomorrow: {l.tmr_with_whom} · {l.tmr_time} · {l.tmr_mode}</div>}
+            {l.tmr_with_whom&&<div style={{fontSize:12,color:"#2563EB",background:"#EFF6FF",padding:"6px 10px",borderRadius:6}}> Tomorrow: {l.tmr_with_whom} · {l.tmr_time} · {l.tmr_mode}</div>}
           </>}
 
           {/* Manager logs */}
           {l.type==="manager_feedback"&&<>
-            {(l.feedback_to_team||l.manager_feedback)&&<div style={{background:"#F0FDFA",border:"1px solid #99F6E4",borderRadius:8,padding:"10px 12px",marginBottom:8,fontSize:13}}>💬 {l.feedback_to_team||l.manager_feedback}</div>}
-            {l.feedback_to_president&&<div style={{background:"#F5F3FF",border:"1px solid #DDD6FE",borderRadius:8,padding:"10px 12px",fontSize:13}}>🔒 Confidential: {l.feedback_to_president}</div>}
+            {(l.feedback_to_team||l.manager_feedback)&&<div style={{background:"#F0FDFA",border:"1px solid #99F6E4",borderRadius:8,padding:"10px 12px",marginBottom:8,fontSize:13}}> {l.feedback_to_team||l.manager_feedback}</div>}
+            {l.feedback_to_president&&<div style={{background:"#F5F3FF",border:"1px solid #DDD6FE",borderRadius:8,padding:"10px 12px",fontSize:13}}>Confidential: {l.feedback_to_president}</div>}
           </>}
         </div>;
       })}
@@ -3280,7 +3280,7 @@ function PresidentDailyView({logs,members,candidates,token,user}){
     {/* PRESIDENT PERSONAL NOTES */}
     <div style={{background:"#F5F3FF",border:"1px solid #DDD6FE",borderRadius:12,padding:"16px"}}>
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
-        <div style={{fontSize:13,fontWeight:700,color:"#7C3AED"}}>📝 My Personal Notes — {selDate}</div>
+        <div style={{fontSize:13,fontWeight:700,color:"#7C3AED"}}>My Personal Notes — {selDate}</div>
         <button onClick={()=>setShowNoteInput(!showNoteInput)} style={{padding:"5px 12px",borderRadius:8,fontSize:12,fontWeight:600,cursor:"pointer",background:"#7C3AED",color:"#fff",border:"none"}}>+ Add Note</button>
       </div>
       {showNoteInput&&<div style={{marginBottom:12}}>
@@ -3384,11 +3384,11 @@ function RecruitersPage({user,rc,members,candidates,logs,getMember,loading,token
                 <div style={{fontSize:12,color:"#94A3B8"}}>{r.email}</div>
                 {rLead&&<div style={{fontSize:11,color:"#2563EB",marginTop:2,fontWeight:600}}>Team: {rLead.name}</div>}
                 <div style={{marginTop:4}}>
-                  <span style={{background:todayLog?"#F0FDF4":"#FEF2F2",color:todayLog?"#16A34A":"#DC2626",fontSize:11,padding:"2px 8px",borderRadius:99,fontWeight:600}}>{todayLog?"✅ Log submitted today":"❌ No log today"}</span>
+                  <span style={{background:todayLog?"#F0FDF4":"#FEF2F2",color:todayLog?"#16A34A":"#DC2626",fontSize:11,padding:"2px 8px",borderRadius:99,fontWeight:600}}>{todayLog?"Log submitted today":"No log today"}</span>
                 </div>
               </div>
             </div>
-            <button onClick={()=>{setShowDeactivate(r);setDeactForm({});}} style={{padding:"5px 12px",borderRadius:8,fontSize:12,fontWeight:600,cursor:"pointer",background:"#FEF2F2",color:"#DC2626",border:"1px solid #FECACA"}}>🚫 End Association</button>
+            <button onClick={()=>{setShowDeactivate(r);setDeactForm({});}} style={{padding:"5px 12px",borderRadius:8,fontSize:12,fontWeight:600,cursor:"pointer",background:"#FEF2F2",color:"#DC2626",border:"1px solid #FECACA"}}>End Association</button>
           </div>
 
           <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:8,marginBottom:12}}>
@@ -3401,7 +3401,7 @@ function RecruitersPage({user,rc,members,candidates,logs,getMember,loading,token
 
           <div style={{fontSize:12,fontWeight:600,color:"#475569",marginBottom:6}}>Assigned Candidates:</div>
           <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-            {rCands.map(c=><span key={c.id} style={{background:c.status==="Placed"?"#F5F3FF":c.status==="Dropped"?"#FEF2F2":"#EFF6FF",color:c.status==="Placed"?"#7C3AED":c.status==="Dropped"?"#DC2626":"#2563EB",fontSize:12,padding:"3px 10px",borderRadius:6,fontWeight:500}}>{c.status==="Placed"?"✅ ":c.status==="Dropped"?"❌ ":""}{c.name}</span>)}
+            {rCands.map(c=><span key={c.id} style={{background:c.status==="Placed"?"#F5F3FF":c.status==="Dropped"?"#FEF2F2":"#EFF6FF",color:c.status==="Placed"?"#7C3AED":c.status==="Dropped"?"#DC2626":"#2563EB",fontSize:12,padding:"3px 10px",borderRadius:6,fontWeight:500}}>{c.status==="Placed"?" ":c.status==="Dropped"?" ":""}{c.name}</span>)}
             {rCands.length===0&&<span style={{fontSize:12,color:"#94A3B8"}}>No candidates assigned yet.</span>}
           </div>
         </Card>;
@@ -3421,7 +3421,7 @@ function RecruitersPage({user,rc,members,candidates,logs,getMember,loading,token
 
     {/* Add Recruiter Modal */}
     <Modal open={showAdd} onClose={()=>setShowAdd(false)} title="Add New Recruiter">
-      <div style={{background:"#EFF6FF",border:"1px solid #BFDBFE",borderRadius:8,padding:"10px 14px",fontSize:12,color:"#2563EB",marginBottom:16}}>🔐 Login credentials auto-created. Default password: <strong>VARS@2026</strong></div>
+      <div style={{background:"#EFF6FF",border:"1px solid #BFDBFE",borderRadius:8,padding:"10px 14px",fontSize:12,color:"#2563EB",marginBottom:16}}> Login credentials auto-created. Default password: <strong>VARS@2026</strong></div>
       <Input label="Full name *" value={form.name||""} onChange={e=>set("name",e.target.value)} placeholder="e.g. John Smith"/>
       <Input label="Work email *" type="email" value={form.email||""} onChange={e=>set("email",e.target.value)} placeholder="john@varsconsultinginc.com"/>
       <Select label="Assign to R Lead team *" value={form.r_lead_team||""} onChange={e=>set("r_lead_team",e.target.value)}>
@@ -3437,7 +3437,7 @@ function RecruitersPage({user,rc,members,candidates,logs,getMember,loading,token
     {/* Deactivation Modal */}
     <Modal open={!!showDeactivate} onClose={()=>setShowDeactivate(null)} title={`End Association — ${showDeactivate?.name}`}>
       <div style={{background:"#FEF2F2",border:"1px solid #FECACA",borderRadius:8,padding:"10px 14px",fontSize:13,color:"#DC2626",marginBottom:16}}>
-        ⚠️ This will deactivate {showDeactivate?.name} and reassign all their candidates.
+        Note: This will deactivate {showDeactivate?.name} and reassign all their candidates.
       </div>
       <Input label="Last working date *" type="date" value={deactForm.end_date||""} onChange={e=>setD("end_date",e.target.value)}/>
       <div style={{marginBottom:12}}>
@@ -3477,7 +3477,7 @@ function RecruitersPage({user,rc,members,candidates,logs,getMember,loading,token
           </div>
         </div>)}
       </>}
-      {recCands.length===0&&<div style={{background:"#F0FDF4",border:"1px solid #BBF7D0",borderRadius:8,padding:"10px 14px",fontSize:13,color:"#16A34A",marginBottom:12}}>✅ No active candidates to reassign.</div>}
+      {recCands.length===0&&<div style={{background:"#F0FDF4",border:"1px solid #BBF7D0",borderRadius:8,padding:"10px 14px",fontSize:13,color:"#16A34A",marginBottom:12}}> No active candidates to reassign.</div>}
       <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
         <Btn variant="outline" onClick={()=>setShowDeactivate(null)}>Cancel</Btn>
         <Btn variant="danger" onClick={submitDeactivation} disabled={saving}>{saving?"Processing...":"Confirm End Association"}</Btn>
