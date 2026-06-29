@@ -484,9 +484,19 @@ export default function VARSPortal() {
         </div>
         {rc.isAdmin&&<div style={{ position:"relative" }}>
           <button onClick={()=>setShowN(!showN)} style={{ background:"none", border:"none", color:"#93C5FD", cursor:"pointer", fontSize:18, position:"relative" }}>🔔{unread>0&&<span style={{ position:"absolute", top:-4, right:-4, background:"#DC2626", color:"#fff", fontSize:10, borderRadius:99, padding:"1px 5px" }}>{unread}</span>}</button>
-          {showN&&<div style={{ position:"absolute", right:0, top:38, background:"#fff", border:"1px solid #E2E8F0", borderRadius:10, width:320, zIndex:200, boxShadow:"0 8px 30px rgba(0,0,0,0.15)" }}>
-            <div style={{ padding:"12px 16px", borderBottom:"1px solid #E2E8F0", fontWeight:600, fontSize:13 }}>Notifications</div>
-            {notifications.slice(0,8).map(n=><div key={n.id} style={{ padding:"10px 16px", borderBottom:"1px solid #F1F5F9" }}><div style={{ fontSize:12 }}>{n.message}</div><div style={{ fontSize:11, color:"#94A3B8", marginTop:2 }}>{fmtDateTime(n.created_at)}</div></div>)}
+          {showN&&<div style={{ position:"absolute", right:0, top:38, background:"#fff", border:"1px solid #E2E8F0", borderRadius:10, width:340, zIndex:200, boxShadow:"0 8px 30px rgba(0,0,0,0.15)", maxHeight:420, overflowY:"auto" }}>
+            <div style={{ padding:"12px 16px", borderBottom:"1px solid #E2E8F0", display:"flex", alignItems:"center", justifyContent:"space-between", position:"sticky", top:0, background:"#fff" }}>
+              <div style={{ fontWeight:700, fontSize:13 }}>🔔 Notifications <span style={{ fontSize:11, color:"#94A3B8", fontWeight:400 }}>({unread} unread)</span></div>
+              {unread>0&&<button onClick={markAllRead} style={{ fontSize:11, color:"#2563EB", background:"#EFF6FF", border:"1px solid #BFDBFE", borderRadius:6, padding:"3px 8px", cursor:"pointer", fontWeight:600 }}>✓ Mark all read</button>}
+            </div>
+            {notifications.slice(0,12).map(n=><div key={n.id} onClick={()=>!n.read_at&&markRead(n.id)} style={{ padding:"10px 16px", borderBottom:"1px solid #F1F5F9", background:n.read_at?"#FAFAFA":"#fff", cursor:n.read_at?"default":"pointer", display:"flex", alignItems:"flex-start", gap:8 }}>
+              <span style={{ fontSize:14, marginTop:1 }}>{n.read_at?"🔕":"🔔"}</span>
+              <div style={{ flex:1 }}>
+                <div style={{ fontSize:12, color:n.read_at?"#94A3B8":"#0F172A", fontWeight:n.read_at?400:500 }}>{n.message}</div>
+                <div style={{ fontSize:11, color:"#94A3B8", marginTop:2 }}>{fmtDateTime(n.created_at)}</div>
+              </div>
+              {!n.read_at&&<span style={{ width:7, height:7, borderRadius:"50%", background:"#2563EB", flexShrink:0, marginTop:4 }}/>}
+            </div>)}
             {notifications.length===0&&<div style={{ padding:20, textAlign:"center", fontSize:13, color:"#94A3B8" }}>No notifications yet.</div>}
           </div>}
         </div>}
