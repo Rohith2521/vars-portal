@@ -361,7 +361,22 @@ export default function VARSPortal() {
   const rc=user?ROLE_CONFIG[user.role]:null;
   const getMember=id=>members.find(m=>m.id===id);
   const myCands=user?candidates.filter(c=>{ if(!rc)return false; if(rc.canViewAll)return true; if(user.role==="recruiter")return c.recruiter_id===user.id; if(user.role==="interview_coord")return c.interview_coord_id===user.id; return true; }):[];
-  const unread=notifications.filter(n=>!n.read_by_manager).length;
+  const unread=notifications.filter(n=>!n.read_at).length;
+
+  const markRead=async(id)=>{
+    try {
+      await sb.patch("notifications",id,{read_at:new Date().toISOString()},user.token);
+      await loadData();
+    } catch(e){console.error(e);}
+  };
+
+  const markAllRead=async()=>{
+    try {
+      const unreadIds=notifications.filter(n=>!n.read_at).map(n=>n.id);
+      await Promise.all(unreadIds.map(id=>sb.patch("notifications",id,{read_at:new Date().toISOString()},user.token)));
+      await loadData();
+    } catch(e){console.error(e);}
+  };
 
   const addLog=async(data)=>{
     setLoading(true);
@@ -507,7 +522,7 @@ export default function VARSPortal() {
           {page==="team"&&<TeamPage user={user} rc={rc} members={members} candidates={candidates} logs={logs} onAddMember={addMember} loading={loading}/>}
           {page==="status_meeting"&&<StatusMeetingPage user={user} rc={rc} members={members} candidates={myCands} allCandidates={candidates} logs={logs} token={user?.token} onRefresh={()=>loadData()}/>}
           {page==="overall_status"&&<OverallStatusPage user={user} members={members} candidates={candidates} logs={logs} token={user?.token}/>}
-          {page==="notifications"&&<NotifsPage notifications={notifications} onRefresh={()=>loadData()}/>}
+          {page==="notifications"&&<NotifsPage notifications={notifications} onRefresh={()=>loadData()} onMarkRead={markRead} onMarkAllRead={markAllRead}/>}
         </div>
       </div>
       {toast&&<Toast msg={toast.msg} type={toast.type} onDone={()=>setToast(null)}/>}
@@ -1561,14 +1576,24 @@ function TeamPage({user,rc,members,candidates,logs,onAddMember,loading}){
 }
 
 // ─── NOTIFICATIONS ──────────────────────────────────────────────────────────
-function NotifsPage({notifications,onRefresh}){
+function NotifsPage({notifications,onRefresh,onMarkRead,onMarkAllRead}){
   return <div>
     <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:20 }}>
-      <div><div style={{ fontSize:20, fontWeight:700 }}>Notifications</div><div style={{ fontSize:13, color:"#94A3B8" }}>{notifications.length} alerts</div></div>
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:4 }}>
+        <div><div style={{ fontSize:20, fontWeight:700 }}>🔔 Notifications</div><div style={{ fontSize:13, color:"#94A3B8" }}>{notifications.filter(n=>!n.read_at).length} unread · {notifications.length} total</div></div>
+        {notifications.filter(n=>!n.read_at).length>0&&<button onClick={onMarkAllRead} style={{ fontSize:12, color:"#2563EB", background:"#EFF6FF", border:"1px solid #BFDBFE", borderRadius:8, padding:"6px 14px", cursor:"pointer", fontWeight:600 }}>✓ Mark all as read</button>}
+      </div>
       <Btn variant="outline" onClick={onRefresh}>↻ Refresh</Btn>
     </div>
     <div style={{ display:"grid", gap:8 }}>
-      {notifications.map(n=><Card key={n.id} style={{ padding:"12px 16px", display:"flex", alignItems:"center", gap:12 }}><div style={{ fontSize:20 }}>🔔</div><div style={{ flex:1 }}><div style={{ fontSize:13 }}>{n.message}</div><div style={{ fontSize:11, color:"#94A3B8", marginTop:2 }}>{fmtDateTime(n.created_at)}</div></div></Card>)}
+      {notifications.map(n=><Card key={n.id} onClick={()=>!n.read_at&&onMarkRead&&onMarkRead(n.id)} style={{ padding:"12px 16px", display:"flex", alignItems:"center", gap:12, opacity:n.read_at?0.6:1, background:n.read_at?"#FAFAFA":"#fff", cursor:n.read_at?"default":"pointer", marginBottom:8 }}>
+        <div style={{ fontSize:20 }}>{n.read_at?"🔕":"🔔"}</div>
+        <div style={{ flex:1 }}>
+          <div style={{ fontSize:13, color:n.read_at?"#94A3B8":"#0F172A", fontWeight:n.read_at?400:500 }}>{n.message}</div>
+          <div style={{ fontSize:11, color:"#94A3B8", marginTop:2 }}>{fmtDateTime(n.created_at)}</div>
+        </div>
+        {!n.read_at&&<span style={{ width:8, height:8, borderRadius:"50%", background:"#2563EB", flexShrink:0 }}/>}
+      </Card>)}
       {notifications.length===0&&<div style={{ textAlign:"center", padding:60, color:"#94A3B8" }}>No notifications yet.</div>}
     </div>
   </div>;
