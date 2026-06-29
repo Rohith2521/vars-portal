@@ -1217,7 +1217,7 @@ function LogPage({user,rc,candidates,onSubmit,loading}){
           sub("interview_coord");
         }} disabled={loading||!form.candidate_id}>{loading?"Saving...":"Submit Daily Log"}</Btn>
       </>}
-      {(user.role==="manager"||user.role==="president")&&<>
+      {user.role==="manager"&&<>
         <div style={{ fontSize:15, fontWeight:700, marginBottom:4 }}>👔 Manager Feedback</div>
         <div style={{ fontSize:12, color:"#94A3B8", marginBottom:16 }}>Add feedback for this candidate's progress</div>
         <CS/>
@@ -1235,6 +1235,7 @@ function LogPage({user,rc,candidates,onSubmit,loading}){
           sub("manager_feedback");
         }} disabled={loading||!form.candidate_id}>{loading?"Saving...":"Post Feedback"}</Btn>
       </>}
+      {user.role==="president"&&<PresidentDailyView logs={logs} members={members} candidates={candidates} token={user.token} user={user}/>}
     </Card>
   </div>;
 }
@@ -2876,4 +2877,176 @@ function ProfileDropdown({user,rc,onClose,onLogout,token}){
       </div>
     </div>
   </>;
+}
+
+// ─── PRESIDENT DAILY VIEW ────────────────────────────────────────────────────
+function PresidentDailyView({logs,members,candidates,token,user}){
+  const [selDate,setSelDate]=useState(today());
+  const [selRole,setSelRole]=useState("recruiter");
+  const [selMember,setSelMember]=useState("");
+  const [presNote,setPresNote]=useState("");
+  const [savedNotes,setSavedNotes]=useState([]);
+  const [savingNote,setSavingNote]=useState(false);
+  const [showNoteInput,setShowNoteInput]=useState(false);
+
+  useEffect(()=>{
+    if(!token)return;
+    sb.get("president_notes",`order=created_at.desc`,token).then(r=>{if(Array.isArray(r))setSavedNotes(r);});
+  },[token]);
+
+  const ROLES=[
+    {id:"recruiter",label:"👤 Recruiter",color:"#16A34A",bg:"#F0FDF4"},
+    {id:"r_lead",label:"📋 R Lead",color:"#2563EB",bg:"#EFF6FF"},
+    {id:"c_lead",label:"🖥️ C Lead",color:"#D97706",bg:"#FFFBEB"},
+    {id:"interview_coord",label:"🎤 IC",color:"#DC2626",bg:"#FEF2F2"},
+    {id:"manager_feedback",label:"👔 Manager",color:"#0F766E",bg:"#F0FDFA"},
+  ];
+
+  const roleMembers=members.filter(m=>{
+    if(selRole==="manager_feedback") return m.role==="manager";
+    return m.role===selRole;
+  });
+
+  const memberLogs=logs.filter(l=>
+    l.user_id===selMember &&
+    l.log_date===selDate &&
+    l.type===(selRole)
+  );
+
+  const getCand=id=>candidates.find(c=>c.id===id);
+
+  const saveNote=async()=>{
+    if(!presNote.trim())return;
+    setSavingNote(true);
+    try {
+      await sb.post("president_notes",{
+        candidate_id:null,
+        period_start:selDate,
+        period_end:selDate,
+        note:`[${selDate}] ${presNote.trim()}`,
+      },token);
+      const r=await sb.get("president_notes","order=created_at.desc",token);
+      if(Array.isArray(r))setSavedNotes(r);
+      setPresNote("");
+      setShowNoteInput(false);
+    } catch(e){alert("Error saving note");}
+    setSavingNote(false);
+  };
+
+  const todayNotes=savedNotes.filter(n=>n.period_start===selDate);
+
+  return <div>
+    {/* Header */}
+    <div style={{fontSize:15,fontWeight:700,marginBottom:4}}>👑 President — Daily Activity View</div>
+    <div style={{fontSize:12,color:"#94A3B8",marginBottom:16}}>See what each team member did on any day</div>
+
+    {/* Date picker */}
+    <div style={{marginBottom:16}}>
+      <label style={{display:"block",fontSize:12,fontWeight:600,color:"#475569",marginBottom:6}}>📅 Select Date</label>
+      <input type="date" value={selDate} onChange={e=>{setSelDate(e.target.value);setSelMember("");}} max={today()} style={{border:"1px solid #E2E8F0",borderRadius:8,padding:"8px 12px",fontSize:14,outline:"none",background:"#fff"}}/>
+    </div>
+
+    {/* Role tabs */}
+    <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:16}}>
+      {ROLES.map(r=><button key={r.id} onClick={()=>{setSelRole(r.id);setSelMember("");}} style={{padding:"6px 14px",borderRadius:99,fontSize:12,fontWeight:600,cursor:"pointer",background:selRole===r.id?r.bg:"#F8FAFC",color:selRole===r.id?r.color:"#94A3B8",border:`1px solid ${selRole===r.id?r.color:"#E2E8F0"}`}}>{r.label}</button>)}
+    </div>
+
+    {/* Members list */}
+    <div style={{marginBottom:16}}>
+      <label style={{display:"block",fontSize:12,fontWeight:600,color:"#475569",marginBottom:8}}>Select Person</label>
+      <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+        {roleMembers.map(m=>{
+          const hasLog=logs.some(l=>l.user_id===m.id&&l.log_date===selDate&&l.type===selRole);
+          return <button key={m.id} onClick={()=>setSelMember(m.id)} style={{padding:"8px 14px",borderRadius:10,fontSize:12,fontWeight:600,cursor:"pointer",background:selMember===m.id?"#EFF6FF":"#fff",color:selMember===m.id?"#2563EB":"#475569",border:`1px solid ${selMember===m.id?"#2563EB":"#E2E8F0"}`,display:"flex",alignItems:"center",gap:6}}>
+            <span style={{width:8,height:8,borderRadius:"50%",background:hasLog?"#16A34A":"#DC2626",display:"inline-block"}}/>
+            {m.name}
+            <span style={{fontSize:10,color:hasLog?"#16A34A":"#DC2626"}}>{hasLog?"✓ Submitted":"✗ Pending"}</span>
+          </button>;
+        })}
+        {roleMembers.length===0&&<div style={{fontSize:13,color:"#94A3B8"}}>No {ROLES.find(r=>r.id===selRole)?.label} members found.</div>}
+      </div>
+    </div>
+
+    {/* Selected member logs */}
+    {selMember&&<div style={{marginBottom:16}}>
+      <div style={{fontSize:13,fontWeight:700,color:"#475569",marginBottom:10}}>
+        📋 {members.find(m=>m.id===selMember)?.name} — {selDate}
+      </div>
+      {memberLogs.length===0&&<div style={{background:"#FEF2F2",border:"1px solid #FECACA",borderRadius:10,padding:"16px",fontSize:13,color:"#DC2626",textAlign:"center"}}>❌ No log submitted for this date.</div>}
+      {memberLogs.map(l=>{
+        const cand=getCand(l.candidate_id);
+        return <div key={l.id} style={{background:"#F8FAFC",border:"1px solid #E2E8F0",borderRadius:10,padding:"14px 16px",marginBottom:10}}>
+          <div style={{display:"flex",justifyContent:"space-between",marginBottom:10}}>
+            <div style={{fontSize:14,fontWeight:700}}>{cand?.name||"—"}</div>
+            <div style={{fontSize:11,color:"#94A3B8"}}>{l.log_time}</div>
+          </div>
+
+          {/* Recruiter logs */}
+          {l.type==="recruiter"&&<>
+            <div style={{display:"flex",gap:12,marginBottom:8}}>
+              <span style={{background:"#EFF6FF",color:"#2563EB",fontSize:12,padding:"3px 10px",borderRadius:99,fontWeight:600}}>📧 {l.emails_sent} emails</span>
+              <span style={{background:"#F5F3FF",color:"#7C3AED",fontSize:12,padding:"3px 10px",borderRadius:99,fontWeight:600}}>📤 {l.submissions} submissions</span>
+            </div>
+            {l.reason_less_emails&&<div style={{fontSize:12,color:"#D97706",background:"#FFFBEB",padding:"6px 10px",borderRadius:6,marginBottom:6}}>⚠️ Less emails: {l.reason_less_emails}</div>}
+            {l.reason_zero_subs&&<div style={{fontSize:12,color:"#DC2626",background:"#FEF2F2",padding:"6px 10px",borderRadius:6,marginBottom:6}}>⚠️ Zero subs: {l.reason_zero_subs}</div>}
+            {l.issue_description&&<div style={{fontSize:12,color:"#475569",background:"#F1F5F9",padding:"6px 10px",borderRadius:6,marginBottom:6}}>🚨 Issue: {l.issue_description} — <strong>{l.issue_status}</strong></div>}
+            {l.notes&&<div style={{fontSize:12,color:"#94A3B8"}}>Notes: {l.notes}</div>}
+          </>}
+
+          {/* R Lead logs */}
+          {l.type==="r_lead"&&<>
+            <div style={{marginBottom:6}}>
+              <span style={{background:l.vendor_mock_conducted==="yes"?"#F0FDF4":"#FEF2F2",color:l.vendor_mock_conducted==="yes"?"#16A34A":"#DC2626",fontSize:12,padding:"3px 10px",borderRadius:99,fontWeight:600}}>{l.vendor_mock_conducted==="yes"?"✅ Mock Conducted":"❌ Not Conducted"}</span>
+            </div>
+            {l.vendor_mock_feedback&&<div style={{fontSize:12,color:"#475569",background:"#F0FDF4",padding:"8px 10px",borderRadius:6,marginBottom:6}}>Feedback: {l.vendor_mock_feedback}</div>}
+            {l.vendor_mock_reason&&<div style={{fontSize:12,color:"#DC2626",background:"#FEF2F2",padding:"6px 10px",borderRadius:6}}>Reason: {l.vendor_mock_reason}</div>}
+          </>}
+
+          {/* C Lead logs */}
+          {l.type==="c_lead"&&<>
+            {l.floor_issues&&<div style={{fontSize:12,color:"#475569",background:"#FFFBEB",padding:"8px 10px",borderRadius:6,marginBottom:6}}>🖥️ {l.floor_issues}</div>}
+            <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+              {l.resolution_status&&<span style={{background:"#F0FDF4",color:"#16A34A",fontSize:11,padding:"2px 8px",borderRadius:99,fontWeight:600}}>{l.resolution_status}</span>}
+              {Array.isArray(l.clead_informed_to)&&l.clead_informed_to.map(p=><span key={p} style={{background:"#EFF6FF",color:"#2563EB",fontSize:11,padding:"2px 8px",borderRadius:99,fontWeight:600}}>{p}</span>)}
+            </div>
+          </>}
+
+          {/* IC logs */}
+          {l.type==="interview_coord"&&<>
+            <div style={{marginBottom:8}}>
+              <span style={{background:"#FEF2F2",color:"#DC2626",fontSize:12,padding:"3px 10px",borderRadius:99,fontWeight:600}}>{l.session_type} · {l.sessions_done} sessions</span>
+            </div>
+            {l.feedback&&<div style={{fontSize:12,color:"#475569",background:"#F8FAFC",padding:"8px 10px",borderRadius:6,marginBottom:6}}>{l.feedback}</div>}
+            {l.tmr_with_whom&&<div style={{fontSize:12,color:"#2563EB",background:"#EFF6FF",padding:"6px 10px",borderRadius:6}}>🗓️ Tomorrow: {l.tmr_with_whom} · {l.tmr_time} · {l.tmr_mode}</div>}
+          </>}
+
+          {/* Manager logs */}
+          {l.type==="manager_feedback"&&<>
+            {(l.feedback_to_team||l.manager_feedback)&&<div style={{background:"#F0FDFA",border:"1px solid #99F6E4",borderRadius:8,padding:"10px 12px",marginBottom:8,fontSize:13}}>💬 {l.feedback_to_team||l.manager_feedback}</div>}
+            {l.feedback_to_president&&<div style={{background:"#F5F3FF",border:"1px solid #DDD6FE",borderRadius:8,padding:"10px 12px",fontSize:13}}>🔒 Confidential: {l.feedback_to_president}</div>}
+          </>}
+        </div>;
+      })}
+    </div>}
+
+    {/* PRESIDENT PERSONAL NOTES */}
+    <div style={{background:"#F5F3FF",border:"1px solid #DDD6FE",borderRadius:12,padding:"16px"}}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
+        <div style={{fontSize:13,fontWeight:700,color:"#7C3AED"}}>📝 My Personal Notes — {selDate}</div>
+        <button onClick={()=>setShowNoteInput(!showNoteInput)} style={{padding:"5px 12px",borderRadius:8,fontSize:12,fontWeight:600,cursor:"pointer",background:"#7C3AED",color:"#fff",border:"none"}}>+ Add Note</button>
+      </div>
+      {showNoteInput&&<div style={{marginBottom:12}}>
+        <textarea value={presNote} onChange={e=>setPresNote(e.target.value)} placeholder="Write your private note for today..." style={{width:"100%",border:"1px solid #DDD6FE",borderRadius:8,padding:"8px 12px",fontSize:13,outline:"none",resize:"vertical",boxSizing:"border-box",background:"#fff"}} rows={3}/>
+        <div style={{display:"flex",gap:8,justifyContent:"flex-end",marginTop:8}}>
+          <button onClick={()=>{setShowNoteInput(false);setPresNote("");}} style={{padding:"6px 14px",borderRadius:8,fontSize:12,fontWeight:600,cursor:"pointer",background:"#F1F5F9",color:"#475569",border:"1px solid #E2E8F0"}}>Cancel</button>
+          <button onClick={saveNote} disabled={savingNote||!presNote.trim()} style={{padding:"6px 14px",borderRadius:8,fontSize:12,fontWeight:600,cursor:"pointer",background:"#7C3AED",color:"#fff",border:"none"}}>{savingNote?"Saving...":"Save Note"}</button>
+        </div>
+      </div>}
+      {todayNotes.length===0&&!showNoteInput&&<div style={{fontSize:13,color:"rgba(124,58,237,0.5)"}}>No notes for {selDate}. Only you can see these notes.</div>}
+      {todayNotes.map(n=><div key={n.id} style={{background:"#fff",borderRadius:8,padding:"10px 14px",marginBottom:8,border:"1px solid #EDE9FE"}}>
+        <div style={{fontSize:13,color:"#334155",lineHeight:1.6}}>{n.note?.replace(`[${selDate}] `,"")}</div>
+        <div style={{fontSize:11,color:"#94A3B8",marginTop:4}}>{fmtDateTime(n.created_at)}</div>
+      </div>)}
+    </div>
+  </div>;
 }
