@@ -448,18 +448,33 @@ export default function VARSPortal() {
   // Safety check
   if(!rc)return <LoginPage onLogin={u=>setUser(u)} />;
 
+  const NAV_ICONS={
+    dashboard:"ti-layout-dashboard",
+    daily_log:"ti-clipboard-text",
+    candidates:"ti-user",
+    recruiters:"ti-users",
+    my_recruiters:"ti-users-group",
+    interviews:"ti-briefcase",
+    logs_history:"ti-history",
+    status_meeting:"ti-phone-call",
+    overall_status:"ti-chart-pie",
+    stats:"ti-chart-bar",
+    team:"ti-building",
+    notifications:"ti-bell",
+  };
   const navItems=[
-    {id:"dashboard",icon:"📊",label:"Dashboard",always:true},
-    {id:"daily_log",icon:"📝",label:"Daily Log",always:true},
-    {id:"candidates",icon:"👤",label:"Candidates",always:true},
-    {id:"my_recruiters",icon:"👥",label:"My Recruiters",show:user.role==="r_lead"},
-    {id:"interviews",icon:"🎯",label:"Interviews",show:user.role==="r_lead"||user.role==="c_lead"||user.role==="manager"||user.role==="president"},
-    {id:"logs_history",icon:"📅",label:"Log History",always:true},
-    {id:"status_meeting",icon:"📞",label:"Status Meeting",always:true},
-    {id:"overall_status",icon:"📊",label:"Overall Status",show:user.role==="president"},
-    {id:"stats",icon:"📈",label:"Stats & Reports",show:rc.canViewAll},
-    {id:"team",icon:"🏢",label:"Team",show:rc.isAdmin||user.role==="r_lead"||user.role==="c_lead"},
-    {id:"notifications",icon:"🔔",label:`Alerts${unread>0?` (${unread})`:""}`,show:rc.isAdmin},
+    {id:"dashboard",label:"Dashboard",always:true},
+    {id:"daily_log",label:"Daily Log",always:true},
+    {id:"candidates",label:"Candidates",always:true},
+    {id:"recruiters",label:"Recruiters",show:rc.isAdmin},
+    {id:"my_recruiters",label:"My Recruiters",show:user.role==="r_lead"},
+    {id:"interviews",label:"Interviews",show:user.role==="r_lead"||user.role==="c_lead"||user.role==="manager"||user.role==="president"},
+    {id:"logs_history",label:"Log History",always:true},
+    {id:"status_meeting",label:"Status Meeting",always:true},
+    {id:"overall_status",label:"Overall Status",show:user.role==="president"},
+    {id:"stats",label:"Stats & Reports",show:rc.canViewAll},
+    {id:"team",label:"Team",show:rc.isAdmin||user.role==="r_lead"||user.role==="c_lead"},
+    {id:"notifications",label:`Alerts${unread>0?` (${unread})`:""}`,show:rc.isAdmin},
   ].filter(n=>n.always||n.show);
 
   return (
@@ -512,7 +527,10 @@ export default function VARSPortal() {
 
       <div style={{ display:"flex", flex:1 }}>
         <div style={{ width:190, background:"#fff", borderRight:"1px solid #E2E8F0", padding:"12px 0", flexShrink:0 }}>
-          {navItems.map(n=><div key={n.id} onClick={()=>setPage(n.id)} style={{ display:"flex", alignItems:"center", gap:10, padding:"9px 18px", fontSize:13, cursor:"pointer", borderLeft:`3px solid ${page===n.id?"#2563EB":"transparent"}`, color:page===n.id?"#2563EB":"#475569", background:page===n.id?"#EFF6FF":"transparent", fontWeight:page===n.id?600:400 }}><span>{n.icon}</span>{n.label}</div>)}
+          {navItems.map(n=><div key={n.id} onClick={()=>setPage(n.id)} style={{ display:"flex", alignItems:"center", gap:10, padding:"9px 18px", fontSize:13, cursor:"pointer", borderLeft:`3px solid ${page===n.id?"#2563EB":"transparent"}`, color:page===n.id?"#2563EB":"#475569", background:page===n.id?"#EFF6FF":"transparent", fontWeight:page===n.id?600:400 }}>
+              <i className={`ti ${NAV_ICONS[n.id]||"ti-circle"}`} style={{ fontSize:16 }} aria-hidden="true"/>
+              {n.label}
+            </div>)}
           <div style={{ margin:"16px 12px 0", padding:"10px 12px", background:rc.bg, borderRadius:8 }}>
             <div style={{ fontSize:11, fontWeight:700, color:rc.color }}>{rc.label}</div>
             <div style={{ fontSize:10, color:"#94A3B8", marginTop:2 }}>{rc.canViewAll?"Full view access":"Limited to assigned"}</div>
@@ -524,6 +542,7 @@ export default function VARSPortal() {
           {page==="dashboard"&&<DashPage user={user} rc={rc} candidates={myCands} logs={logs} getMember={getMember} onNav={setPage} onRefresh={()=>loadData()}/>}
           {page==="daily_log"&&<LogPage user={user} rc={rc} candidates={myCands} allCands={candidates} onSubmit={addLog} loading={loading} members={members} logs={logs} allLogs={logs} onRefresh={()=>loadData()}/>}
           {page==="candidates"&&<CandPage user={user} rc={rc} candidates={myCands} members={members} onAdd={addCandidate} onAddMember={addMember} logs={logs} getMember={getMember} loading={loading} timeline={timeline} onAddTimeline={addTimeline} token={user?.token} onRefresh={loadData}/>}
+          {page==="recruiters"&&<RecruitersPage user={user} rc={rc} members={members} candidates={candidates} logs={logs} getMember={getMember} loading={loading} token={user?.token} onRefresh={loadData} onAdd={addMember}/>}
           {page==="my_recruiters"&&<MyRecruitersPage user={user} members={members} candidates={candidates} logs={logs} timeline={timeline} getMember={getMember} onAddTimeline={addTimeline} loading={loading}/>}
           {page==="logs_history"&&<HistPage user={user} rc={rc} candidates={myCands} logs={logs} getMember={getMember} allCands={candidates}/>}
           {page==="stats"&&<StatsPage candidates={candidates} logs={logs} members={members}/>}
@@ -3268,5 +3287,192 @@ function PresidentDailyView({logs,members,candidates,token,user}){
         <div style={{fontSize:11,color:"#94A3B8",marginTop:4}}>{fmtDateTime(n.created_at)}</div>
       </div>)}
     </div>
+  </div>;
+}
+
+// ─── RECRUITERS PAGE (Manager/President separate tab) ────────────────────────
+function RecruitersPage({user,rc,members,candidates,logs,getMember,loading,token,onRefresh,onAdd}){
+  const [showAdd,setShowAdd]=useState(false);
+  const [showDeactivate,setShowDeactivate]=useState(null);
+  const [deactForm,setDeactForm]=useState({});
+  const [form,setForm]=useState({});
+  const [saving,setSaving]=useState(false);
+  const set=(k,v)=>setForm(p=>({...p,[k]:v}));
+  const setD=(k,v)=>setDeactForm(p=>({...p,[k]:v}));
+
+  const rLeads=members.filter(m=>m.role==="r_lead");
+  const recruiters=members.filter(m=>m.role==="recruiter"&&m.is_active!==false);
+  const inactiveRecruiters=members.filter(m=>m.role==="recruiter"&&m.is_active===false);
+
+  const submit=()=>{
+    if(!form.name?.trim()||!form.email?.trim())return alert("Name and email required");
+    if(!form.r_lead_team)return alert("Assign R Lead team");
+    onAdd({...form,role:"recruiter"});setForm({});setShowAdd(false);
+  };
+
+  const recCands=showDeactivate?candidates.filter(c=>c.recruiter_id===showDeactivate.id&&c.status==="Active"):[];
+
+  const submitDeactivation=async()=>{
+    if(!deactForm.end_date)return alert("End date is mandatory");
+    for(const c of recCands){
+      if(!deactForm[`rec_${c.id}`])return alert(`Please assign new recruiter for ${c.name}`);
+      if(!deactForm[`rec_start_${c.id}`])return alert(`Please set start date for ${c.name}`);
+    }
+    setSaving(true);
+    try {
+      await sb.patch("team_members",showDeactivate.id,{is_active:false},token);
+      await sb.post("member_deactivations",{member_id:showDeactivate.id,end_date:deactForm.end_date,reason:deactForm.reason||""},token);
+      for(const c of recCands){
+        const yesterday=new Date(deactForm.end_date);yesterday.setDate(yesterday.getDate()-1);
+        const yStr=yesterday.toISOString().split("T")[0];
+        const curAssign=await sb.get("candidate_assignments",`candidate_id=eq.${c.id}&assignment_type=eq.recruiter&end_date=is.null`,token);
+        if(Array.isArray(curAssign)&&curAssign.length>0){
+          await sb.patch("candidate_assignments",curAssign[0].id,{end_date:yStr},token);
+        }
+        await sb.post("candidate_assignments",{candidate_id:c.id,assignment_type:"recruiter",member_id:deactForm[`rec_${c.id}`],start_date:deactForm[`rec_start_${c.id}`]},token);
+        const updateData={recruiter_id:deactForm[`rec_${c.id}`]};
+        if(deactForm[`rlead_${c.id}`]&&deactForm[`rlead_${c.id}`]!=="same") updateData.r_lead_id=deactForm[`rlead_${c.id}`];
+        if(deactForm[`clead_${c.id}`]&&deactForm[`clead_${c.id}`]!=="same") updateData.c_lead_id=deactForm[`clead_${c.id}`];
+        if(deactForm[`ic_${c.id}`]&&deactForm[`ic_${c.id}`]!=="same") updateData.interview_coord_id=deactForm[`ic_${c.id}`];
+        await sb.patch("candidates",c.id,updateData,token);
+      }
+      setShowDeactivate(null);setDeactForm({});
+      if(onRefresh)onRefresh();
+      alert("Recruiter deactivated and candidates reassigned!");
+    } catch(e){alert("Error: "+e.message);}
+    setSaving(false);
+  };
+
+  return <div>
+    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}>
+      <div>
+        <div style={{fontSize:20,fontWeight:700,marginBottom:2}}>Recruiters</div>
+        <div style={{fontSize:13,color:"#94A3B8"}}>{recruiters.length} active · {inactiveRecruiters.length} inactive</div>
+      </div>
+      <Btn onClick={()=>setShowAdd(true)}>+ Add Recruiter</Btn>
+    </div>
+
+    {recruiters.length===0&&<div style={{textAlign:"center",padding:60,color:"#94A3B8",fontSize:14}}>No recruiters yet. Click '+ Add Recruiter' to get started.</div>}
+
+    <div style={{display:"grid",gap:12}}>
+      {recruiters.map(r=>{
+        const rCands=candidates.filter(c=>c.recruiter_id===r.id);
+        const activeCands=rCands.filter(c=>c.status==="Active");
+        const placedCands=rCands.filter(c=>c.status==="Placed");
+        const rLead=getMember(r.r_lead_team);
+        const weekAgo=new Date();weekAgo.setDate(weekAgo.getDate()-7);
+        const wLogs=logs.filter(l=>l.user_id===r.id&&l.type==="recruiter"&&new Date(l.log_date)>=weekAgo);
+        const emails=wLogs.reduce((s,l)=>s+(l.emails_sent||0),0);
+        const subs=wLogs.reduce((s,l)=>s+(l.submissions||0),0);
+        const todayLog=logs.some(l=>l.user_id===r.id&&l.log_date===today()&&l.type==="recruiter");
+
+        return <Card key={r.id} style={{padding:18}}>
+          <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:14}}>
+            <div style={{display:"flex",alignItems:"center",gap:12}}>
+              <Av name={r.name} role="recruiter" size={48}/>
+              <div>
+                <div style={{fontSize:16,fontWeight:700}}>{r.name}</div>
+                <div style={{fontSize:12,color:"#94A3B8"}}>{r.email}</div>
+                {rLead&&<div style={{fontSize:11,color:"#2563EB",marginTop:2,fontWeight:600}}>Team: {rLead.name}</div>}
+                <div style={{marginTop:4}}>
+                  <span style={{background:todayLog?"#F0FDF4":"#FEF2F2",color:todayLog?"#16A34A":"#DC2626",fontSize:11,padding:"2px 8px",borderRadius:99,fontWeight:600}}>{todayLog?"✅ Log submitted today":"❌ No log today"}</span>
+                </div>
+              </div>
+            </div>
+            <button onClick={()=>{setShowDeactivate(r);setDeactForm({});}} style={{padding:"5px 12px",borderRadius:8,fontSize:12,fontWeight:600,cursor:"pointer",background:"#FEF2F2",color:"#DC2626",border:"1px solid #FECACA"}}>🚫 End Association</button>
+          </div>
+
+          <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:8,marginBottom:12}}>
+            <div style={{background:"#EFF6FF",borderRadius:8,padding:"10px",textAlign:"center"}}><div style={{fontSize:10,color:"#2563EB",fontWeight:600,marginBottom:2}}>ACTIVE</div><div style={{fontSize:20,fontWeight:800,color:"#2563EB"}}>{activeCands.length}</div></div>
+            <div style={{background:"#F5F3FF",borderRadius:8,padding:"10px",textAlign:"center"}}><div style={{fontSize:10,color:"#7C3AED",fontWeight:600,marginBottom:2}}>PLACED</div><div style={{fontSize:20,fontWeight:800,color:"#7C3AED"}}>{placedCands.length}</div></div>
+            <div style={{background:"#F8FAFC",borderRadius:8,padding:"10px",textAlign:"center"}}><div style={{fontSize:10,color:"#94A3B8",fontWeight:600,marginBottom:2}}>LOGS/WK</div><div style={{fontSize:20,fontWeight:800,color:"#475569"}}>{wLogs.length}</div></div>
+            <div style={{background:"#F0FDFA",borderRadius:8,padding:"10px",textAlign:"center"}}><div style={{fontSize:10,color:"#0F766E",fontWeight:600,marginBottom:2}}>EMAILS/WK</div><div style={{fontSize:20,fontWeight:800,color:"#0F766E"}}>{emails}</div></div>
+            <div style={{background:"#FFFBEB",borderRadius:8,padding:"10px",textAlign:"center"}}><div style={{fontSize:10,color:"#D97706",fontWeight:600,marginBottom:2}}>SUBS/WK</div><div style={{fontSize:20,fontWeight:800,color:"#D97706"}}>{subs}</div></div>
+          </div>
+
+          <div style={{fontSize:12,fontWeight:600,color:"#475569",marginBottom:6}}>Assigned Candidates:</div>
+          <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+            {rCands.map(c=><span key={c.id} style={{background:c.status==="Placed"?"#F5F3FF":c.status==="Dropped"?"#FEF2F2":"#EFF6FF",color:c.status==="Placed"?"#7C3AED":c.status==="Dropped"?"#DC2626":"#2563EB",fontSize:12,padding:"3px 10px",borderRadius:6,fontWeight:500}}>{c.status==="Placed"?"✅ ":c.status==="Dropped"?"❌ ":""}{c.name}</span>)}
+            {rCands.length===0&&<span style={{fontSize:12,color:"#94A3B8"}}>No candidates assigned yet.</span>}
+          </div>
+        </Card>;
+      })}
+    </div>
+
+    {/* Inactive Recruiters */}
+    {inactiveRecruiters.length>0&&<div style={{marginTop:24}}>
+      <div style={{fontSize:13,fontWeight:600,color:"#94A3B8",marginBottom:10}}>Inactive Recruiters ({inactiveRecruiters.length})</div>
+      <div style={{display:"grid",gap:8}}>
+        {inactiveRecruiters.map(r=><div key={r.id} style={{background:"#F8FAFC",border:"1px solid #E2E8F0",borderRadius:8,padding:"12px 16px",display:"flex",alignItems:"center",gap:12,opacity:0.7}}>
+          <Av name={r.name} role="recruiter" size={36}/>
+          <div><div style={{fontSize:13,fontWeight:600,color:"#475569"}}>{r.name}</div><div style={{fontSize:11,color:"#94A3B8"}}>{r.email} · Inactive</div></div>
+        </div>)}
+      </div>
+    </div>}
+
+    {/* Add Recruiter Modal */}
+    <Modal open={showAdd} onClose={()=>setShowAdd(false)} title="Add New Recruiter">
+      <div style={{background:"#EFF6FF",border:"1px solid #BFDBFE",borderRadius:8,padding:"10px 14px",fontSize:12,color:"#2563EB",marginBottom:16}}>🔐 Login credentials auto-created. Default password: <strong>VARS@2026</strong></div>
+      <Input label="Full name *" value={form.name||""} onChange={e=>set("name",e.target.value)} placeholder="e.g. John Smith"/>
+      <Input label="Work email *" type="email" value={form.email||""} onChange={e=>set("email",e.target.value)} placeholder="john@varsconsultinginc.com"/>
+      <Select label="Assign to R Lead team *" value={form.r_lead_team||""} onChange={e=>set("r_lead_team",e.target.value)}>
+        <option value="">-- Select R Lead --</option>
+        {rLeads.map(m=><option key={m.id} value={m.id}>{m.name}</option>)}
+      </Select>
+      <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
+        <Btn variant="outline" onClick={()=>setShowAdd(false)}>Cancel</Btn>
+        <Btn onClick={submit} disabled={loading}>{loading?"Adding...":"Add Recruiter"}</Btn>
+      </div>
+    </Modal>
+
+    {/* Deactivation Modal */}
+    <Modal open={!!showDeactivate} onClose={()=>setShowDeactivate(null)} title={`End Association — ${showDeactivate?.name}`}>
+      <div style={{background:"#FEF2F2",border:"1px solid #FECACA",borderRadius:8,padding:"10px 14px",fontSize:13,color:"#DC2626",marginBottom:16}}>
+        ⚠️ This will deactivate {showDeactivate?.name} and reassign all their candidates.
+      </div>
+      <Input label="Last working date *" type="date" value={deactForm.end_date||""} onChange={e=>setD("end_date",e.target.value)}/>
+      <div style={{marginBottom:12}}>
+        <label style={{display:"block",fontSize:12,fontWeight:500,color:"#475569",marginBottom:5}}>Reason (optional)</label>
+        <input value={deactForm.reason||""} onChange={e=>setD("reason",e.target.value)} placeholder="Reason..." style={{width:"100%",border:"1px solid #E2E8F0",borderRadius:8,padding:"8px 12px",fontSize:13,outline:"none",boxSizing:"border-box"}}/>
+      </div>
+      {recCands.length>0&&<>
+        <div style={{fontSize:13,fontWeight:700,color:"#475569",marginBottom:10}}>Reassign {recCands.length} active candidate(s):</div>
+        {recCands.map(c=><div key={c.id} style={{background:"#F8FAFC",border:"1px solid #E2E8F0",borderRadius:10,padding:"12px 14px",marginBottom:10}}>
+          <div style={{fontSize:13,fontWeight:700,marginBottom:8}}>{c.name} · {c.tech}</div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+            <div>
+              <label style={{display:"block",fontSize:11,fontWeight:600,color:"#475569",marginBottom:4}}>New Recruiter *</label>
+              <select value={deactForm[`rec_${c.id}`]||""} onChange={e=>setD(`rec_${c.id}`,e.target.value)} style={{width:"100%",border:"1px solid #E2E8F0",borderRadius:6,padding:"6px 10px",fontSize:12,outline:"none"}}>
+                <option value="">-- Select --</option>
+                {members.filter(m=>m.role==="recruiter"&&m.id!==showDeactivate?.id&&m.is_active!==false).map(m=><option key={m.id} value={m.id}>{m.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={{display:"block",fontSize:11,fontWeight:600,color:"#475569",marginBottom:4}}>Start Date *</label>
+              <input type="date" value={deactForm[`rec_start_${c.id}`]||""} onChange={e=>setD(`rec_start_${c.id}`,e.target.value)} style={{width:"100%",border:"1px solid #E2E8F0",borderRadius:6,padding:"6px 10px",fontSize:12,outline:"none"}}/>
+            </div>
+            <div>
+              <label style={{display:"block",fontSize:11,fontWeight:600,color:"#475569",marginBottom:4}}>R Lead</label>
+              <select value={deactForm[`rlead_${c.id}`]||"same"} onChange={e=>setD(`rlead_${c.id}`,e.target.value)} style={{width:"100%",border:"1px solid #E2E8F0",borderRadius:6,padding:"6px 10px",fontSize:12,outline:"none"}}>
+                <option value="same">Same ({getMember(c.r_lead_id)?.name||"?"})</option>
+                {members.filter(m=>m.role==="r_lead").map(m=><option key={m.id} value={m.id}>{m.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={{display:"block",fontSize:11,fontWeight:600,color:"#475569",marginBottom:4}}>C Lead</label>
+              <select value={deactForm[`clead_${c.id}`]||"same"} onChange={e=>setD(`clead_${c.id}`,e.target.value)} style={{width:"100%",border:"1px solid #E2E8F0",borderRadius:6,padding:"6px 10px",fontSize:12,outline:"none"}}>
+                <option value="same">Same ({getMember(c.c_lead_id)?.name||"?"})</option>
+                {members.filter(m=>m.role==="c_lead").map(m=><option key={m.id} value={m.id}>{m.name}</option>)}
+              </select>
+            </div>
+          </div>
+        </div>)}
+      </>}
+      {recCands.length===0&&<div style={{background:"#F0FDF4",border:"1px solid #BBF7D0",borderRadius:8,padding:"10px 14px",fontSize:13,color:"#16A34A",marginBottom:12}}>✅ No active candidates to reassign.</div>}
+      <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
+        <Btn variant="outline" onClick={()=>setShowDeactivate(null)}>Cancel</Btn>
+        <Btn variant="danger" onClick={submitDeactivation} disabled={saving}>{saving?"Processing...":"Confirm End Association"}</Btn>
+      </div>
+    </Modal>
   </div>;
 }
