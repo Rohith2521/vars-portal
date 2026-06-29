@@ -1128,7 +1128,8 @@ function CandidateProfile({candidate,members,logs,timeline,getMember,onAddTimeli
         </Card>
       </div>
     </div>}
-  </div>;
+  </div>
+  );
 }
 
 // ─── MY RECRUITERS (R Lead view) ────────────────────────────────────────────
