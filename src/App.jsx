@@ -607,25 +607,16 @@ function DashPage({user,rc,candidates,logs,getMember,onNav,onRefresh}){
 
 // ─── CANDIDATES PAGE (Manager view with tabs) ───────────────────────────────
 function CandPage({user,rc,candidates,members,onAdd,onAddMember,logs,getMember,loading,timeline,onAddTimeline,token,onRefresh}){
-  const [tab,setTab]=useState(user.role==="manager"||user.role==="president"?"candidates":"candidates");
   const [selectedCand,setSelectedCand]=useState(null);
-
-  const tabs=[];
-  tabs.push({id:"candidates",label:"Candidates"});
-  if(user.role==="manager"||user.role==="president") tabs.push({id:"recruiters",label:"Recruiters"});
 
   return <div>
     <div style={{ fontSize:20, fontWeight:700, marginBottom:4 }}>
-      {selectedCand ? <span style={{ cursor:"pointer", color:"#94A3B8", fontSize:14 }} onClick={()=>setSelectedCand(null)}>← Back</span> : "Candidates & Recruiters"}
+      {selectedCand ? <span style={{ cursor:"pointer", color:"#94A3B8", fontSize:14 }} onClick={()=>setSelectedCand(null)}>← Back</span> : "Candidates"}
     </div>
     {selectedCand ? (
       <CandidateProfile candidate={selectedCand} members={members} logs={logs} timeline={timeline} getMember={getMember} onAddTimeline={onAddTimeline} loading={loading} user={user} onBack={()=>setSelectedCand(null)} token={user?.token} onRefresh={()=>window.location.reload()}/>
     ) : (
-      <>
-        <Tabs tabs={tabs} active={tab} onChange={setTab}/>
-        {tab==="candidates"&&<CandidatesTab candidates={candidates} members={members} onAdd={onAdd} logs={logs} getMember={getMember} loading={loading} rc={rc} onSelectCand={setSelectedCand}/>}
-        {tab==="recruiters"&&<RecruitersTab members={members} candidates={candidates} logs={logs} onAddMember={onAddMember} loading={loading} getMember={getMember} onSelectCand={setSelectedCand} token={user?.token} onRefresh={onRefresh}/>}
-      </>
+      <CandidatesTab candidates={candidates} members={members} onAdd={onAdd} logs={logs} getMember={getMember} loading={loading} rc={rc} onSelectCand={setSelectedCand}/>
     )}
   </div>;
 }
