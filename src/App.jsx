@@ -562,7 +562,7 @@ function CandPage({user,rc,candidates,members,onAdd,onAddMember,logs,getMember,l
       <>
         <Tabs tabs={tabs} active={tab} onChange={setTab}/>
         {tab==="candidates"&&<CandidatesTab candidates={candidates} members={members} onAdd={onAdd} logs={logs} getMember={getMember} loading={loading} rc={rc} onSelectCand={setSelectedCand}/>}
-        {tab==="recruiters"&&<RecruitersTab members={members} candidates={candidates} logs={logs} onAddMember={onAddMember} loading={loading} getMember={getMember} onSelectCand={setSelectedCand}/>}
+        {tab==="recruiters"&&<RecruitersTab members={members} candidates={candidates} logs={logs} onAddMember={onAddMember} loading={loading} getMember={getMember} onSelectCand={setSelectedCand} token={user?.token} onRefresh={onRefresh}/>}
       </>
     )}
   </div>;
@@ -612,15 +612,61 @@ function CandidatesTab({candidates,members,onAdd,logs,getMember,loading,rc,onSel
 }
 
 // ─── RECRUITERS TAB (Manager only) ──────────────────────────────────────────
-function RecruitersTab({members,candidates,logs,onAddMember,loading,getMember,onSelectCand}){
-  const [showAdd,setShowAdd]=useState(false); const [form,setForm]=useState({});
+function RecruitersTab({members,candidates,logs,onAddMember,loading,getMember,onSelectCand,token,onRefresh}){
+  const [showAdd,setShowAdd]=useState(false);
+  const [showDeactivate,setShowDeactivate]=useState(null); // rec object
+  const [deactForm,setDeactForm]=useState({});
+  const [form,setForm]=useState({});
+  const [saving,setSaving]=useState(false);
   const set=(k,v)=>setForm(p=>({...p,[k]:v}));
+  const setD=(k,v)=>setDeactForm(p=>({...p,[k]:v}));
   const rLeads=members.filter(m=>m.role==="r_lead");
-  const recruiters=members.filter(m=>m.role==="recruiter");
+  const recruiters=members.filter(m=>m.role==="recruiter"&&m.is_active!==false);
+  const inactiveRecruiters=members.filter(m=>m.role==="recruiter"&&m.is_active===false);
   const submit=()=>{
     if(!form.name?.trim()||!form.email?.trim())return alert("Name and email required");
     if(!form.r_lead_team)return alert("Assign R Lead team");
     onAddMember({...form,role:"recruiter"});setForm({});setShowAdd(false);
+  };
+
+  const recCands=showDeactivate?candidates.filter(c=>c.recruiter_id===showDeactivate.id&&c.status==="Active"):[];
+
+  const submitDeactivation=async()=>{
+    if(!deactForm.end_date)return alert("End date is mandatory");
+    // Check all candidates reassigned
+    for(const c of recCands){
+      if(!deactForm[`rec_${c.id}`])return alert(`Please assign new recruiter for ${c.name}`);
+      if(!deactForm[`rec_start_${c.id}`])return alert(`Please set start date for ${c.name}`);
+    }
+    setSaving(true);
+    try {
+      // 1. Mark recruiter as inactive
+      await sb.patch("team_members",showDeactivate.id,{is_active:false},token);
+      // 2. Log deactivation
+      await sb.post("member_deactivations",{member_id:showDeactivate.id,end_date:deactForm.end_date,deactivated_by:null,reason:deactForm.reason||""},token);
+      // 3. Reassign each candidate
+      for(const c of recCands){
+        const yesterday=new Date(deactForm.end_date);yesterday.setDate(yesterday.getDate()-1);
+        const yStr=yesterday.toISOString().split("T")[0];
+        // End current assignment
+        const curAssign=await sb.get("candidate_assignments",`candidate_id=eq.${c.id}&assignment_type=eq.recruiter&end_date=is.null`,token);
+        if(Array.isArray(curAssign)&&curAssign.length>0){
+          await sb.patch("candidate_assignments",curAssign[0].id,{end_date:yStr},token);
+        }
+        // New recruiter assignment
+        await sb.post("candidate_assignments",{candidate_id:c.id,assignment_type:"recruiter",member_id:deactForm[`rec_${c.id}`],start_date:deactForm[`rec_start_${c.id}`]},token);
+        // Update candidate record
+        const updateData={recruiter_id:deactForm[`rec_${c.id}`]};
+        if(deactForm[`rlead_${c.id}`]&&deactForm[`rlead_${c.id}`]!=="same") updateData.r_lead_id=deactForm[`rlead_${c.id}`];
+        if(deactForm[`clead_${c.id}`]&&deactForm[`clead_${c.id}`]!=="same") updateData.c_lead_id=deactForm[`clead_${c.id}`];
+        if(deactForm[`ic_${c.id}`]&&deactForm[`ic_${c.id}`]!=="same") updateData.interview_coord_id=deactForm[`ic_${c.id}`];
+        await sb.patch("candidates",c.id,updateData,token);
+      }
+      setShowDeactivate(null);setDeactForm({});
+      if(onRefresh)onRefresh();
+      alert("Recruiter deactivated and candidates reassigned successfully!");
+    } catch(e){alert("Error: "+e.message);}
+    setSaving(false);
   };
   return <div>
     <div style={{ display:"flex", justifyContent:"flex-end", marginBottom:16 }}>
@@ -658,13 +704,72 @@ function RecruitersTab({members,candidates,logs,onAddMember,loading,getMember,on
             <div style={{ background:"#F8FAFC", borderRadius:8, padding:"10px", textAlign:"center" }}><div style={{ fontSize:10, color:"#94A3B8", fontWeight:600 }}>SUBS (WEEK)</div><div style={{ fontSize:20, fontWeight:800, color:"#D97706" }}>{subs}</div></div>
           </div>
           <div style={{ fontSize:12, fontWeight:600, color:"#475569", marginBottom:8 }}>Assigned Candidates:</div>
-          <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
-            {rCands.map(c=><span key={c.id} onClick={()=>onSelectCand(c)} style={{ background:"#EFF6FF", color:"#2563EB", fontSize:12, padding:"4px 10px", borderRadius:6, cursor:"pointer", fontWeight:500 }}>{c.name} · {c.tech}</span>)}
+          <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginBottom:10 }}>
+            {rCands.map(c=><span key={c.id} onClick={()=>onSelectCand(c)} style={{ background:c.status==="Placed"?"#F5F3FF":c.status==="Dropped"?"#FEF2F2":"#EFF6FF", color:c.status==="Placed"?"#7C3AED":c.status==="Dropped"?"#DC2626":"#2563EB", fontSize:12, padding:"4px 10px", borderRadius:6, cursor:"pointer", fontWeight:500 }}>{c.status==="Placed"?"✅ ":c.status==="Dropped"?"❌ ":""}{c.name} · {c.tech}</span>)}
             {rCands.length===0&&<span style={{ fontSize:12, color:"#94A3B8" }}>No candidates assigned yet.</span>}
           </div>
+          <button onClick={()=>{setShowDeactivate(r);setDeactForm({});}} style={{ padding:"5px 12px", borderRadius:8, fontSize:12, fontWeight:600, cursor:"pointer", background:"#FEF2F2", color:"#DC2626", border:"1px solid #FECACA" }}>🚫 End Association</button>
         </Card>;
       })}
     </div>
+
+    {/* Deactivation Modal */}
+    <Modal open={!!showDeactivate} onClose={()=>setShowDeactivate(null)} title={`End Association — ${showDeactivate?.name}`}>
+      <div style={{ background:"#FEF2F2", border:"1px solid #FECACA", borderRadius:8, padding:"10px 14px", fontSize:13, color:"#DC2626", marginBottom:16 }}>
+        ⚠️ This will deactivate {showDeactivate?.name} and reassign all their candidates.
+      </div>
+      <Input label="Last working date *" type="date" value={deactForm.end_date||""} onChange={e=>setD("end_date",e.target.value)}/>
+      <div style={{ marginBottom:12 }}>
+        <label style={{ display:"block", fontSize:12, fontWeight:500, color:"#475569", marginBottom:5 }}>Reason (optional)</label>
+        <input value={deactForm.reason||""} onChange={e=>setD("reason",e.target.value)} placeholder="Reason for ending association..." style={{ width:"100%", border:"1px solid #E2E8F0", borderRadius:8, padding:"8px 12px", fontSize:13, outline:"none", boxSizing:"border-box" }}/>
+      </div>
+      {recCands.length>0&&<>
+        <div style={{ fontSize:13, fontWeight:700, color:"#475569", marginBottom:10 }}>Reassign {recCands.length} active candidate(s):</div>
+        {recCands.map(c=><div key={c.id} style={{ background:"#F8FAFC", border:"1px solid #E2E8F0", borderRadius:10, padding:"12px 14px", marginBottom:10 }}>
+          <div style={{ fontSize:13, fontWeight:700, marginBottom:8 }}>{c.name} · {c.tech}</div>
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
+            <div>
+              <label style={{ display:"block", fontSize:11, fontWeight:600, color:"#475569", marginBottom:4 }}>New Recruiter *</label>
+              <select value={deactForm[`rec_${c.id}`]||""} onChange={e=>setD(`rec_${c.id}`,e.target.value)} style={{ width:"100%", border:"1px solid #E2E8F0", borderRadius:6, padding:"6px 10px", fontSize:12, outline:"none" }}>
+                <option value="">-- Select --</option>
+                {members.filter(m=>m.role==="recruiter"&&m.id!==showDeactivate?.id&&m.is_active!==false).map(m=><option key={m.id} value={m.id}>{m.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={{ display:"block", fontSize:11, fontWeight:600, color:"#475569", marginBottom:4 }}>New Rec Start Date *</label>
+              <input type="date" value={deactForm[`rec_start_${c.id}`]||""} onChange={e=>setD(`rec_start_${c.id}`,e.target.value)} style={{ width:"100%", border:"1px solid #E2E8F0", borderRadius:6, padding:"6px 10px", fontSize:12, outline:"none" }}/>
+            </div>
+            <div>
+              <label style={{ display:"block", fontSize:11, fontWeight:600, color:"#475569", marginBottom:4 }}>R Lead</label>
+              <select value={deactForm[`rlead_${c.id}`]||"same"} onChange={e=>setD(`rlead_${c.id}`,e.target.value)} style={{ width:"100%", border:"1px solid #E2E8F0", borderRadius:6, padding:"6px 10px", fontSize:12, outline:"none" }}>
+                <option value="same">Same ({getMember(c.r_lead_id)?.name||"?"})</option>
+                {members.filter(m=>m.role==="r_lead").map(m=><option key={m.id} value={m.id}>{m.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={{ display:"block", fontSize:11, fontWeight:600, color:"#475569", marginBottom:4 }}>C Lead</label>
+              <select value={deactForm[`clead_${c.id}`]||"same"} onChange={e=>setD(`clead_${c.id}`,e.target.value)} style={{ width:"100%", border:"1px solid #E2E8F0", borderRadius:6, padding:"6px 10px", fontSize:12, outline:"none" }}>
+                <option value="same">Same ({getMember(c.c_lead_id)?.name||"?"})</option>
+                {members.filter(m=>m.role==="c_lead").map(m=><option key={m.id} value={m.id}>{m.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={{ display:"block", fontSize:11, fontWeight:600, color:"#475569", marginBottom:4 }}>IC</label>
+              <select value={deactForm[`ic_${c.id}`]||"same"} onChange={e=>setD(`ic_${c.id}`,e.target.value)} style={{ width:"100%", border:"1px solid #E2E8F0", borderRadius:6, padding:"6px 10px", fontSize:12, outline:"none" }}>
+                <option value="same">Same ({getMember(c.interview_coord_id)?.name||"?"})</option>
+                {members.filter(m=>m.role==="interview_coord").map(m=><option key={m.id} value={m.id}>{m.name}</option>)}
+              </select>
+            </div>
+          </div>
+        </div>)}
+      </>}
+      {recCands.length===0&&<div style={{ background:"#F0FDF4", border:"1px solid #BBF7D0", borderRadius:8, padding:"10px 14px", fontSize:13, color:"#16A34A", marginBottom:12 }}>✅ No active candidates to reassign.</div>}
+      <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}>
+        <Btn variant="outline" onClick={()=>setShowDeactivate(null)}>Cancel</Btn>
+        <Btn variant="danger" onClick={submitDeactivation} disabled={saving}>{saving?"Processing...":"Confirm End Association"}</Btn>
+      </div>
+    </Modal>
+
     <Modal open={showAdd} onClose={()=>setShowAdd(false)} title="Add New Recruiter">
       <div style={{ background:"#EFF6FF", border:"1px solid #BFDBFE", borderRadius:8, padding:"10px 14px", fontSize:12, color:"#2563EB", marginBottom:16 }}>🔐 Login credentials auto-created. Default password: <strong>VARS@2026</strong></div>
       <Input label="Full name *" value={form.name||""} onChange={e=>set("name",e.target.value)} placeholder="e.g. John Smith"/>
@@ -681,6 +786,8 @@ function CandidateProfile({candidate,members,logs,timeline,getMember,onAddTimeli
   const [showAdd,setShowAdd]=useState(false); const [form,setForm]=useState({});
   const [showChangeRec,setShowChangeRec]=useState(false);
   const [showChangeRLead,setShowChangeRLead]=useState(false);
+  const [showPlaced,setShowPlaced]=useState(false);
+  const [showDropped,setShowDropped]=useState(false);
   const [assignments,setAssignments]=useState([]);
   const set=(k,v)=>setForm(p=>({...p,[k]:v}));
   const candTimeline=timeline.filter(t=>t.candidate_id===candidate.id).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
@@ -777,9 +884,14 @@ function CandidateProfile({candidate,members,logs,timeline,getMember,onAddTimeli
             return <span key={lbl} style={{ background:rc2.bg, color:rc2.color, fontSize:11, padding:"3px 10px", borderRadius:99, fontWeight:600 }}>{lbl}: {m?.name||"?"}</span>;
           })}
         </div>
-        {isManager&&<div style={{ display:"flex", gap:8, marginTop:10 }}>
+        {isManager&&<div style={{ display:"flex", gap:8, marginTop:10, flexWrap:"wrap" }}>
           <button onClick={()=>{setShowChangeRec(true);setForm({});}} style={{ padding:"5px 12px", borderRadius:8, fontSize:12, fontWeight:600, cursor:"pointer", background:"#F0FDF4", color:"#16A34A", border:"1px solid #BBF7D0" }}>🔄 Change Recruiter</button>
           <button onClick={()=>{setShowChangeRLead(true);setForm({});}} style={{ padding:"5px 12px", borderRadius:8, fontSize:12, fontWeight:600, cursor:"pointer", background:"#EFF6FF", color:"#2563EB", border:"1px solid #BFDBFE" }}>🔄 Change R Lead</button>
+          {candidate.status==="Active"&&<>
+            <button onClick={()=>{setShowPlaced(true);setForm({});}} style={{ padding:"5px 12px", borderRadius:8, fontSize:12, fontWeight:600, cursor:"pointer", background:"#F5F3FF", color:"#7C3AED", border:"1px solid #DDD6FE" }}>✅ Mark as Placed</button>
+            <button onClick={()=>{setShowDropped(true);setForm({});}} style={{ padding:"5px 12px", borderRadius:8, fontSize:12, fontWeight:600, cursor:"pointer", background:"#FEF2F2", color:"#DC2626", border:"1px solid #FECACA" }}>❌ Mark as Dropped</button>
+          </>}
+          {(candidate.status==="Placed"||candidate.status==="Dropped")&&<button onClick={async()=>{await sb.patch("candidates",candidate.id,{status:"Active",status_reason:null,vendor_name:null,prime_vendor:null,end_client:null,project_start_date:null},token);if(onRefresh)onRefresh();alert("Candidate reactivated!");}} style={{ padding:"5px 12px", borderRadius:8, fontSize:12, fontWeight:600, cursor:"pointer", background:"#F0FDF4", color:"#16A34A", border:"1px solid #BBF7D0" }}>🔄 Reactivate</button>}
         </div>}
       </div>
       <StatusBadge status={candidate.status}/>
@@ -805,6 +917,52 @@ function CandidateProfile({candidate,members,logs,timeline,getMember,onAddTimeli
       </div>
     </Modal>
 
+    {/* Mark as Placed Modal */}
+    <Modal open={showPlaced} onClose={()=>setShowPlaced(false)} title="✅ Mark as Placed">
+      <div style={{ background:"#F5F3FF", border:"1px solid #DDD6FE", borderRadius:8, padding:"10px 14px", fontSize:13, color:"#7C3AED", marginBottom:16 }}>
+        Candidate will be marked as Placed. They will no longer appear in daily log candidate selection.
+      </div>
+      <Input label="Vendor Name *" value={form.vendor_name||""} onChange={e=>set("vendor_name",e.target.value)} placeholder="e.g. TechCorp Solutions"/>
+      <Input label="Prime Vendor / Implementation Partner *" value={form.prime_vendor||""} onChange={e=>set("prime_vendor",e.target.value)} placeholder="e.g. Infosys, Wipro"/>
+      <Input label="End Client *" value={form.end_client||""} onChange={e=>set("end_client",e.target.value)} placeholder="e.g. Bank of America"/>
+      <Input label="Project Start Date *" type="date" value={form.project_start_date||""} onChange={e=>set("project_start_date",e.target.value)}/>
+      <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}>
+        <Btn variant="outline" onClick={()=>setShowPlaced(false)}>Cancel</Btn>
+        <Btn onClick={async()=>{
+          if(!form.vendor_name?.trim())return alert("Vendor name required");
+          if(!form.prime_vendor?.trim())return alert("Prime vendor required");
+          if(!form.end_client?.trim())return alert("End client required");
+          if(!form.project_start_date)return alert("Project start date required");
+          try {
+            await sb.patch("candidates",candidate.id,{status:"Placed",vendor_name:form.vendor_name,prime_vendor:form.prime_vendor,end_client:form.end_client,project_start_date:form.project_start_date,status_updated_at:new Date().toISOString()},token);
+            setShowPlaced(false);setForm({});
+            if(onRefresh)onRefresh();
+            alert("Candidate marked as Placed! ✅");
+          } catch(e){alert("Error updating status");}
+        }}>Confirm Placed</Btn>
+      </div>
+    </Modal>
+
+    {/* Mark as Dropped Modal */}
+    <Modal open={showDropped} onClose={()=>setShowDropped(false)} title="❌ Mark as Dropped">
+      <div style={{ background:"#FEF2F2", border:"1px solid #FECACA", borderRadius:8, padding:"10px 14px", fontSize:13, color:"#DC2626", marginBottom:16 }}>
+        Candidate will be marked as Dropped. They will no longer appear in daily log candidate selection.
+      </div>
+      <Textarea label="Reason for dropping *" value={form.status_reason||""} onChange={e=>set("status_reason",e.target.value)} placeholder="Why is this candidate being dropped from marketing?"/>
+      <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}>
+        <Btn variant="outline" onClick={()=>setShowDropped(false)}>Cancel</Btn>
+        <Btn variant="danger" onClick={async()=>{
+          if(!form.status_reason?.trim())return alert("Reason is mandatory");
+          try {
+            await sb.patch("candidates",candidate.id,{status:"Dropped",status_reason:form.status_reason,status_updated_at:new Date().toISOString()},token);
+            setShowDropped(false);setForm({});
+            if(onRefresh)onRefresh();
+            alert("Candidate marked as Dropped.");
+          } catch(e){alert("Error updating status");}
+        }}>Confirm Drop</Btn>
+      </div>
+    </Modal>
+
     {/* Change R Lead Modal */}
     <Modal open={showChangeRLead} onClose={()=>setShowChangeRLead(false)} title="Change R Lead">
       <div style={{ background:"#FFFBEB", border:"1px solid #FDE68A", borderRadius:8, padding:"10px 14px", fontSize:13, color:"#D97706", marginBottom:16 }}>
@@ -827,7 +985,23 @@ function CandidateProfile({candidate,members,logs,timeline,getMember,onAddTimeli
 
     <Tabs tabs={tabs} active={tab} onChange={setTab}/>
 
-    {tab==="overview"&&<div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14 }}>
+    {tab==="overview"&&<div>
+      {/* Placed details */}
+      {candidate.status==="Placed"&&<div style={{ background:"#F5F3FF", border:"1px solid #DDD6FE", borderRadius:12, padding:"16px 20px", marginBottom:16 }}>
+        <div style={{ fontSize:14, fontWeight:700, color:"#7C3AED", marginBottom:12 }}>✅ Placed in Project</div>
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
+          <div><div style={{ fontSize:11, color:"#94A3B8", fontWeight:600, marginBottom:2 }}>VENDOR</div><div style={{ fontSize:13, fontWeight:600 }}>{candidate.vendor_name||"—"}</div></div>
+          <div><div style={{ fontSize:11, color:"#94A3B8", fontWeight:600, marginBottom:2 }}>PRIME VENDOR / IMPL. PARTNER</div><div style={{ fontSize:13, fontWeight:600 }}>{candidate.prime_vendor||"—"}</div></div>
+          <div><div style={{ fontSize:11, color:"#94A3B8", fontWeight:600, marginBottom:2 }}>END CLIENT</div><div style={{ fontSize:13, fontWeight:600 }}>{candidate.end_client||"—"}</div></div>
+          <div><div style={{ fontSize:11, color:"#94A3B8", fontWeight:600, marginBottom:2 }}>PROJECT START DATE</div><div style={{ fontSize:13, fontWeight:600 }}>{fmtDate(candidate.project_start_date)||"—"}</div></div>
+        </div>
+      </div>}
+      {/* Dropped reason */}
+      {candidate.status==="Dropped"&&<div style={{ background:"#FEF2F2", border:"1px solid #FECACA", borderRadius:12, padding:"16px 20px", marginBottom:16 }}>
+        <div style={{ fontSize:14, fontWeight:700, color:"#DC2626", marginBottom:8 }}>❌ Dropped from Marketing</div>
+        <div style={{ fontSize:13, color:"#475569" }}>{candidate.status_reason||"No reason provided."}</div>
+      </div>}
+    <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14 }}>
       <Card style={{ padding:16 }}>
         <div style={{ fontWeight:600, fontSize:14, marginBottom:12 }}>📋 Latest Pipeline Status</div>
         {candTimeline.filter(t=>t.entry_type==="pipeline_update").slice(0,1).map(t=><div key={t.id} style={{ background:"#F8FAFC", borderRadius:8, padding:12 }}><div style={{ fontSize:13, fontWeight:600 }}>{t.title}</div><div style={{ fontSize:12, color:"#475569", marginTop:4 }}>{t.details}</div><div style={{ fontSize:11, color:"#94A3B8", marginTop:4 }}>{fmtDateTime(t.created_at)}</div></div>)}
