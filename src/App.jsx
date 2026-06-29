@@ -1022,6 +1022,7 @@ function CandidateProfile({candidate,members,logs,timeline,getMember,onAddTimeli
         {candTimeline.filter(t=>t.entry_type==="screening_call").slice(0,2).map(t=><div key={t.id} style={{ background:"#F8FAFC", borderRadius:8, padding:10, marginBottom:8 }}><div style={{ fontSize:13, fontWeight:600 }}>{t.title}</div>{t.outcome&&<div style={{ marginTop:4 }}><StatusBadge status={t.outcome}/></div>}<div style={{ fontSize:11, color:"#94A3B8", marginTop:4 }}>{fmtDateTime(t.created_at)}</div></div>)}
         {candTimeline.filter(t=>t.entry_type==="screening_call").length===0&&<div style={{ fontSize:13, color:"#94A3B8" }}>No screening calls yet.</div>}
       </Card>
+      </div>
     </div>}
 
     {tab==="timeline"&&<div>
