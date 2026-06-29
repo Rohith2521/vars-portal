@@ -544,7 +544,7 @@ function DashPage({user,rc,candidates,logs,getMember,onNav,onRefresh}){
 }
 
 // ─── CANDIDATES PAGE (Manager view with tabs) ───────────────────────────────
-function CandPage({user,rc,candidates,members,onAdd,onAddMember,logs,getMember,loading,timeline,onAddTimeline}){
+function CandPage({user,rc,candidates,members,onAdd,onAddMember,logs,getMember,loading,timeline,onAddTimeline,token,onRefresh}){
   const [tab,setTab]=useState(user.role==="manager"||user.role==="president"?"candidates":"candidates");
   const [selectedCand,setSelectedCand]=useState(null);
 
