@@ -557,7 +557,7 @@ export default function VARSPortal() {
 
         <div style={{ flex:1, padding:22, overflowY:"auto" }}>
           {loading&&<div style={{ position:"fixed", top:60, right:20, background:"#0F1F3D", color:"#fff", padding:"5px 14px", borderRadius:8, fontSize:12, zIndex:500 }}>Syncing...</div>}
-          {page==="dashboard"&&<DashPage user={user} rc={rc} candidates={myCands} logs={logs} getMember={getMember} onNav={setPage} onRefresh={()=>loadData()}/>}
+          {page==="dashboard"&&<DashPage user={user} rc={rc} candidates={rc.canViewAll?candidates:myCands} allCandidates={candidates} logs={logs} getMember={getMember} onNav={setPage} onRefresh={()=>loadData()} members={members} token={user?.token}/>}
           {page==="daily_log"&&<LogPage user={user} rc={rc} candidates={myCands} allCands={candidates} onSubmit={addLog} loading={loading} members={members} logs={logs} allLogs={logs} onRefresh={()=>loadData()}/>}
           {page==="candidates"&&<CandPage user={user} rc={rc} candidates={myCands} members={members} onAdd={addCandidate} onAddMember={addMember} logs={logs} getMember={getMember} loading={loading} timeline={timeline} onAddTimeline={addTimeline} token={user?.token} onRefresh={loadData}/>}
           {page==="recruiters"&&<RecruitersPage user={user} rc={rc} members={members} candidates={candidates} logs={logs} getMember={getMember} loading={loading} token={user?.token} onRefresh={loadData} onAdd={addMember}/>}
@@ -578,20 +578,140 @@ export default function VARSPortal() {
 }
 
 // ─── DASHBOARD ─────────────────────────────────────────────────────────────
-function DashPage({user,rc,candidates,logs,getMember,onNav,onRefresh}){
+function DashPage({user,rc,candidates,allCandidates,logs,getMember,onNav,onRefresh,members,token}){
+  const [expandedMonth,setExpandedMonth]=useState(null);
+  const [expandedInterview,setExpandedInterview]=useState(null);
+  const [interviewSessions,setInterviewSessions]=useState([]);
+  useEffect(()=>{
+    if(token&&user.role==="president"){
+      sb.get("interview_sessions","select=*&order=interview_date.desc&limit=20",token).then(r=>{if(Array.isArray(r))setInterviewSessions(r);});
+    }
+  },[token]);
   const myLogs=rc.canViewAll?logs:logs.filter(l=>l.user_id===user.id);
   const todayLogs=myLogs.filter(l=>l.log_date===today());
   const weekAgo=new Date();weekAgo.setDate(weekAgo.getDate()-7);
   const wLogs=logs.filter(l=>l.type==="recruiter"&&new Date(l.log_date)>=weekAgo);
+
+  // Week number
+  const now=new Date();
+  const startOfYear=new Date(now.getFullYear(),0,1);
+  const weekNum=Math.ceil(((now-startOfYear)/86400000+startOfYear.getDay()+1)/7);
+
+  // Placements this month
+  const thisMonth=now.getMonth();
+  const thisYear=now.getFullYear();
+  const allCands=allCandidates||candidates;
+  const placedThisMonth=allCands.filter(c=>{
+    if(c.status!=="Placed"||!c.status_updated_at)return false;
+    const d=new Date(c.status_updated_at);
+    return d.getMonth()===thisMonth&&d.getFullYear()===thisYear;
+  });
+
+  // Monthly closures - Jan to current month this year
+  const MONTHS=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const monthlyClosures=MONTHS.slice(0,thisMonth+1).map((m,i)=>{
+    const placed=allCands.filter(c=>{
+      if(c.status!=="Placed"||!c.status_updated_at)return false;
+      const d=new Date(c.status_updated_at);
+      return d.getMonth()===i&&d.getFullYear()===thisYear;
+    });
+    return {month:m,monthIdx:i,count:placed.length,candidates:placed};
+  }).reverse();
+
+  const totalClosures=allCands.filter(c=>c.status==="Placed").length;
+
   return <div>
-    <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:4 }}><div style={{ fontSize:20, fontWeight:700 }}>Good day, {user.name}! </div><Btn variant="outline" onClick={onRefresh} style={{ fontSize:12, padding:"5px 12px" }}>↻ Refresh</Btn></div>
-    <div style={{ fontSize:13, color:"#94A3B8", marginBottom:20 }}>VARS Portal · {fmtDate(today())}</div>
+    <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:4 }}>
+      <div style={{ fontSize:20, fontWeight:700 }}>Welcome back, {user.name}!</div>
+      <Btn variant="outline" onClick={onRefresh} style={{ fontSize:12, padding:"5px 12px" }}>↻ Refresh</Btn>
+    </div>
+    <div style={{ fontSize:13, color:"#94A3B8", marginBottom:20 }}>
+      Week {weekNum} of {thisYear} · {placedThisMonth.length} placement{placedThisMonth.length!==1?"s":""} this month
+    </div>
+
     <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(140px,1fr))", gap:10, marginBottom:20 }}>
       <StatCard label="My candidates" value={candidates.length} color="#2563EB" sub="assigned to you"/>
       <StatCard label="Today's logs" value={todayLogs.length} color="#7C3AED" sub="submitted today"/>
       {rc.canViewAll&&<StatCard label="Emails this week" value={wLogs.reduce((s,l)=>s+(l.emails_sent||0),0)} color="#0F766E" sub="all recruiters"/>}
       {rc.canViewAll&&<StatCard label="Submissions week" value={wLogs.reduce((s,l)=>s+(l.submissions||0),0)} color="#D97706" sub="all recruiters"/>}
     </div>
+
+    {/* President sections */}
+    {user.role==="president"&&<div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14, marginBottom:14 }}>
+
+      {/* Closures This Year */}
+      <Card>
+        <CardHeader title={`Closures ${thisYear}`} action={<span style={{ fontSize:12, fontWeight:700, color:"#7C3AED", background:"#F5F3FF", padding:"3px 10px", borderRadius:99 }}>Total: {totalClosures}</span>}/>
+        <div style={{ padding:"0 0 8px" }}>
+          {monthlyClosures.map(m=><div key={m.monthIdx}>
+            <div onClick={()=>setExpandedMonth(expandedMonth===m.monthIdx?null:m.monthIdx)} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"10px 16px", borderBottom:"1px solid #F1F5F9", cursor:"pointer", background:expandedMonth===m.monthIdx?"#F5F3FF":"transparent" }}>
+              <div style={{ fontSize:13, fontWeight:600, color:expandedMonth===m.monthIdx?"#7C3AED":"#0F172A" }}>{m.month} {thisYear}</div>
+              <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                <span style={{ fontSize:13, fontWeight:700, color:m.count>0?"#7C3AED":"#94A3B8" }}>{m.count} placement{m.count!==1?"s":""}</span>
+                <span style={{ fontSize:11, color:"#94A3B8" }}>{expandedMonth===m.monthIdx?"▲":"▼"}</span>
+              </div>
+            </div>
+            {expandedMonth===m.monthIdx&&<div style={{ background:"#FAFAFF", borderBottom:"1px solid #E2E8F0" }}>
+              {m.candidates.length===0&&<div style={{ padding:"12px 16px", fontSize:13, color:"#94A3B8" }}>No placements this month.</div>}
+              {m.candidates.map(c=><div key={c.id} style={{ padding:"12px 16px", borderBottom:"1px solid #F1F5F9" }}>
+                <div style={{ fontSize:13, fontWeight:700, marginBottom:6 }}>{c.name} · {c.tech}</div>
+                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:4, fontSize:11, color:"#475569" }}>
+                  {c.vendor_name&&<div>Vendor: <strong>{c.vendor_name}</strong></div>}
+                  {c.prime_vendor&&<div>Prime: <strong>{c.prime_vendor}</strong></div>}
+                  {c.end_client&&<div>Client: <strong>{c.end_client}</strong></div>}
+                  {c.project_start_date&&<div>Start: <strong>{fmtDate(c.project_start_date)}</strong></div>}
+                </div>
+                <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginTop:6 }}>
+                  {c.recruiter_id&&<span style={{ background:"#F0FDF4", color:"#16A34A", fontSize:10, padding:"1px 7px", borderRadius:99, fontWeight:600 }}>Rec: {getMember(c.recruiter_id)?.name||"?"}</span>}
+                  {c.r_lead_id&&<span style={{ background:"#EFF6FF", color:"#2563EB", fontSize:10, padding:"1px 7px", borderRadius:99, fontWeight:600 }}>R Lead: {getMember(c.r_lead_id)?.name||"?"}</span>}
+                  {c.c_lead_id&&<span style={{ background:"#FFFBEB", color:"#D97706", fontSize:10, padding:"1px 7px", borderRadius:99, fontWeight:600 }}>C Lead: {getMember(c.c_lead_id)?.name||"?"}</span>}
+                  {c.interview_coord_id&&<span style={{ background:"#FEF2F2", color:"#DC2626", fontSize:10, padding:"1px 7px", borderRadius:99, fontWeight:600 }}>IC: {getMember(c.interview_coord_id)?.name||"?"}</span>}
+                </div>
+              </div>)}
+            </div>}
+          </div>)}
+        </div>
+      </Card>
+
+      {/* Recent Interview Feedbacks */}
+      <Card>
+        <CardHeader title={`Recent Interview Feedbacks (${interviewSessions.length})`}/>
+        <div style={{ padding:"0 0 8px" }}>
+          {interviewSessions.length===0&&<div style={{ padding:"16px", fontSize:13, color:"#94A3B8" }}>No interview sessions yet.</div>}
+          {interviewSessions.slice(0,8).map(s=>{
+            const cand=allCands.find(c=>c.id===s.candidate_id);
+            const ROUNDS={round_1:"Round 1",round_2:"Round 2",round_3:"Round 3",round_4:"Round 4",round_5:"Round 5",round_6:"Round 6",final:"Final"};
+            const fbColor=s.overall_feedback==="went_well"?"#16A34A":s.overall_feedback==="okay"?"#D97706":"#DC2626";
+            const fbBg=s.overall_feedback==="went_well"?"#F0FDF4":s.overall_feedback==="okay"?"#FFFBEB":"#FEF2F2";
+            const fbLabel=s.overall_feedback==="went_well"?"Went Well":s.overall_feedback==="okay"?"Okay":"Not Went Well";
+            return <div key={s.id}>
+              <div onClick={()=>setExpandedInterview(expandedInterview===s.id?null:s.id)} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"10px 16px", borderBottom:"1px solid #F1F5F9", cursor:"pointer", background:expandedInterview===s.id?"#F8FAFC":"transparent" }}>
+                <div>
+                  <div style={{ fontSize:13, fontWeight:600 }}>{cand?.name||"?"}</div>
+                  <div style={{ fontSize:11, color:"#94A3B8" }}>{ROUNDS[s.round]||s.round} · {fmtDate(s.interview_date)}</div>
+                  {s.with_whom&&<div style={{ fontSize:11, color:"#2563EB", marginTop:1 }}>{s.with_whom}</div>}
+                </div>
+                <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                  <span style={{ background:fbBg, color:fbColor, fontSize:11, padding:"2px 8px", borderRadius:99, fontWeight:600 }}>{fbLabel}</span>
+                  <span style={{ fontSize:11, color:"#94A3B8" }}>{expandedInterview===s.id?"▲":"▼"}</span>
+                </div>
+              </div>
+              {expandedInterview===s.id&&<div style={{ background:"#F8FAFC", borderBottom:"1px solid #E2E8F0", padding:"12px 16px" }}>
+                <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginBottom:8 }}>
+                  <span style={{ background:"#F5F3FF", color:"#7C3AED", fontSize:11, padding:"2px 8px", borderRadius:99, fontWeight:600 }}>{({less_30:"<30 min","30_min":"30 min","45_min":"45 min","1_hour":"1 Hour","1_30_hour":"1.5 Hours","2_hours":"2 Hours","3_hours":"3 Hours"})[s.duration]||s.duration}</span>
+                  <span style={{ background:"#EFF6FF", color:"#2563EB", fontSize:11, padding:"2px 8px", borderRadius:99, fontWeight:600 }}>{s.interview_mode==="virtual"?"Virtual":"In-person"}</span>
+                  {s.tech_support_name&&<span style={{ background:"#F0FDF4", color:"#16A34A", fontSize:11, padding:"2px 8px", borderRadius:99, fontWeight:600 }}>Support: {s.tech_support_name}</span>}
+                  {s.support_mode&&<span style={{ background:"#FFFBEB", color:"#D97706", fontSize:11, padding:"2px 8px", borderRadius:99, fontWeight:600 }}>{s.support_mode}</span>}
+                </div>
+                {s.detailed_feedback&&<div style={{ fontSize:12, color:"#334155", lineHeight:1.6, background:"#fff", borderRadius:8, padding:"8px 12px", border:"1px solid #E2E8F0" }}>{s.detailed_feedback}</div>}
+              </div>}
+            </div>;
+          })}
+        </div>
+      </Card>
+
+    </div>}
+
     <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14 }}>
       <Card><CardHeader title="My Candidates" action={<Btn variant="outline" onClick={()=>onNav("candidates")} style={{ fontSize:12, padding:"5px 10px" }}>View all</Btn>}/>
         {candidates.slice(0,5).map(c=><div key={c.id} style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 16px", borderBottom:"1px solid #F1F5F9" }}><Av name={c.name} role="r_lead" size={34}/><div style={{ flex:1 }}><div style={{ fontSize:13, fontWeight:600 }}>{c.name}</div><div style={{ fontSize:11, color:"#94A3B8" }}>{c.tech}</div></div><StatusBadge status={c.status}/></div>)}
