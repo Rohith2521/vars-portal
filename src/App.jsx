@@ -497,7 +497,7 @@ export default function VARSPortal() {
         <div style={{ flex:1, padding:22, overflowY:"auto" }}>
           {loading&&<div style={{ position:"fixed", top:60, right:20, background:"#0F1F3D", color:"#fff", padding:"5px 14px", borderRadius:8, fontSize:12, zIndex:500 }}>Syncing...</div>}
           {page==="dashboard"&&<DashPage user={user} rc={rc} candidates={myCands} logs={logs} getMember={getMember} onNav={setPage} onRefresh={()=>loadData()}/>}
-          {page==="daily_log"&&<LogPage user={user} rc={rc} candidates={myCands} allCands={candidates} onSubmit={addLog} loading={loading} members={members} logs={logs}/>}
+          {page==="daily_log"&&<LogPage user={user} rc={rc} candidates={myCands} allCands={candidates} onSubmit={addLog} loading={loading} members={members} logs={logs} allLogs={logs}/>}
           {page==="candidates"&&<CandPage user={user} rc={rc} candidates={myCands} members={members} onAdd={addCandidate} onAddMember={addMember} logs={logs} getMember={getMember} loading={loading} timeline={timeline} onAddTimeline={addTimeline} token={user?.token} onRefresh={loadData}/>}
           {page==="my_recruiters"&&<MyRecruitersPage user={user} members={members} candidates={candidates} logs={logs} timeline={timeline} getMember={getMember} onAddTimeline={addTimeline} loading={loading}/>}
           {page==="logs_history"&&<HistPage user={user} rc={rc} candidates={myCands} logs={logs} getMember={getMember} allCands={candidates}/>}
@@ -1050,7 +1050,7 @@ function MyRecruitersPage({user,members,candidates,logs,timeline,getMember,onAdd
 }
 
 // ─── DAILY LOG ──────────────────────────────────────────────────────────────
-function LogPage({user,rc,candidates,allCands,onSubmit,loading,members,logs}){
+function LogPage({user,rc,candidates,allCands,onSubmit,loading,members,logs,allLogs}){
   const [form,setForm]=useState({});
   const set=(k,v)=>setForm(p=>({...p,[k]:v}));
   const sub=(type)=>{if(!form.candidate_id)return alert("Select a candidate");onSubmit({...form,type});setForm({});};
@@ -1235,7 +1235,7 @@ function LogPage({user,rc,candidates,allCands,onSubmit,loading,members,logs}){
           sub("manager_feedback");
         }} disabled={loading||!form.candidate_id}>{loading?"Saving...":"Post Feedback"}</Btn>
       </>}
-      {user.role==="president"&&<PresidentDailyView logs={logs||[]} members={members||[]} candidates={allCands||candidates||[]} token={user.token} user={user}/>}
+      {user.role==="president"&&<PresidentDailyView logs={allLogs||logs||[]} members={members||[]} candidates={allCands||candidates||[]} token={user.token} user={user}/>}
     </Card>
   </div>;
 }
