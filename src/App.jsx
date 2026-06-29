@@ -2881,7 +2881,7 @@ function ProfileDropdown({user,rc,onClose,onLogout,token}){
 
 // ─── PRESIDENT DAILY VIEW ────────────────────────────────────────────────────
 function PresidentDailyView({logs,members,candidates,token,user}){
-  const [selDate,setSelDate]=useState(today());
+  const [selDate,setSelDate]=useState(new Date().toISOString().split('T')[0]);
   const [selRole,setSelRole]=useState("recruiter");
   const [selMember,setSelMember]=useState("");
   const [presNote,setPresNote]=useState("");
@@ -2907,11 +2907,13 @@ function PresidentDailyView({logs,members,candidates,token,user}){
     return m.role===selRole;
   });
 
-  const memberLogs=logs.filter(l=>
-    l.user_id===selMember &&
-    l.log_date===selDate &&
-    l.type===(selRole)
-  );
+  const memberLogs=logs.filter(l=>{
+    if(l.user_id!==selMember)return false;
+    if(l.log_date!==selDate)return false;
+    // manager role tab uses "manager_feedback" type in logs
+    if(selRole==="manager_feedback") return l.type==="manager_feedback";
+    return l.type===selRole;
+  });
 
   const getCand=id=>candidates.find(c=>c.id===id);
 
@@ -2956,7 +2958,11 @@ function PresidentDailyView({logs,members,candidates,token,user}){
       <label style={{display:"block",fontSize:12,fontWeight:600,color:"#475569",marginBottom:8}}>Select Person</label>
       <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
         {roleMembers.map(m=>{
-          const hasLog=logs.some(l=>l.user_id===m.id&&l.log_date===selDate&&l.type===selRole);
+          const hasLog=logs.some(l=>{
+            if(l.user_id!==m.id||l.log_date!==selDate)return false;
+            if(selRole==="manager_feedback") return l.type==="manager_feedback";
+            return l.type===selRole;
+          });
           return <button key={m.id} onClick={()=>setSelMember(m.id)} style={{padding:"8px 14px",borderRadius:10,fontSize:12,fontWeight:600,cursor:"pointer",background:selMember===m.id?"#EFF6FF":"#fff",color:selMember===m.id?"#2563EB":"#475569",border:`1px solid ${selMember===m.id?"#2563EB":"#E2E8F0"}`,display:"flex",alignItems:"center",gap:6}}>
             <span style={{width:8,height:8,borderRadius:"50%",background:hasLog?"#16A34A":"#DC2626",display:"inline-block"}}/>
             {m.name}
