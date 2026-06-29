@@ -673,12 +673,27 @@ function DashPage({user,rc,candidates,allCandidates,logs,getMember,onNav,onRefre
         </div>
       </Card>
 
-      {/* Recent Interview Feedbacks */}
+      {/* Interview Feedbacks - Pending & Recent */}
       <Card>
-        <CardHeader title={`Recent Interview Feedbacks (${interviewSessions.length})`}/>
+        <CardHeader title={`Interview Feedbacks`} action={<span style={{fontSize:11,color:"#D97706",background:"#FFFBEB",padding:"2px 8px",borderRadius:99,fontWeight:600}}>{interviewSessions.filter(s=>s.feedback_status==="waiting"||!s.feedback_status).length} pending</span>}/>
         <div style={{ padding:"0 0 8px" }}>
+          {/* Pending feedbacks first */}
+          {interviewSessions.filter(s=>s.feedback_status==="waiting"||!s.feedback_status).length>0&&<div style={{padding:"10px 16px",borderBottom:"1px solid #F1F5F9",background:"#FFFBEB"}}>
+            <div style={{fontSize:11,fontWeight:700,color:"#D97706",marginBottom:8}}>WAITING FOR FEEDBACK</div>
+            {interviewSessions.filter(s=>s.feedback_status==="waiting"||!s.feedback_status).map(s=>{
+              const cand=allCands.find(c=>c.id===s.candidate_id);
+              const ROUNDS={round_1:"Round 1",round_2:"Round 2",round_3:"Round 3",round_4:"Round 4",round_5:"Round 5",round_6:"Round 6",final:"Final"};
+              return <div key={s.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+                <div>
+                  <div style={{fontSize:12,fontWeight:600,color:"#0F172A"}}>{cand?.name||"?"} — {ROUNDS[s.round]||s.round}</div>
+                  {s.feedback_from&&<div style={{fontSize:11,color:"#D97706"}}>Need to receive feedback from {s.feedback_from}</div>}
+                </div>
+                <div style={{fontSize:11,color:"#94A3B8"}}>{fmtDate(s.interview_date)}</div>
+              </div>;
+            })}
+          </div>}
           {interviewSessions.length===0&&<div style={{ padding:"16px", fontSize:13, color:"#94A3B8" }}>No interview sessions yet.</div>}
-          {interviewSessions.slice(0,8).map(s=>{
+          {interviewSessions.filter(s=>s.feedback_status==="received").slice(0,5).map(s=>{
             const cand=allCands.find(c=>c.id===s.candidate_id);
             const ROUNDS={round_1:"Round 1",round_2:"Round 2",round_3:"Round 3",round_4:"Round 4",round_5:"Round 5",round_6:"Round 6",final:"Final"};
             const fbColor=s.overall_feedback==="went_well"?"#16A34A":s.overall_feedback==="okay"?"#D97706":"#DC2626";
@@ -1939,6 +1954,19 @@ function InterviewsPage({user,rc,candidates,token,loading,setToast}){
         <Textarea label="Detailed Feedback *" value={form.detailed_feedback||""} onChange={e=>set("detailed_feedback",e.target.value)} placeholder="Detailed interview feedback — mandatory..."/>
         <Input label="Interview with (Company / Person) *" value={form.with_whom||""} onChange={e=>set("with_whom",e.target.value)} placeholder="e.g. TechCorp — Sarah Johnson"/>
         <Input label="Tech support name *" value={form.tech_support_name||""} onChange={e=>set("tech_support_name",e.target.value)} placeholder="Support person name"/>
+        <div style={{marginBottom:14}}>
+          <label style={{display:"block",fontSize:12,fontWeight:500,color:"#475569",marginBottom:8}}>Feedback from *</label>
+          <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+            {["End Client","Prime Vendor","Vendor"].map(f=><button key={f} type="button" onClick={()=>set("feedback_from",f)} style={{padding:"6px 12px",borderRadius:8,fontSize:12,fontWeight:600,cursor:"pointer",background:form.feedback_from===f?"#EFF6FF":"#fff",color:form.feedback_from===f?"#2563EB":"#94A3B8",border:`1px solid ${form.feedback_from===f?"#2563EB":"#E2E8F0"}`}}>{f}</button>)}
+          </div>
+        </div>
+        <div style={{marginBottom:14}}>
+          <label style={{display:"block",fontSize:12,fontWeight:500,color:"#475569",marginBottom:8}}>Feedback status *</label>
+          <div style={{display:"flex",gap:8}}>
+            {[{v:"received",l:"Received"},{v:"waiting",l:"Waiting for feedback"}].map(s=><button key={s.v} type="button" onClick={()=>set("feedback_status",s.v)} style={{padding:"6px 12px",borderRadius:8,fontSize:12,fontWeight:600,cursor:"pointer",background:form.feedback_status===s.v?"#EFF6FF":"#fff",color:form.feedback_status===s.v?"#2563EB":"#94A3B8",border:`1px solid ${form.feedback_status===s.v?"#2563EB":"#E2E8F0"}`}}>{s.l}</button>)}
+          </div>
+        </div>
+        {form.feedback_status==="received"&&<Textarea label="Official feedback" value={form.official_feedback||""} onChange={e=>set("official_feedback",e.target.value)} placeholder="Enter the official feedback received..."/>}
         <div style={{marginBottom:14}}>
           <label style={{display:"block",fontSize:12,fontWeight:500,color:"#475569",marginBottom:8}}>Interview mode *</label>
           <div style={{display:"flex",gap:8}}>
