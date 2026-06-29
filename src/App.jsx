@@ -1001,7 +1001,7 @@ function CandidateProfile({candidate,members,logs,timeline,getMember,onAddTimeli
         <div style={{ fontSize:14, fontWeight:700, color:"#DC2626", marginBottom:8 }}>❌ Dropped from Marketing</div>
         <div style={{ fontSize:13, color:"#475569" }}>{candidate.status_reason||"No reason provided."}</div>
       </div>}
-    <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14 }}>
+      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14 }}>
       <Card style={{ padding:16 }}>
         <div style={{ fontWeight:600, fontSize:14, marginBottom:12 }}>📋 Latest Pipeline Status</div>
         {candTimeline.filter(t=>t.entry_type==="pipeline_update").slice(0,1).map(t=><div key={t.id} style={{ background:"#F8FAFC", borderRadius:8, padding:12 }}><div style={{ fontSize:13, fontWeight:600 }}>{t.title}</div><div style={{ fontSize:12, color:"#475569", marginTop:4 }}>{t.details}</div><div style={{ fontSize:11, color:"#94A3B8", marginTop:4 }}>{fmtDateTime(t.created_at)}</div></div>)}
