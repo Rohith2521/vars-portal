@@ -1783,6 +1783,7 @@ function InterviewsPage({user,rc,candidates,token,loading,setToast}){
   const [showAddPipeline,setShowAddPipeline]=useState(false);
   const [showAddUpdate,setShowAddUpdate]=useState(null);
   const [showDeletePipeline,setShowDeletePipeline]=useState(null);
+  const [selectedInterview,setSelectedInterview]=useState(null);
   const [form,setForm]=useState({});
   const set=(k,v)=>setForm(p=>({...p,[k]:v}));
 
@@ -1874,6 +1875,21 @@ function InterviewsPage({user,rc,candidates,token,loading,setToast}){
   const SUPPORT_MODES=[{v:"sync",l:"Sync"},{v:"otter",l:"Otter"},{v:"prompt",l:"Prompt"},{v:"otter_prompt",l:"Otter+Prompt"}];
 
   if(loadingData)return <div style={{padding:40,textAlign:"center",color:"#94A3B8"}}>Loading interviews...</div>;
+
+  if(selectedInterview) return <InterviewDetailView
+    interview={selectedInterview}
+    user={user}
+    token={token}
+    onBack={()=>setSelectedInterview(null)}
+    onUpdate={async(updatedData)=>{
+      try {
+        await sb.patch("interview_sessions",selectedInterview.id,updatedData,token);
+        const s=await sb.get("interview_sessions","select=*&order=created_at.desc",token);
+        if(Array.isArray(s))setSessions(s);
+        setSelectedInterview({...selectedInterview,...updatedData});
+      } catch(e){alert("Error updating.");}
+    }}
+  />;
 
   return <div>
     <div style={{fontSize:20,fontWeight:700,marginBottom:4}}>Interviews</div>
