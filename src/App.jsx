@@ -479,6 +479,8 @@ export default function VARSPortal() {
     stats:"ti-chart-bar",
     team:"ti-building",
     notifications:"ti-bell",
+    screening_calls:"ti-phone",
+    status_report:"ti-file-text",
   };
   const navItems=[
     {id:"dashboard",label:"Dashboard",always:true},
@@ -487,6 +489,8 @@ export default function VARSPortal() {
     {id:"recruiters",label:"Recruiters",show:rc.isAdmin},
     {id:"my_recruiters",label:"My Recruiters",show:user.role==="r_lead"},
     {id:"interviews",label:"Interviews",show:user.role==="r_lead"||user.role==="c_lead"||user.role==="manager"||user.role==="president"},
+    {id:"screening_calls",label:"Screening Calls",show:user.role==="r_lead"||user.role==="c_lead"||user.role==="manager"||user.role==="president"},
+    {id:"status_report",label:"Status Report",show:user.role==="manager"||user.role==="president"},
     {id:"logs_history",label:"Log History",always:true},
     {id:"status_meeting",label:"Status Meeting",always:true},
     {id:"overall_status",label:"Overall Status",show:user.role==="president"},
@@ -560,6 +564,8 @@ export default function VARSPortal() {
           {page==="dashboard"&&<DashPage user={user} rc={rc} candidates={rc.canViewAll?candidates:myCands} allCandidates={candidates} logs={logs} getMember={getMember} onNav={setPage} onRefresh={()=>loadData()} members={members} token={user?.token}/>}
           {page==="daily_log"&&<LogPage user={user} rc={rc} candidates={myCands} allCands={candidates} onSubmit={addLog} loading={loading} members={members} logs={logs} allLogs={logs} onRefresh={()=>loadData()}/>}
           {page==="candidates"&&<CandPage user={user} rc={rc} candidates={myCands} members={members} onAdd={addCandidate} onAddMember={addMember} logs={logs} getMember={getMember} loading={loading} timeline={timeline} onAddTimeline={addTimeline} token={user?.token} onRefresh={loadData}/>}
+          {page==="screening_calls"&&<ScreeningCallsPage user={user} rc={rc} candidates={rc.canViewAll?candidates:myCands} allCandidates={candidates} members={members} token={user?.token} getMember={getMember}/>}
+          {page==="status_report"&&<StatusReportPage user={user} rc={rc} candidates={candidates} members={members} logs={logs} token={user?.token} getMember={getMember}/>}
           {page==="recruiters"&&<RecruitersPage user={user} rc={rc} members={members} candidates={candidates} logs={logs} getMember={getMember} loading={loading} token={user?.token} onRefresh={loadData} onAdd={addMember}/>}
           {page==="my_recruiters"&&<MyRecruitersPage user={user} members={members} candidates={candidates} logs={logs} timeline={timeline} getMember={getMember} onAddTimeline={addTimeline} loading={loading}/>}
           {page==="logs_history"&&<HistPage user={user} rc={rc} candidates={myCands} logs={logs} getMember={getMember} allCands={candidates}/>}
@@ -1997,6 +2003,15 @@ function InterviewsPage({user,rc,candidates,token,loading,setToast}){
           </div>
         </div>
         {form.feedback_status==="received"&&<Textarea label="Official feedback" value={form.official_feedback||""} onChange={e=>set("official_feedback",e.target.value)} placeholder="Enter the official feedback received..."/>}
+        <div style={{marginBottom:14}}>
+          <label style={{display:"block",fontSize:12,fontWeight:500,color:"#475569",marginBottom:8}}>Joined on time?</label>
+          <div style={{display:"flex",gap:8}}>
+            <button type="button" onClick={()=>set("joined_on_time","yes")} style={{padding:"6px 16px",borderRadius:8,fontSize:12,fontWeight:600,cursor:"pointer",background:form.joined_on_time==="yes"||!form.joined_on_time?"#F0FDF4":"#fff",color:form.joined_on_time==="yes"||!form.joined_on_time?"#16A34A":"#94A3B8",border:`1px solid ${form.joined_on_time==="yes"||!form.joined_on_time?"#16A34A":"#E2E8F0"}`}}>Yes — On Time</button>
+            <button type="button" onClick={()=>set("joined_on_time","no")} style={{padding:"6px 16px",borderRadius:8,fontSize:12,fontWeight:600,cursor:"pointer",background:form.joined_on_time==="no"?"#FEF2F2":"#fff",color:form.joined_on_time==="no"?"#DC2626":"#94A3B8",border:`1px solid ${form.joined_on_time==="no"?"#DC2626":"#E2E8F0"}`}}>No — Late</button>
+          </div>
+        </div>
+        {form.joined_on_time==="no"&&<Input label="Late by (minutes) *" type="number" value={form.late_by_minutes||""} onChange={e=>set("late_by_minutes",e.target.value)} placeholder="e.g. 5"/>}
+        <Textarea label="Remarks (optional)" value={form.remarks||""} onChange={e=>set("remarks",e.target.value)} placeholder="Any additional remarks..."/>
         <div style={{marginBottom:14}}>
           <label style={{display:"block",fontSize:12,fontWeight:500,color:"#475569",marginBottom:8}}>Interview mode *</label>
           <div style={{display:"flex",gap:8}}>
@@ -3966,4 +3981,360 @@ function TeamPerformanceSection({allCandidates,members,getMember}){
       </div>}
     </div>
   </Card>;
+}
+
+// ─── SCREENING CALLS PAGE ────────────────────────────────────────────────────
+function ScreeningCallsPage({user,rc,candidates,allCandidates,members,token,getMember}){
+  const [calls,setCalls]=useState([]);
+  const [loading,setLoading]=useState(true);
+  const [showAdd,setShowAdd]=useState(false);
+  const [form,setForm]=useState({});
+  const [saving,setSaving]=useState(false);
+  const set=(k,v)=>setForm(p=>({...p,[k]:v}));
+
+  useEffect(()=>{
+    sb.get("screening_calls","select=*&order=call_date.desc",token).then(r=>{
+      if(Array.isArray(r))setCalls(r);
+      setLoading(false);
+    });
+  },[token]);
+
+  const submit=async()=>{
+    if(!form.candidate_id)return alert("Select a candidate");
+    if(!form.call_date)return alert("Call date is mandatory");
+    if(!form.with_whom?.trim())return alert("With whom is mandatory");
+    if(!form.company_name?.trim())return alert("Company name is mandatory");
+    if(!form.outcome)return alert("Select outcome");
+    setSaving(true);
+    try {
+      const res=await sb.post("screening_calls",{
+        candidate_id:form.candidate_id,
+        user_id:user.id,
+        call_date:form.call_date,
+        with_whom:form.with_whom,
+        company_name:form.company_name,
+        company_details:form.company_details||"",
+        feedback:form.feedback||"",
+        outcome:form.outcome,
+        added_by:user.id,
+      },token);
+      const r=await sb.get("screening_calls","select=*&order=call_date.desc",token);
+      if(Array.isArray(r))setCalls(r);
+      setForm({});setShowAdd(false);
+    } catch(e){alert("Error saving.");}
+    setSaving(false);
+  };
+
+  const myCalls=rc.canViewAll?calls:calls.filter(c=>c.user_id===user.id);
+  const OUTCOMES=["Positive","Negative","Pending","No Show"];
+  const outcomeColor={Positive:"#16A34A",Negative:"#DC2626",Pending:"#D97706","No Show":"#94A3B8"};
+  const outcomeBg={Positive:"#F0FDF4",Negative:"#FEF2F2",Pending:"#FFFBEB","No Show":"#F1F5F9"};
+
+  if(loading)return <div style={{padding:40,textAlign:"center",color:"#94A3B8"}}>Loading...</div>;
+
+  return <div>
+    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}>
+      <div>
+        <div style={{fontSize:20,fontWeight:700,marginBottom:2}}>Screening Calls</div>
+        <div style={{fontSize:13,color:"#94A3B8"}}>{myCalls.length} total · {myCalls.filter(c=>c.outcome==="Positive").length} positive</div>
+      </div>
+      {(user.role==="r_lead"||user.role==="c_lead")&&<Btn onClick={()=>setShowAdd(true)}>+ Add Screening Call</Btn>}
+    </div>
+
+    {/* Stats */}
+    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:20}}>
+      {OUTCOMES.map(o=><div key={o} style={{background:outcomeBg[o],borderRadius:10,padding:"12px 16px",textAlign:"center"}}>
+        <div style={{fontSize:22,fontWeight:800,color:outcomeColor[o]}}>{myCalls.filter(c=>c.outcome===o).length}</div>
+        <div style={{fontSize:11,color:outcomeColor[o],fontWeight:600}}>{o.toUpperCase()}</div>
+      </div>)}
+    </div>
+
+    {/* Calls list */}
+    <div style={{display:"grid",gap:10}}>
+      {myCalls.map(c=>{
+        const cand=(allCandidates||candidates).find(x=>x.id===c.candidate_id);
+        const addedBy=getMember(c.added_by||c.user_id);
+        return <Card key={c.id} style={{padding:16}}>
+          <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:8}}>
+            <div>
+              <div style={{fontSize:14,fontWeight:700}}>{cand?.name||"?"} · {c.company_name}</div>
+              <div style={{fontSize:12,color:"#94A3B8"}}>{fmtDate(c.call_date)} · With: {c.with_whom}</div>
+              {addedBy&&<div style={{fontSize:11,color:"#2563EB",marginTop:2}}>Added by: {addedBy.name}</div>}
+            </div>
+            <span style={{background:outcomeBg[c.outcome]||"#F1F5F9",color:outcomeColor[c.outcome]||"#94A3B8",fontSize:12,padding:"3px 10px",borderRadius:99,fontWeight:600,flexShrink:0}}>{c.outcome}</span>
+          </div>
+          {c.company_details&&<div style={{fontSize:12,color:"#475569",marginBottom:6}}>Details: {c.company_details}</div>}
+          {c.feedback&&<div style={{background:"#F8FAFC",borderRadius:8,padding:"8px 12px",fontSize:13,color:"#334155"}}>{c.feedback}</div>}
+        </Card>;
+      })}
+      {myCalls.length===0&&<div style={{textAlign:"center",padding:60,color:"#94A3B8",fontSize:14}}>No screening calls yet.</div>}
+    </div>
+
+    {/* Add Modal */}
+    <Modal open={showAdd} onClose={()=>{setShowAdd(false);setForm({});}} title="Add Screening Call">
+      <Select label="Candidate *" value={form.candidate_id||""} onChange={e=>set("candidate_id",e.target.value)}>
+        <option value="">-- Select candidate --</option>
+        {candidates.filter(c=>c.status==="Active").map(c=><option key={c.id} value={c.id}>{c.name} · {c.tech}</option>)}
+      </Select>
+      <Input label="Call date *" type="date" value={form.call_date||""} onChange={e=>set("call_date",e.target.value)}/>
+      <Input label="With whom *" value={form.with_whom||""} onChange={e=>set("with_whom",e.target.value)} placeholder="Person name / HR name"/>
+      <Input label="Company name *" value={form.company_name||""} onChange={e=>set("company_name",e.target.value)} placeholder="e.g. Infosys, TCS"/>
+      <Textarea label="Company details" value={form.company_details||""} onChange={e=>set("company_details",e.target.value)} placeholder="Job role, requirements, location..."/>
+      <Textarea label="Feedback / Notes" value={form.feedback||""} onChange={e=>set("feedback",e.target.value)} placeholder="How did the call go?"/>
+      <div style={{marginBottom:14}}>
+        <label style={{display:"block",fontSize:12,fontWeight:500,color:"#475569",marginBottom:8}}>Outcome *</label>
+        <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+          {OUTCOMES.map(o=><button key={o} onClick={()=>set("outcome",o)} style={{padding:"6px 14px",borderRadius:8,fontSize:12,fontWeight:600,cursor:"pointer",background:form.outcome===o?outcomeBg[o]:"#fff",color:form.outcome===o?outcomeColor[o]:"#94A3B8",border:`1px solid ${form.outcome===o?outcomeColor[o]:"#E2E8F0"}`}}>{o}</button>)}
+        </div>
+      </div>
+      <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
+        <Btn variant="outline" onClick={()=>{setShowAdd(false);setForm({});}}>Cancel</Btn>
+        <Btn onClick={submit} disabled={saving}>{saving?"Saving...":"Add Call"}</Btn>
+      </div>
+    </Modal>
+  </div>;
+}
+
+// ─── STATUS REPORT PAGE ───────────────────────────────────────────────────────
+function StatusReportPage({user,rc,candidates,members,logs,token,getMember}){
+  const [selCand,setSelCand]=useState("");
+  const [fromDate,setFromDate]=useState("");
+  const [toDate,setToDate]=useState("");
+  const [report,setReport]=useState(null);
+  const [generating,setGenerating]=useState(false);
+  const [sessions,setSessions]=useState([]);
+  const [pipeline,setPipeline]=useState([]);
+  const [screeningCalls,setScreeningCalls]=useState([]);
+
+  useEffect(()=>{
+    if(token){
+      sb.get("interview_sessions","select=*&order=interview_date.desc",token).then(r=>{if(Array.isArray(r))setSessions(r);});
+      sb.get("pipeline_interviews","select=*&order=created_at.desc",token).then(r=>{if(Array.isArray(r))setPipeline(r);});
+      sb.get("screening_calls","select=*&order=call_date.desc",token).then(r=>{if(Array.isArray(r))setScreeningCalls(r);});
+    }
+  },[token]);
+
+  const generate=()=>{
+    if(!selCand)return alert("Select a candidate");
+    if(!fromDate||!toDate)return alert("Select period");
+    setGenerating(true);
+    const cand=candidates.find(c=>c.id===selCand);
+    const inPeriod=d=>d&&d>=fromDate&&d<=toDate;
+
+    // Team
+    const rec=getMember(cand.recruiter_id);
+    const rLead=getMember(cand.r_lead_id);
+    const cLead=getMember(cand.c_lead_id);
+    const ic=getMember(cand.interview_coord_id);
+
+    // Logs
+    const recLogs=logs.filter(l=>l.candidate_id===selCand&&l.type==="recruiter"&&inPeriod(l.log_date)).sort((a,b)=>a.log_date.localeCompare(b.log_date));
+    const rLeadLogs=logs.filter(l=>l.candidate_id===selCand&&l.type==="r_lead"&&inPeriod(l.log_date));
+    const icLogs=logs.filter(l=>l.candidate_id===selCand&&l.type==="interview_coord"&&inPeriod(l.log_date));
+
+    // Submissions breakdown by day
+    const totalEmails=recLogs.reduce((s,l)=>s+(l.emails_sent||0),0);
+    const totalSubs=recLogs.reduce((s,l)=>s+(l.submissions||0),0);
+
+    // Interviews
+    const candSessions=sessions.filter(s=>s.candidate_id===selCand&&inPeriod(s.interview_date));
+    const activeInterviews=pipeline.filter(p=>p.candidate_id===selCand&&p.status==="active");
+    const finalRounds=activeInterviews.filter(p=>p.round?.toLowerCase().includes("final"));
+    const newInterviews=activeInterviews.filter(p=>!p.round?.toLowerCase().includes("final"));
+
+    // Screening calls
+    const candCalls=screeningCalls.filter(s=>s.candidate_id===selCand&&inPeriod(s.call_date));
+    const positiveCalls=candCalls.filter(c=>c.outcome==="Positive").length;
+    const negativeCalls=candCalls.filter(c=>c.outcome==="Negative").length;
+    const noFeedbackCalls=candCalls.filter(c=>c.outcome==="Pending"||c.outcome==="No Show").length;
+
+    // Mocks
+    const vendorMocks=rLeadLogs.filter(l=>l.vendor_mock_conducted==="yes");
+    const interviewMocks=icLogs.filter(l=>l.sessions_done>0);
+
+    setReport({cand,rec,rLead,cLead,ic,recLogs,totalEmails,totalSubs,candSessions,activeInterviews,finalRounds,newInterviews,candCalls,positiveCalls,negativeCalls,noFeedbackCalls,vendorMocks,interviewMocks,icLogs,fromDate,toDate});
+    setGenerating(false);
+  };
+
+  const ROUNDS={round_1:"1st",round_2:"2nd",round_3:"3rd",round_4:"4th",round_5:"5th",round_6:"6th",final:"Final"};
+
+  const downloadPDF=()=>{
+    if(!report)return;
+    const r=report;
+    const win=window.open("","_blank");
+    win.document.write(`<!DOCTYPE html><html><head><title>Status Report — ${r.cand.name}</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:Arial,sans-serif;font-size:11pt;padding:20px;color:#000;}
+.header{border:2px solid #000;padding:10px;margin-bottom:10px;}
+.section{margin-bottom:12px;}
+.title{font-weight:bold;color:#0070C0;font-size:11pt;margin-bottom:4px;}
+.team{color:#0070C0;font-weight:bold;font-size:12pt;}
+table{width:100%;border-collapse:collapse;margin-top:6px;}
+th,td{border:1px solid #000;padding:4px 6px;font-size:10pt;}
+th{background:#f0f0f0;font-weight:bold;}
+.green{color:#00B050;font-weight:bold;}
+.blue{color:#0070C0;font-weight:bold;}
+.purple{color:#7030A0;font-weight:bold;}
+@media print{body{padding:10px;}}
+</style></head><body>
+<div class="header">
+<div class="team">${r.cand.name.toUpperCase()} TEAM (${[r.rec?.name,r.rLead?.name,r.cLead?.name,r.ic?.name].filter(Boolean).join(", ")})</div>
+<div>MARKETING START DATE: <strong>${fmtDate(r.cand.marketing_start_date||r.cand.added_on)}</strong></div>
+${r.rec?`<div>${r.rec.name.toUpperCase()} START DATE: ${fmtDate(r.cand.marketing_start_date||r.cand.added_on)}</div>`:""}
+</div>
+
+<div style="display:flex;gap:20px;">
+<div style="flex:1;">
+<div class="section">
+<div class="title">SUBMISSIONS:</div>
+<div>PERIOD (${r.fromDate} - ${r.toDate}): ${r.totalSubs}</div>
+<div>TOTAL EMAILS: ${r.totalEmails}</div>
+${r.recLogs.length>0?`<table><tr><th>DATE</th><th>EMAILS</th><th>SUBS</th></tr>${r.recLogs.map(l=>`<tr><td>${l.log_date}</td><td>${l.emails_sent||0}</td><td>${l.submissions||0}</td></tr>`).join("")}</table>`:""}
+</div>
+</div>
+
+<div style="flex:1;">
+<div class="section">
+<div class="title green">TOTAL INTERVIEWS: ${r.candSessions.length}</div>
+${r.candSessions.length>0?`<div>LAST INTERVIEW DATE: ${fmtDate(r.candSessions[0]?.interview_date)}</div>`:""}
+<div class="green">ACTIVE INTERVIEWS: ${r.activeInterviews.length}</div>
+${r.activeInterviews.map((p,i)=>`<div>${i+1}. ${p.interview_with} (${ROUNDS[p.round]||p.round} ROUND)</div>`).join("")}
+<div class="green">FINAL ROUNDS IN PIPELINE: ${r.finalRounds.length}</div>
+<div class="green">NEW INTERVIEWS IN PIPELINE: ${r.newInterviews.length}</div>
+${r.newInterviews.map((p,i)=>`<div>${i+1}. ${p.interview_with} ${p.created_at?.split("T")[0]?.slice(5)}</div>`).join("")}
+</div>
+<div class="section">
+<div class="blue">SCREENING CALLS: ${r.candCalls.length}</div>
+<div>POSITIVE: ${r.positiveCalls}</div>
+<div>NEGATIVE: ${r.negativeCalls}</div>
+<div>NO FEEDBACK: ${r.noFeedbackCalls}</div>
+</div>
+<div class="section">
+<div class="purple">INTERVIEW MOCKS: ${r.icLogs.reduce((s,l)=>s+(l.sessions_done||0),0)}</div>
+<div>ISSUES: ${r.icLogs.filter(l=>l.feedback).map(l=>l.feedback).join("; ")||"None"}</div>
+</div>
+<div class="section">
+<div class="purple">VENDOR MOCKS: ${r.vendorMocks.length}</div>
+<div>ISSUES: ${r.vendorMocks.filter(l=>l.vendor_mock_reason).map(l=>l.vendor_mock_reason).join("; ")||"None"}</div>
+</div>
+</div>
+</div>
+
+${r.candSessions.length>0?`
+<table>
+<tr><th>S NO</th><th>DATE</th><th>CLIENT</th><th>ROUND</th><th>STATUS</th><th>REMARKS</th></tr>
+${r.candSessions.map((s,i)=>`<tr>
+<td>${String(i+1).padStart(2,"0")}</td>
+<td>${s.interview_date?.replace(/-/g,"/")}</td>
+<td>${s.with_whom||"—"}</td>
+<td>${ROUNDS[s.round]||s.round}</td>
+<td>${s.feedback_received?s.feedback_outcome?.toUpperCase():"NO FEEDBACK"}</td>
+<td>SUPPORT: ${s.tech_support_name||"—"} JOINED: ${s.joined_on_time==="no"?`${s.late_by_minutes||"?"} MINS LATE`:"ON TIME"} DURATION: ${({less_30:"<30 MINS","30_min":"30 MINS","45_min":"45 MINS","1_hour":"1 HR","1_30_hour":"1.5 HRS","2_hours":"2 HRS","3_hours":"3 HRS"})[s.duration]||s.duration}<br>${s.detailed_feedback||""}</td>
+</tr>`).join("")}
+</table>`:""}
+</body></html>`);
+    win.document.close();
+    setTimeout(()=>win.print(),500);
+  };
+
+  return <div>
+    <div style={{fontSize:20,fontWeight:700,marginBottom:4}}>Status Report</div>
+    <div style={{fontSize:13,color:"#94A3B8",marginBottom:20}}>Auto-generate candidate status report</div>
+
+    <Card style={{padding:20,marginBottom:20}}>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:14,marginBottom:16}}>
+        <Select label="Select Candidate *" value={selCand} onChange={e=>setSelCand(e.target.value)}>
+          <option value="">-- Select --</option>
+          {candidates.map(c=><option key={c.id} value={c.id}>{c.name} · {c.tech}</option>)}
+        </Select>
+        <Input label="From Date *" type="date" value={fromDate} onChange={e=>setFromDate(e.target.value)}/>
+        <Input label="To Date *" type="date" value={toDate} onChange={e=>setToDate(e.target.value)}/>
+      </div>
+      <div style={{display:"flex",gap:10}}>
+        <Btn onClick={generate} disabled={generating}>{generating?"Generating...":"Generate Report"}</Btn>
+        {report&&<Btn variant="outline" onClick={downloadPDF}>Download PDF</Btn>}
+      </div>
+    </Card>
+
+    {report&&<div>
+      {/* Header */}
+      <Card style={{padding:20,marginBottom:14,border:"2px solid #0070C0"}}>
+        <div style={{fontSize:16,fontWeight:800,color:"#0070C0",marginBottom:4}}>{report.cand.name.toUpperCase()} — TEAM ({[report.rec?.name,report.rLead?.name,report.cLead?.name,report.ic?.name].filter(Boolean).join(", ")})</div>
+        <div style={{fontSize:12,marginBottom:2}}>Marketing Start: <strong>{fmtDate(report.cand.marketing_start_date||report.cand.added_on)}</strong></div>
+        <div style={{display:"flex",gap:16,fontSize:12,marginTop:4}}>
+          {report.rec&&<span>Rec: <strong>{report.rec.name}</strong></span>}
+          {report.rLead&&<span>R Lead: <strong>{report.rLead.name}</strong></span>}
+          {report.cLead&&<span>C Lead: <strong>{report.cLead.name}</strong></span>}
+          {report.ic&&<span>IC: <strong>{report.ic.name}</strong></span>}
+        </div>
+      </Card>
+
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:14}}>
+        {/* Submissions */}
+        <Card style={{padding:16}}>
+          <div style={{fontSize:13,fontWeight:700,color:"#0070C0",marginBottom:10}}>SUBMISSIONS</div>
+          <div style={{display:"flex",gap:16,marginBottom:10}}>
+            <div style={{textAlign:"center"}}><div style={{fontSize:24,fontWeight:800,color:"#2563EB"}}>{report.totalEmails}</div><div style={{fontSize:11,color:"#94A3B8"}}>TOTAL EMAILS</div></div>
+            <div style={{textAlign:"center"}}><div style={{fontSize:24,fontWeight:800,color:"#7C3AED"}}>{report.totalSubs}</div><div style={{fontSize:11,color:"#94A3B8"}}>TOTAL SUBS</div></div>
+          </div>
+          {report.recLogs.length>0&&<table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+            <thead><tr style={{background:"#F8FAFC"}}><th style={{padding:"4px 8px",border:"1px solid #E2E8F0",textAlign:"left"}}>Date</th><th style={{padding:"4px 8px",border:"1px solid #E2E8F0"}}>Emails</th><th style={{padding:"4px 8px",border:"1px solid #E2E8F0"}}>Subs</th></tr></thead>
+            <tbody>{report.recLogs.map(l=><tr key={l.id}><td style={{padding:"4px 8px",border:"1px solid #E2E8F0"}}>{l.log_date}</td><td style={{padding:"4px 8px",border:"1px solid #E2E8F0",textAlign:"center"}}>{l.emails_sent||0}</td><td style={{padding:"4px 8px",border:"1px solid #E2E8F0",textAlign:"center"}}>{l.submissions||0}</td></tr>)}</tbody>
+          </table>}
+        </Card>
+
+        {/* Interviews + Screening + Mocks */}
+        <div style={{display:"grid",gap:10}}>
+          <Card style={{padding:14}}>
+            <div style={{fontSize:12,fontWeight:700,color:"#16A34A",marginBottom:8}}>INTERVIEWS — {report.candSessions.length} TOTAL</div>
+            <div style={{fontSize:12,marginBottom:4}}><strong>Active in pipeline:</strong> {report.activeInterviews.length}</div>
+            {report.activeInterviews.map((p,i)=><div key={p.id} style={{fontSize:11,color:"#475569",paddingLeft:8}}>{i+1}. {p.interview_with} ({ROUNDS[p.round]||p.round} Round)</div>)}
+            <div style={{fontSize:12,marginTop:6,marginBottom:4}}><strong>Final rounds:</strong> {report.finalRounds.length}</div>
+            <div style={{fontSize:12,marginTop:4}}><strong>New in pipeline:</strong> {report.newInterviews.length}</div>
+            {report.newInterviews.map((p,i)=><div key={p.id} style={{fontSize:11,color:"#475569",paddingLeft:8}}>{i+1}. {p.interview_with}</div>)}
+          </Card>
+          <Card style={{padding:14}}>
+            <div style={{fontSize:12,fontWeight:700,color:"#2563EB",marginBottom:6}}>SCREENING CALLS — {report.candCalls.length}</div>
+            <div style={{display:"flex",gap:12,fontSize:12}}>
+              <span style={{color:"#16A34A"}}>Positive: <strong>{report.positiveCalls}</strong></span>
+              <span style={{color:"#DC2626"}}>Negative: <strong>{report.negativeCalls}</strong></span>
+              <span style={{color:"#94A3B8"}}>No Feedback: <strong>{report.noFeedbackCalls}</strong></span>
+            </div>
+          </Card>
+          <Card style={{padding:14}}>
+            <div style={{fontSize:12,fontWeight:700,color:"#7C3AED",marginBottom:4}}>INTERVIEW MOCKS — {report.icLogs.reduce((s,l)=>s+(l.sessions_done||0),0)}</div>
+            <div style={{fontSize:12,fontWeight:700,color:"#7C3AED",marginTop:6}}>VENDOR MOCKS — {report.vendorMocks.length}</div>
+          </Card>
+        </div>
+      </div>
+
+      {/* Interview Table */}
+      {report.candSessions.length>0&&<Card style={{padding:16}}>
+        <div style={{fontSize:13,fontWeight:700,color:"#0F172A",marginBottom:12}}>Interview History</div>
+        <div style={{overflowX:"auto"}}>
+          <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+            <thead><tr style={{background:"#F8FAFC"}}>
+              {["S.No","Date","Client","Round","Status","Support","Joined","Duration","Feedback"].map(h=><th key={h} style={{padding:"8px 10px",border:"1px solid #E2E8F0",textAlign:"left",fontWeight:600,color:"#475569"}}>{h}</th>)}
+            </tr></thead>
+            <tbody>{report.candSessions.map((s,i)=>{
+              const statusColor=s.feedback_received&&s.feedback_outcome==="positive"?"#16A34A":s.feedback_received&&s.feedback_outcome==="rejected"?"#DC2626":"#D97706";
+              const statusText=s.feedback_received?s.feedback_outcome==="positive"?"POSITIVE":"REJECTED":"NO FEEDBACK";
+              return <tr key={s.id}>
+                <td style={{padding:"8px 10px",border:"1px solid #E2E8F0",textAlign:"center"}}>{String(i+1).padStart(2,"0")}</td>
+                <td style={{padding:"8px 10px",border:"1px solid #E2E8F0"}}>{s.interview_date}</td>
+                <td style={{padding:"8px 10px",border:"1px solid #E2E8F0",fontWeight:600}}>{s.with_whom||"—"}</td>
+                <td style={{padding:"8px 10px",border:"1px solid #E2E8F0"}}>{ROUNDS[s.round]||s.round}</td>
+                <td style={{padding:"8px 10px",border:"1px solid #E2E8F0",color:statusColor,fontWeight:700}}>{statusText}</td>
+                <td style={{padding:"8px 10px",border:"1px solid #E2E8F0"}}>{s.tech_support_name||"—"}</td>
+                <td style={{padding:"8px 10px",border:"1px solid #E2E8F0",color:s.joined_on_time==="no"?"#DC2626":"#16A34A"}}>{s.joined_on_time==="no"?`${s.late_by_minutes||"?"}m Late`:"On Time"}</td>
+                <td style={{padding:"8px 10px",border:"1px solid #E2E8F0"}}>{{less_30:"<30m","30_min":"30m","45_min":"45m","1_hour":"1hr","1_30_hour":"1.5hr","2_hours":"2hr","3_hours":"3hr"}[s.duration]||s.duration}</td>
+                <td style={{padding:"8px 10px",border:"1px solid #E2E8F0",maxWidth:300,fontSize:11}}>{s.detailed_feedback}</td>
+              </tr>;
+            })}</tbody>
+          </table>
+        </div>
+      </Card>}
+    </div>}
+  </div>;
 }
