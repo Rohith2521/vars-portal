@@ -736,16 +736,18 @@ function DashPage({user,rc,candidates,allCandidates,logs,getMember,onNav,onRefre
 
     </div>}
 
-    <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14 }}>
-      <Card><CardHeader title="My Candidates" action={<Btn variant="outline" onClick={()=>onNav("candidates")} style={{ fontSize:12, padding:"5px 10px" }}>View all</Btn>}/>
-        {candidates.slice(0,5).map(c=><div key={c.id} style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 16px", borderBottom:"1px solid #F1F5F9" }}><Av name={c.name} role="r_lead" size={34}/><div style={{ flex:1 }}><div style={{ fontSize:13, fontWeight:600 }}>{c.name}</div><div style={{ fontSize:11, color:"#94A3B8" }}>{c.tech}</div></div><StatusBadge status={c.status}/></div>)}
-        {candidates.length===0&&<div style={{ padding:24, textAlign:"center", fontSize:13, color:"#94A3B8" }}>No candidates assigned yet.</div>}
-      </Card>
-      <Card><CardHeader title="Recent Logs" action={<Btn variant="outline" onClick={()=>onNav("logs_history")} style={{ fontSize:12, padding:"5px 10px" }}>View all</Btn>}/>
-        {myLogs.slice(0,5).map(l=>{const cand=candidates.find(c=>c.id===l.candidate_id);const m=getMember(l.user_id);return<div key={l.id} style={{ padding:"10px 16px", borderBottom:"1px solid #F1F5F9" }}><div style={{ display:"flex", justifyContent:"space-between" }}><div style={{ fontSize:12, fontWeight:600 }}>{m?.name} <span style={{ color:"#94A3B8", fontWeight:400 }}>→ {cand?.name||"?"}</span></div><RoleBadge role={l.type==="manager_feedback"?"manager":l.type}/></div><div style={{ fontSize:11, color:"#94A3B8", marginTop:2 }}>{fmtDate(l.log_date)} · {l.log_time}</div>{l.type==="recruiter"&&<div style={{ fontSize:11, color:"#475569", marginTop:3 }}>Emails: {l.emails_sent} emails · Subs: {l.submissions} subs</div>}</div>;})}
-        {myLogs.length===0&&<div style={{ padding:24, textAlign:"center", fontSize:13, color:"#94A3B8" }}>No logs yet.</div>}
-      </Card>
-    </div>
+    {user.role==="president"
+      ? <TeamPerformanceSection allCandidates={allCands} members={members||[]} getMember={getMember}/>
+      : <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14 }}>
+          <Card><CardHeader title="My Candidates" action={<Btn variant="outline" onClick={()=>onNav("candidates")} style={{ fontSize:12, padding:"5px 10px" }}>View all</Btn>}/>
+            {candidates.slice(0,5).map(c=><div key={c.id} style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 16px", borderBottom:"1px solid #F1F5F9" }}><Av name={c.name} role="r_lead" size={34}/><div style={{ flex:1 }}><div style={{ fontSize:13, fontWeight:600 }}>{c.name}</div><div style={{ fontSize:11, color:"#94A3B8" }}>{c.tech}</div></div><StatusBadge status={c.status}/></div>)}
+            {candidates.length===0&&<div style={{ padding:24, textAlign:"center", fontSize:13, color:"#94A3B8" }}>No candidates assigned yet.</div>}
+          </Card>
+          <Card><CardHeader title="Recent Logs" action={<Btn variant="outline" onClick={()=>onNav("logs_history")} style={{ fontSize:12, padding:"5px 10px" }}>View all</Btn>}/>
+            {myLogs.slice(0,5).map(l=>{const cand=candidates.find(c=>c.id===l.candidate_id);const m=getMember(l.user_id);return<div key={l.id} style={{ padding:"10px 16px", borderBottom:"1px solid #F1F5F9" }}><div style={{ display:"flex", justifyContent:"space-between" }}><div style={{ fontSize:12, fontWeight:600 }}>{m?.name} <span style={{ color:"#94A3B8", fontWeight:400 }}>→ {cand?.name||"?"}</span></div><RoleBadge role={l.type==="manager_feedback"?"manager":l.type}/></div><div style={{ fontSize:11, color:"#94A3B8", marginTop:2 }}>{fmtDate(l.log_date)} · {l.log_time}</div>{l.type==="recruiter"&&<div style={{ fontSize:11, color:"#475569", marginTop:3 }}>Emails: {l.emails_sent} emails · Subs: {l.submissions} subs</div>}</div>;})}
+            {myLogs.length===0&&<div style={{ padding:24, textAlign:"center", fontSize:13, color:"#94A3B8" }}>No logs yet.</div>}
+          </Card>
+        </div>}
   </div>;
 }
 
@@ -3828,4 +3830,140 @@ function InterviewDetailView({interview,user,token,onBack,onUpdate}){
       </div>}
     </Card>
   </div>;
+}
+
+// ─── TEAM PERFORMANCE SECTION (President Dashboard) ──────────────────────────
+function TeamPerformanceSection({allCandidates,members,getMember}){
+  const [selRole,setSelRole]=useState(null);
+  const [selMember,setSelMember]=useState(null);
+  const [expandedMonth,setExpandedMonth]=useState(null);
+
+  const now=new Date();
+  const thisYear=now.getFullYear();
+  const MONTHS=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const ROLES=[
+    {id:"r_lead",label:"R Lead",color:"#2563EB",bg:"#EFF6FF"},
+    {id:"c_lead",label:"C Lead",color:"#D97706",bg:"#FFFBEB"},
+    {id:"interview_coord",label:"IC",color:"#DC2626",bg:"#FEF2F2"},
+    {id:"recruiter",label:"Recruiter",color:"#16A34A",bg:"#F0FDF4"},
+  ];
+
+  const roleMembers=selRole?members.filter(m=>m.role===selRole&&m.is_active!==false):[];
+
+  // Get closures for a member based on their role
+  const getClosures=(memberId,role)=>{
+    return allCandidates.filter(c=>{
+      if(c.status!=="Placed"||!c.status_updated_at)return false;
+      const d=new Date(c.status_updated_at);
+      if(d.getFullYear()!==thisYear)return false;
+      if(role==="r_lead") return c.r_lead_id===memberId;
+      if(role==="c_lead") return c.c_lead_id===memberId;
+      if(role==="interview_coord") return c.interview_coord_id===memberId;
+      if(role==="recruiter") return c.recruiter_id===memberId;
+      return false;
+    });
+  };
+
+  const memberClosures=selMember?getClosures(selMember.id,selRole):[];
+
+  const monthlyBreakdown=MONTHS.slice(0,now.getMonth()+1).map((m,i)=>{
+    const placed=memberClosures.filter(c=>{
+      const d=new Date(c.status_updated_at);
+      return d.getMonth()===i&&d.getFullYear()===thisYear;
+    });
+    return {month:m,monthIdx:i,count:placed.length,candidates:placed};
+  }).reverse();
+
+  return <Card>
+    <CardHeader title="Individual Team Performance"/>
+    <div style={{padding:16}}>
+
+      {/* Role tabs */}
+      {!selRole&&<div>
+        <div style={{fontSize:13,color:"#94A3B8",marginBottom:12}}>Select a role to view team performance</div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10}}>
+          {ROLES.map(r=><button key={r.id} onClick={()=>{setSelRole(r.id);setSelMember(null);setExpandedMonth(null);}} style={{padding:"14px 10px",borderRadius:10,background:r.bg,color:r.color,border:`1px solid ${r.color}30`,cursor:"pointer",fontSize:13,fontWeight:700,textAlign:"center"}}>
+            <div style={{fontSize:20,marginBottom:4}}>{r.id==="r_lead"?"R":r.id==="c_lead"?"C":r.id==="interview_coord"?"IC":"Rec"}</div>
+            {r.label}
+            <div style={{fontSize:11,fontWeight:400,marginTop:2}}>{members.filter(m=>m.role===r.id&&m.is_active!==false).length} members</div>
+          </button>)}
+        </div>
+      </div>}
+
+      {/* Members list */}
+      {selRole&&!selMember&&<div>
+        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16}}>
+          <button onClick={()=>{setSelRole(null);setSelMember(null);}} style={{background:"none",border:"none",color:"#2563EB",cursor:"pointer",fontSize:13,fontWeight:600,padding:0}}>← Back</button>
+          <span style={{fontSize:14,fontWeight:700}}>{ROLES.find(r=>r.id===selRole)?.label} Team</span>
+        </div>
+        <div style={{display:"grid",gap:10}}>
+          {roleMembers.map(m=>{
+            const closures=getClosures(m.id,selRole);
+            return <div key={m.id} onClick={()=>{setSelMember(m);setExpandedMonth(null);}} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"14px 16px",border:"1px solid #E2E8F0",borderRadius:10,cursor:"pointer",background:"#fff"}}>
+              <div style={{display:"flex",alignItems:"center",gap:12}}>
+                <Av name={m.name} role={m.role} size={40}/>
+                <div>
+                  <div style={{fontSize:14,fontWeight:700}}>{m.name}</div>
+                  <div style={{fontSize:11,color:"#94A3B8"}}>{m.email}</div>
+                </div>
+              </div>
+              <div style={{textAlign:"right"}}>
+                <div style={{fontSize:22,fontWeight:800,color:"#7C3AED"}}>{closures.length}</div>
+                <div style={{fontSize:11,color:"#94A3B8"}}>closures {thisYear}</div>
+              </div>
+            </div>;
+          })}
+          {roleMembers.length===0&&<div style={{padding:24,textAlign:"center",color:"#94A3B8",fontSize:13}}>No {ROLES.find(r=>r.id===selRole)?.label} members found.</div>}
+        </div>
+      </div>}
+
+      {/* Member detail - monthly breakdown */}
+      {selRole&&selMember&&<div>
+        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16}}>
+          <button onClick={()=>{setSelMember(null);setExpandedMonth(null);}} style={{background:"none",border:"none",color:"#2563EB",cursor:"pointer",fontSize:13,fontWeight:600,padding:0}}>← Back</button>
+          <div style={{display:"flex",alignItems:"center",gap:10}}>
+            <Av name={selMember.name} role={selMember.role} size={36}/>
+            <div>
+              <div style={{fontSize:15,fontWeight:700}}>{selMember.name}</div>
+              <div style={{fontSize:11,color:"#94A3B8"}}>{ROLES.find(r=>r.id===selRole)?.label}</div>
+            </div>
+          </div>
+          <div style={{marginLeft:"auto",background:"#F5F3FF",borderRadius:8,padding:"6px 14px",textAlign:"center"}}>
+            <div style={{fontSize:20,fontWeight:800,color:"#7C3AED"}}>{memberClosures.length}</div>
+            <div style={{fontSize:10,color:"#7C3AED",fontWeight:600}}>TOTAL CLOSURES {thisYear}</div>
+          </div>
+        </div>
+
+        <div style={{display:"grid",gap:8}}>
+          {monthlyBreakdown.map(m=><div key={m.monthIdx}>
+            <div onClick={()=>setExpandedMonth(expandedMonth===m.monthIdx?null:m.monthIdx)} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"12px 14px",border:`1px solid ${expandedMonth===m.monthIdx?"#DDD6FE":"#E2E8F0"}`,borderRadius:expandedMonth===m.monthIdx?"10px 10px 0 0":10,cursor:"pointer",background:expandedMonth===m.monthIdx?"#F5F3FF":"#fff"}}>
+              <div style={{fontSize:13,fontWeight:600,color:expandedMonth===m.monthIdx?"#7C3AED":"#0F172A"}}>{m.month} {thisYear}</div>
+              <div style={{display:"flex",alignItems:"center",gap:10}}>
+                <span style={{fontSize:13,fontWeight:700,color:m.count>0?"#7C3AED":"#94A3B8"}}>{m.count} closure{m.count!==1?"s":""}</span>
+                <span style={{fontSize:11,color:"#94A3B8"}}>{expandedMonth===m.monthIdx?"▲":"▼"}</span>
+              </div>
+            </div>
+            {expandedMonth===m.monthIdx&&<div style={{border:"1px solid #DDD6FE",borderTop:"none",borderRadius:"0 0 10px 10px",background:"#FAFAFF"}}>
+              {m.candidates.length===0&&<div style={{padding:"12px 16px",fontSize:13,color:"#94A3B8"}}>No closures this month.</div>}
+              {m.candidates.map(c=><div key={c.id} style={{padding:"12px 16px",borderBottom:"1px solid #F1F5F9"}}>
+                <div style={{fontSize:13,fontWeight:700,marginBottom:6}}>{c.name} · {c.tech}</div>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:4,fontSize:11,color:"#475569",marginBottom:6}}>
+                  {c.vendor_name&&<div>Vendor: <strong>{c.vendor_name}</strong></div>}
+                  {c.prime_vendor&&<div>Prime: <strong>{c.prime_vendor}</strong></div>}
+                  {c.end_client&&<div>Client: <strong>{c.end_client}</strong></div>}
+                  {c.project_start_date&&<div>Start: <strong>{fmtDate(c.project_start_date)}</strong></div>}
+                </div>
+                <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                  {c.recruiter_id&&<span style={{background:"#F0FDF4",color:"#16A34A",fontSize:10,padding:"1px 7px",borderRadius:99,fontWeight:600}}>Rec: {getMember(c.recruiter_id)?.name||"?"}</span>}
+                  {c.r_lead_id&&<span style={{background:"#EFF6FF",color:"#2563EB",fontSize:10,padding:"1px 7px",borderRadius:99,fontWeight:600}}>R Lead: {getMember(c.r_lead_id)?.name||"?"}</span>}
+                  {c.c_lead_id&&<span style={{background:"#FFFBEB",color:"#D97706",fontSize:10,padding:"1px 7px",borderRadius:99,fontWeight:600}}>C Lead: {getMember(c.c_lead_id)?.name||"?"}</span>}
+                  {c.interview_coord_id&&<span style={{background:"#FEF2F2",color:"#DC2626",fontSize:10,padding:"1px 7px",borderRadius:99,fontWeight:600}}>IC: {getMember(c.interview_coord_id)?.name||"?"}</span>}
+                </div>
+              </div>)}
+            </div>}
+          </div>)}
+        </div>
+      </div>}
+    </div>
+  </Card>;
 }
