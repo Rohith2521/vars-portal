@@ -1913,7 +1913,9 @@ function InterviewsPage({user,rc,candidates,token,loading,setToast}){
           const durationLabel=DURATIONS.find(d=>d.v===s.duration)?.l||s.duration;
           const fbColors={went_well:["#16A34A","#F0FDF4"],okay:["#D97706","#FFFBEB"],not_went_well:["#DC2626","#FEF2F2"]};
           const [fc,fb]=fbColors[s.overall_feedback]||["#94A3B8","#F1F5F9"];
-          const cardBorder=s.feedback_status==="received"?"2px solid #BBF7D0":s.feedback_status==="waiting"?"2px solid #FDE68A":s.overall_feedback==="went_well"?"2px solid #BBF7D0":s.overall_feedback==="not_went_well"?"2px solid #FECACA":"1px solid #E2E8F0";
+          const cardBorder=s.feedback_received&&s.feedback_outcome==="positive"?"2px solid #BBF7D0":
+            s.feedback_received&&s.feedback_outcome==="rejected"?"2px solid #FECACA":
+            "2px solid #FDE68A";
           return <Card key={s.id} onClick={()=>setSelectedInterview(s)} style={{padding:18,cursor:"pointer",border:cardBorder}}>
             <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:12}}>
               <div style={{display:"flex",alignItems:"center",gap:12}}>
@@ -3642,20 +3644,32 @@ function RecruitersPage({user,rc,members,candidates,logs,getMember,loading,token
 function InterviewDetailView({interview,user,token,onBack,onUpdate}){
   const [feedbackReceived,setFeedbackReceived]=useState(interview.feedback_received||false);
   const [feedbackFrom,setFeedbackFrom]=useState(interview.feedback_from||"");
+  const [feedbackOutcome,setFeedbackOutcome]=useState(interview.feedback_outcome||"");
+  const [feedbackReason,setFeedbackReason]=useState(interview.feedback_reason||"");
+  const [nextSteps,setNextSteps]=useState(interview.next_steps||"");
   const [officialFeedback,setOfficialFeedback]=useState(interview.official_feedback||"");
   const [expectedDate,setExpectedDate]=useState(interview.feedback_expected_date||"");
   const [saving,setSaving]=useState(false);
-  const [editMode,setEditMode]=useState(false);
+  const [editMode,setEditMode]=useState(!interview.feedback_received&&!interview.feedback_expected_date);
 
   const isLocked=interview.feedback_locked;
   const canEdit=user.role==="manager"||user.role==="president";
   const ROUNDS={round_1:"Round 1",round_2:"Round 2",round_3:"Round 3",round_4:"Round 4",round_5:"Round 5",round_6:"Round 6",final:"Final"};
   const DURATIONS={less_30:"<30 min","30_min":"30 min","45_min":"45 min","1_hour":"1 Hour","1_30_hour":"1.5 Hours","2_hours":"2 Hours","3_hours":"3 Hours"};
 
+  const statusColor=interview.feedback_received&&interview.feedback_outcome==="positive"?"#16A34A":
+    interview.feedback_received&&interview.feedback_outcome==="rejected"?"#DC2626":"#D97706";
+  const statusBg=interview.feedback_received&&interview.feedback_outcome==="positive"?"#F0FDF4":
+    interview.feedback_received&&interview.feedback_outcome==="rejected"?"#FEF2F2":"#FFFBEB";
+  const statusBorder=interview.feedback_received&&interview.feedback_outcome==="positive"?"#BBF7D0":
+    interview.feedback_received&&interview.feedback_outcome==="rejected"?"#FECACA":"#FDE68A";
+
   const saveFeedback=async()=>{
     if(feedbackReceived){
       if(!feedbackFrom)return alert("Select who feedback is from");
-      if(!officialFeedback.trim())return alert("Official feedback details are mandatory");
+      if(!feedbackOutcome)return alert("Select outcome — Positive or Rejected");
+      if(feedbackOutcome==="rejected"&&!feedbackReason.trim())return alert("Rejection reason is mandatory");
+      if(feedbackOutcome==="positive"&&!nextSteps.trim())return alert("Next steps are mandatory");
     } else {
       if(!expectedDate)return alert("Expected date is mandatory");
     }
@@ -3664,6 +3678,9 @@ function InterviewDetailView({interview,user,token,onBack,onUpdate}){
       const data={
         feedback_received:feedbackReceived,
         feedback_from:feedbackFrom||null,
+        feedback_outcome:feedbackOutcome||null,
+        feedback_reason:feedbackReason||null,
+        next_steps:nextSteps||null,
         official_feedback:officialFeedback||null,
         feedback_expected_date:expectedDate||null,
         feedback_locked:feedbackReceived?true:false,
@@ -3680,65 +3697,99 @@ function InterviewDetailView({interview,user,token,onBack,onUpdate}){
   return <div>
     <button onClick={onBack} style={{background:"none",border:"none",color:"#2563EB",cursor:"pointer",fontSize:13,fontWeight:600,marginBottom:16,padding:0}}>← Back to interviews</button>
 
-    {/* LATEST STATUS — Top */}
-    <div style={{background:interview.feedback_received?"#F0FDF4":"#FFFBEB",border:`1px solid ${interview.feedback_received?"#BBF7D0":"#FDE68A"}`,borderRadius:12,padding:"16px 20px",marginBottom:16}}>
+    {/* STATUS BANNER */}
+    <div style={{background:statusBg,border:`1px solid ${statusBorder}`,borderRadius:12,padding:"16px 20px",marginBottom:16}}>
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
         <div>
-          <div style={{fontSize:13,fontWeight:700,color:interview.feedback_received?"#16A34A":"#D97706",marginBottom:4}}>
+          <div style={{fontSize:14,fontWeight:700,color:statusColor,marginBottom:4}}>
             {interview.feedback_received
-              ? `Feedback received from ${interview.feedback_from||"—"}`
-              : `Waiting for feedback${interview.feedback_from?` from ${interview.feedback_from}`:""}`}
+              ? interview.feedback_outcome==="positive"
+                ? `Positive feedback received from ${interview.feedback_from||"—"}`
+                : `Rejected by ${interview.feedback_from||"—"}`
+              : `Waiting for feedback${interview.feedback_expected_date?` · Expected by ${fmtDate(interview.feedback_expected_date)}`:""}`}
           </div>
-          {!interview.feedback_received&&interview.feedback_expected_date&&<div style={{fontSize:12,color:"#D97706"}}>Expected by: {fmtDate(interview.feedback_expected_date)}</div>}
-          {interview.feedback_received&&interview.official_feedback&&<div style={{fontSize:12,color:"#16A34A",marginTop:2}}>Feedback on file</div>}
+          {interview.feedback_received&&interview.feedback_outcome==="rejected"&&interview.feedback_reason&&
+            <div style={{fontSize:12,color:"#DC2626",marginTop:2}}>Reason: {interview.feedback_reason}</div>}
+          {interview.feedback_received&&interview.feedback_outcome==="positive"&&interview.next_steps&&
+            <div style={{fontSize:12,color:"#16A34A",marginTop:2}}>Next steps: {interview.next_steps}</div>}
         </div>
         <div>
-          {isLocked&&!editMode&&<div style={{fontSize:11,color:"#94A3B8",background:"#F1F5F9",padding:"4px 10px",borderRadius:8}}>
-            {canEdit?<button onClick={()=>setEditMode(true)} style={{background:"none",border:"none",color:"#2563EB",cursor:"pointer",fontSize:11,fontWeight:600,padding:0}}>Edit feedback</button>:"Contact manager to edit"}
-          </div>}
-          {!isLocked&&!editMode&&<button onClick={()=>setEditMode(true)} style={{background:"#2563EB",color:"#fff",border:"none",borderRadius:8,padding:"6px 14px",fontSize:12,fontWeight:600,cursor:"pointer"}}>Update feedback status</button>}
-          {editMode&&<button onClick={()=>setEditMode(false)} style={{background:"none",border:"1px solid #E2E8F0",borderRadius:8,padding:"6px 14px",fontSize:12,cursor:"pointer",color:"#475569"}}>Cancel</button>}
+          {isLocked&&!editMode&&canEdit&&<button onClick={()=>setEditMode(true)} style={{background:"none",border:"1px solid #E2E8F0",borderRadius:8,padding:"5px 12px",color:"#2563EB",cursor:"pointer",fontSize:11,fontWeight:600}}>Edit</button>}
+          {isLocked&&!editMode&&!canEdit&&<span style={{fontSize:11,color:"#94A3B8",background:"#F1F5F9",padding:"4px 10px",borderRadius:8}}>Contact manager to edit</span>}
+          {!isLocked&&!editMode&&<button onClick={()=>setEditMode(true)} style={{background:"#2563EB",color:"#fff",border:"none",borderRadius:8,padding:"6px 14px",fontSize:12,fontWeight:600,cursor:"pointer"}}>Update feedback</button>}
+          {editMode&&<button onClick={()=>{setEditMode(false);}} style={{background:"none",border:"1px solid #E2E8F0",borderRadius:8,padding:"6px 14px",fontSize:12,cursor:"pointer",color:"#475569"}}>Cancel</button>}
         </div>
       </div>
     </div>
 
-    {/* FEEDBACK UPDATE FORM */}
+    {/* FEEDBACK FORM */}
     {editMode&&<Card style={{padding:20,marginBottom:16,border:"2px solid #2563EB"}}>
       <div style={{fontSize:14,fontWeight:700,marginBottom:16}}>Update Feedback Status</div>
-      <div style={{marginBottom:14}}>
+
+      {/* Received? */}
+      <div style={{marginBottom:16}}>
         <label style={{display:"block",fontSize:12,fontWeight:600,color:"#475569",marginBottom:8}}>Feedback received?</label>
         <div style={{display:"flex",gap:8}}>
-          <button onClick={()=>setFeedbackReceived(true)} style={{padding:"8px 20px",borderRadius:8,fontSize:13,fontWeight:600,cursor:"pointer",background:feedbackReceived?"#F0FDF4":"#fff",color:feedbackReceived?"#16A34A":"#94A3B8",border:`1px solid ${feedbackReceived?"#16A34A":"#E2E8F0"}`}}>Yes — Received</button>
-          <button onClick={()=>setFeedbackReceived(false)} style={{padding:"8px 20px",borderRadius:8,fontSize:13,fontWeight:600,cursor:"pointer",background:!feedbackReceived?"#FFFBEB":"#fff",color:!feedbackReceived?"#D97706":"#94A3B8",border:`1px solid ${!feedbackReceived?"#D97706":"#E2E8F0"}`}}>No — Still Waiting</button>
+          <button onClick={()=>setFeedbackReceived(true)} style={{padding:"8px 20px",borderRadius:8,fontSize:13,fontWeight:600,cursor:"pointer",background:feedbackReceived?"#F0FDF4":"#fff",color:feedbackReceived?"#16A34A":"#94A3B8",border:`2px solid ${feedbackReceived?"#16A34A":"#E2E8F0"}`}}>Yes — Received</button>
+          <button onClick={()=>setFeedbackReceived(false)} style={{padding:"8px 20px",borderRadius:8,fontSize:13,fontWeight:600,cursor:"pointer",background:!feedbackReceived?"#FFFBEB":"#fff",color:!feedbackReceived?"#D97706":"#94A3B8",border:`2px solid ${!feedbackReceived?"#D97706":"#E2E8F0"}`}}>No — Still Waiting</button>
         </div>
       </div>
 
+      {/* If received */}
       {feedbackReceived&&<>
+        {/* From whom */}
         <div style={{marginBottom:14}}>
           <label style={{display:"block",fontSize:12,fontWeight:600,color:"#475569",marginBottom:8}}>Feedback from *</label>
           <div style={{display:"flex",gap:8}}>
             {["End Client","Prime Vendor","Vendor"].map(f=><button key={f} onClick={()=>setFeedbackFrom(f)} style={{padding:"6px 14px",borderRadius:8,fontSize:12,fontWeight:600,cursor:"pointer",background:feedbackFrom===f?"#EFF6FF":"#fff",color:feedbackFrom===f?"#2563EB":"#94A3B8",border:`1px solid ${feedbackFrom===f?"#2563EB":"#E2E8F0"}`}}>{f}</button>)}
           </div>
         </div>
+
+        {/* Outcome */}
         <div style={{marginBottom:14}}>
-          <label style={{display:"block",fontSize:12,fontWeight:600,color:"#475569",marginBottom:6}}>Official feedback details *</label>
-          <textarea value={officialFeedback} onChange={e=>setOfficialFeedback(e.target.value)} placeholder="Enter the official feedback received..." rows={4} style={{width:"100%",border:"1px solid #E2E8F0",borderRadius:8,padding:"8px 12px",fontSize:13,outline:"none",resize:"vertical",boxSizing:"border-box"}}/>
+          <label style={{display:"block",fontSize:12,fontWeight:600,color:"#475569",marginBottom:8}}>Outcome *</label>
+          <div style={{display:"flex",gap:8}}>
+            <button onClick={()=>setFeedbackOutcome("positive")} style={{padding:"8px 20px",borderRadius:8,fontSize:13,fontWeight:600,cursor:"pointer",background:feedbackOutcome==="positive"?"#F0FDF4":"#fff",color:feedbackOutcome==="positive"?"#16A34A":"#94A3B8",border:`2px solid ${feedbackOutcome==="positive"?"#16A34A":"#E2E8F0"}`}}>Positive</button>
+            <button onClick={()=>setFeedbackOutcome("rejected")} style={{padding:"8px 20px",borderRadius:8,fontSize:13,fontWeight:600,cursor:"pointer",background:feedbackOutcome==="rejected"?"#FEF2F2":"#fff",color:feedbackOutcome==="rejected"?"#DC2626":"#94A3B8",border:`2px solid ${feedbackOutcome==="rejected"?"#DC2626":"#E2E8F0"}`}}>Rejected</button>
+          </div>
         </div>
+
+        {/* If rejected - reason */}
+        {feedbackOutcome==="rejected"&&<div style={{marginBottom:14}}>
+          <label style={{display:"block",fontSize:12,fontWeight:600,color:"#DC2626",marginBottom:6}}>Reason for rejection *</label>
+          <textarea value={feedbackReason} onChange={e=>setFeedbackReason(e.target.value)} placeholder="Why was the candidate rejected?" rows={3} style={{width:"100%",border:"2px solid #FECACA",borderRadius:8,padding:"8px 12px",fontSize:13,outline:"none",resize:"vertical",boxSizing:"border-box"}}/>
+        </div>}
+
+        {/* If positive - next steps */}
+        {feedbackOutcome==="positive"&&<div style={{marginBottom:14}}>
+          <label style={{display:"block",fontSize:12,fontWeight:600,color:"#16A34A",marginBottom:6}}>Next steps *</label>
+          <textarea value={nextSteps} onChange={e=>setNextSteps(e.target.value)} placeholder="What are the next steps? (e.g. BGV initiated, offer letter, onboarding date...)" rows={3} style={{width:"100%",border:"2px solid #BBF7D0",borderRadius:8,padding:"8px 12px",fontSize:13,outline:"none",resize:"vertical",boxSizing:"border-box"}}/>
+        </div>}
+
+        {/* Optional additional feedback */}
+        <div style={{marginBottom:14}}>
+          <label style={{display:"block",fontSize:12,fontWeight:500,color:"#475569",marginBottom:6}}>Additional notes (optional)</label>
+          <textarea value={officialFeedback} onChange={e=>setOfficialFeedback(e.target.value)} placeholder="Any additional notes from the client/vendor..." rows={2} style={{width:"100%",border:"1px solid #E2E8F0",borderRadius:8,padding:"8px 12px",fontSize:13,outline:"none",resize:"vertical",boxSizing:"border-box"}}/>
+        </div>
+
         <div style={{background:"#FEF2F2",border:"1px solid #FECACA",borderRadius:8,padding:"10px 14px",fontSize:12,color:"#DC2626",marginBottom:14}}>
-          Once saved with feedback received, this entry will be locked. Contact manager to edit.
+          Once saved, this entry will be locked. Contact manager to edit.
         </div>
       </>}
 
+      {/* If waiting */}
       {!feedbackReceived&&<div style={{marginBottom:14}}>
         <label style={{display:"block",fontSize:12,fontWeight:600,color:"#475569",marginBottom:6}}>When can we expect feedback? *</label>
         <input type="date" value={expectedDate} onChange={e=>setExpectedDate(e.target.value)} style={{border:"1px solid #E2E8F0",borderRadius:8,padding:"8px 12px",fontSize:13,outline:"none"}}/>
       </div>}
 
-      <button onClick={saveFeedback} disabled={saving} style={{background:saving?"#94A3B8":"#2563EB",color:"#fff",border:"none",borderRadius:8,padding:"10px 20px",fontSize:13,fontWeight:600,cursor:saving?"not-allowed":"pointer"}}>{saving?"Saving...":"Save Feedback Status"}</button>
+      <button onClick={saveFeedback} disabled={saving} style={{background:saving?"#94A3B8":feedbackReceived&&feedbackOutcome==="positive"?"#16A34A":feedbackReceived&&feedbackOutcome==="rejected"?"#DC2626":"#2563EB",color:"#fff",border:"none",borderRadius:8,padding:"10px 20px",fontSize:13,fontWeight:600,cursor:saving?"not-allowed":"pointer"}}>
+        {saving?"Saving...":feedbackReceived?"Save Feedback":"Save — Still Waiting"}
+      </button>
     </Card>}
 
-    {/* INTERVIEW FULL DETAILS */}
-    <Card style={{padding:20,marginBottom:16}}>
+    {/* INTERVIEW DETAILS */}
+    <Card style={{padding:20}}>
       <div style={{fontSize:14,fontWeight:700,color:"#475569",marginBottom:16,borderBottom:"1px solid #E2E8F0",paddingBottom:10}}>Interview Details</div>
       <div style={{display:"flex",justifyContent:"space-between",marginBottom:12}}>
         <div>
@@ -3754,13 +3805,17 @@ function InterviewDetailView({interview,user,token,onBack,onUpdate}){
         {interview.tech_support_name&&<span style={{background:"#F0FDF4",color:"#16A34A",fontSize:12,padding:"3px 10px",borderRadius:99,fontWeight:600}}>Support: {interview.tech_support_name}</span>}
         {interview.support_mode&&<span style={{background:"#FFFBEB",color:"#D97706",fontSize:12,padding:"3px 10px",borderRadius:99,fontWeight:600}}>{interview.support_mode}</span>}
       </div>
-      <div style={{background:"#F8FAFC",borderRadius:10,padding:16,marginBottom:interview.official_feedback?14:0}}>
+      <div style={{background:"#F8FAFC",borderRadius:10,padding:16,marginBottom:14}}>
         <div style={{fontSize:12,fontWeight:700,color:"#475569",marginBottom:8}}>Interview Feedback (Internal):</div>
         <div style={{fontSize:13,color:"#334155",lineHeight:1.8}}>{interview.detailed_feedback}</div>
       </div>
-      {interview.official_feedback&&<div style={{background:"#F0FDF4",border:"1px solid #BBF7D0",borderRadius:10,padding:16,marginTop:14}}>
-        <div style={{fontSize:12,fontWeight:700,color:"#16A34A",marginBottom:8}}>Official Feedback from {interview.feedback_from}:</div>
-        <div style={{fontSize:13,color:"#334155",lineHeight:1.8}}>{interview.official_feedback}</div>
+      {interview.feedback_received&&<div style={{background:interview.feedback_outcome==="positive"?"#F0FDF4":"#FEF2F2",border:`1px solid ${interview.feedback_outcome==="positive"?"#BBF7D0":"#FECACA"}`,borderRadius:10,padding:16}}>
+        <div style={{fontSize:12,fontWeight:700,color:interview.feedback_outcome==="positive"?"#16A34A":"#DC2626",marginBottom:8}}>
+          Official Outcome from {interview.feedback_from}: {interview.feedback_outcome==="positive"?"POSITIVE":"REJECTED"}
+        </div>
+        {interview.feedback_reason&&<div style={{fontSize:13,color:"#334155",marginBottom:8}}><strong>Reason:</strong> {interview.feedback_reason}</div>}
+        {interview.next_steps&&<div style={{fontSize:13,color:"#334155",marginBottom:8}}><strong>Next steps:</strong> {interview.next_steps}</div>}
+        {interview.official_feedback&&<div style={{fontSize:13,color:"#334155"}}><strong>Notes:</strong> {interview.official_feedback}</div>}
       </div>}
     </Card>
   </div>;
