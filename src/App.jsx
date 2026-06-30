@@ -683,12 +683,21 @@ function DashPage({user,rc,candidates,allCandidates,logs,getMember,onNav,onRefre
             {interviewSessions.filter(s=>s.feedback_status==="waiting"||!s.feedback_status).map(s=>{
               const cand=allCands.find(c=>c.id===s.candidate_id);
               const ROUNDS={round_1:"Round 1",round_2:"Round 2",round_3:"Round 3",round_4:"Round 4",round_5:"Round 5",round_6:"Round 6",final:"Final"};
-              return <div key={s.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+              return <div key={s.id} onClick={()=>setExpandedInterview(expandedInterview===s.id?null:s.id)} style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8,cursor:"pointer",padding:"6px 8px",borderRadius:8,background:expandedInterview===s.id?"#FFF8E7":"transparent"}}>
                 <div>
-                  <div style={{fontSize:12,fontWeight:600,color:"#0F172A"}}>{cand?.name||"?"} — {ROUNDS[s.round]||s.round}</div>
+                  <div style={{fontSize:12,fontWeight:600,color:"#0F172A"}}>{cand?.name||"?"} — {ROUNDS[s.round]||s.round}{s.with_whom?` · ${s.with_whom}`:""}</div>
                   {s.feedback_from&&<div style={{fontSize:11,color:"#D97706"}}>Need to receive feedback from {s.feedback_from}</div>}
+                  {expandedInterview===s.id&&<div style={{marginTop:6,background:"#fff",borderRadius:8,padding:"10px 12px",border:"1px solid #FDE68A"}}>
+                    <div style={{fontSize:11,color:"#475569",marginBottom:4}}><strong>Interview date:</strong> {fmtDate(s.interview_date)}</div>
+                    <div style={{fontSize:11,color:"#475569",marginBottom:4}}><strong>Round:</strong> {ROUNDS[s.round]||s.round}</div>
+                    {s.with_whom&&<div style={{fontSize:11,color:"#475569",marginBottom:4}}><strong>With:</strong> {s.with_whom}</div>}
+                    <div style={{fontSize:11,color:"#475569",marginBottom:4}}><strong>Mode:</strong> {s.interview_mode==="virtual"?"Virtual":"In-person"}</div>
+                    {s.tech_support_name&&<div style={{fontSize:11,color:"#475569",marginBottom:4}}><strong>Tech support:</strong> {s.tech_support_name}</div>}
+                    <div style={{fontSize:11,color:"#475569",marginBottom:4}}><strong>Internal feedback:</strong> {s.overall_feedback==="went_well"?"Went Well":s.overall_feedback==="okay"?"Okay":"Not Went Well"}</div>
+                    {s.feedback_expected_date&&<div style={{fontSize:11,color:"#D97706"}}><strong>Expected by:</strong> {fmtDate(s.feedback_expected_date)}</div>}
+                  </div>}
                 </div>
-                <div style={{fontSize:11,color:"#94A3B8"}}>{fmtDate(s.interview_date)}</div>
+                <div style={{fontSize:11,color:"#94A3B8",flexShrink:0,marginLeft:8}}>{fmtDate(s.interview_date)}</div>
               </div>;
             })}
           </div>}
