@@ -1913,7 +1913,8 @@ function InterviewsPage({user,rc,candidates,token,loading,setToast}){
           const durationLabel=DURATIONS.find(d=>d.v===s.duration)?.l||s.duration;
           const fbColors={went_well:["#16A34A","#F0FDF4"],okay:["#D97706","#FFFBEB"],not_went_well:["#DC2626","#FEF2F2"]};
           const [fc,fb]=fbColors[s.overall_feedback]||["#94A3B8","#F1F5F9"];
-          return <Card key={s.id} onClick={()=>setSelectedInterview(s)} style={{padding:18,cursor:"pointer"}}>
+          const cardBorder=s.feedback_status==="received"?"2px solid #BBF7D0":s.feedback_status==="waiting"?"2px solid #FDE68A":s.overall_feedback==="went_well"?"2px solid #BBF7D0":s.overall_feedback==="not_went_well"?"2px solid #FECACA":"1px solid #E2E8F0";
+          return <Card key={s.id} onClick={()=>setSelectedInterview(s)} style={{padding:18,cursor:"pointer",border:cardBorder}}>
             <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:12}}>
               <div style={{display:"flex",alignItems:"center",gap:12}}>
                 <div style={{width:44,height:44,borderRadius:"50%",background:"#EFF6FF",color:"#2563EB",display:"flex",alignItems:"center",justifyContent:"center",fontSize:15,fontWeight:700}}>
