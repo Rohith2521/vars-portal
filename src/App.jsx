@@ -3001,33 +3001,20 @@ function StatusMeetingPage({user,rc,members,candidates,allCandidates,logs,token,
             })}
           </div>
         </div>}
-        {selectedInterview&&<div>
-          <button onClick={()=>setSelectedInterview(null)} style={{background:"none",border:"none",color:"#2563EB",cursor:"pointer",fontSize:13,fontWeight:600,marginBottom:16,padding:0}}>← Back to interviews</button>
-          <Card style={{padding:24}}>
-            <div style={{display:"flex",justifyContent:"space-between",marginBottom:16}}>
-              <div>
-                <div style={{fontSize:20,fontWeight:800}}>{{round_1:"Round 1",round_2:"Round 2",round_3:"Round 3",round_4:"Round 4",round_5:"Round 5",round_6:"Round 6",final:"Final"}[selectedInterview.round]||selectedInterview.round}</div>
-                {selectedInterview.with_whom&&<div style={{fontSize:14,color:"#2563EB",fontWeight:700,marginTop:4}}> {selectedInterview.with_whom}</div>}
-                <div style={{fontSize:13,color:"#94A3B8",marginTop:2}}>{fmtDate(selectedInterview.interview_date)}</div>
-                {selectedInterview.tech_support_name&&<div style={{display:"flex",alignItems:"center",gap:6,marginTop:6}}>
-                  <span style={{background:"#F0FDF4",color:"#16A34A",fontSize:12,padding:"3px 10px",borderRadius:99,fontWeight:700}}>Tech Support: {selectedInterview.tech_support_name}</span>
-                  {selectedInterview.support_mode&&<span style={{background:"#EFF6FF",color:"#2563EB",fontSize:12,padding:"3px 10px",borderRadius:99,fontWeight:600}}>Mode: {selectedInterview.support_mode}</span>}
-                </div>}
-              </div>
-              <span style={{fontSize:13,background:selectedInterview.overall_feedback==="went_well"?"#F0FDF4":selectedInterview.overall_feedback==="okay"?"#FFFBEB":"#FEF2F2",color:selectedInterview.overall_feedback==="went_well"?"#16A34A":selectedInterview.overall_feedback==="okay"?"#D97706":"#DC2626",padding:"6px 16px",borderRadius:99,fontWeight:700,height:"fit-content"}}>{selectedInterview.overall_feedback==="went_well"?"Went Well":selectedInterview.overall_feedback==="okay"?"Okay":"Not Went Well"}</span>
-            </div>
-            <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:16}}>
-              <span style={{background:"#F5F3FF",color:"#7C3AED",fontSize:12,padding:"3px 10px",borderRadius:99,fontWeight:600}}>⏱️ {{less_30:"<30 min","30_min":"30 min","45_min":"45 min","1_hour":"1 Hour","1_30_hour":"1.5 Hours","2_hours":"2 Hours","3_hours":"3 Hours"}[selectedInterview.duration]||selectedInterview.duration}</span>
-              <span style={{background:"#EFF6FF",color:"#2563EB",fontSize:12,padding:"3px 10px",borderRadius:99,fontWeight:600}}> {selectedInterview.interview_mode==="virtual"?"Virtual":"In-person"}</span>
-              {selectedInterview.tech_support_name&&<span style={{background:"#F0FDF4",color:"#16A34A",fontSize:12,padding:"3px 10px",borderRadius:99,fontWeight:600}}> {selectedInterview.tech_support_name}</span>}
-              {selectedInterview.support_mode&&<span style={{background:"#FFFBEB",color:"#D97706",fontSize:12,padding:"3px 10px",borderRadius:99,fontWeight:600}}>Support: {selectedInterview.support_mode}</span>}
-            </div>
-            <div style={{background:"#F8FAFC",borderRadius:10,padding:16}}>
-              <div style={{fontSize:13,fontWeight:700,color:"#475569",marginBottom:8}}>Detailed Feedback:</div>
-              <div style={{fontSize:14,color:"#334155",lineHeight:1.8}}>{selectedInterview.detailed_feedback}</div>
-            </div>
-          </Card>
-        </div>}
+        {selectedInterview&&<InterviewDetailView
+          interview={selectedInterview}
+          user={user}
+          token={token}
+          onBack={()=>setSelectedInterview(null)}
+          onUpdate={async(updatedData)=>{
+            try {
+              await sb.patch("interview_sessions",selectedInterview.id,updatedData,token);
+              const s=await sb.get("interview_sessions","select=*&order=created_at.desc",token);
+              if(Array.isArray(s))setSessions(s);
+              setSelectedInterview({...selectedInterview,...updatedData});
+            } catch(e){alert("Error updating.");}
+          }}
+        />}
       </div>}
 
       {/* PIPELINE TAB */}
@@ -3631,5 +3618,133 @@ function RecruitersPage({user,rc,members,candidates,logs,getMember,loading,token
         <Btn variant="danger" onClick={submitDeactivation} disabled={saving}>{saving?"Processing...":"Confirm End Association"}</Btn>
       </div>
     </Modal>
+  </div>;
+}
+
+// ─── INTERVIEW DETAIL VIEW ────────────────────────────────────────────────────
+function InterviewDetailView({interview,user,token,onBack,onUpdate}){
+  const [feedbackReceived,setFeedbackReceived]=useState(interview.feedback_received||false);
+  const [feedbackFrom,setFeedbackFrom]=useState(interview.feedback_from||"");
+  const [officialFeedback,setOfficialFeedback]=useState(interview.official_feedback||"");
+  const [expectedDate,setExpectedDate]=useState(interview.feedback_expected_date||"");
+  const [saving,setSaving]=useState(false);
+  const [editMode,setEditMode]=useState(false);
+
+  const isLocked=interview.feedback_locked;
+  const canEdit=user.role==="manager"||user.role==="president";
+  const ROUNDS={round_1:"Round 1",round_2:"Round 2",round_3:"Round 3",round_4:"Round 4",round_5:"Round 5",round_6:"Round 6",final:"Final"};
+  const DURATIONS={less_30:"<30 min","30_min":"30 min","45_min":"45 min","1_hour":"1 Hour","1_30_hour":"1.5 Hours","2_hours":"2 Hours","3_hours":"3 Hours"};
+
+  const saveFeedback=async()=>{
+    if(feedbackReceived){
+      if(!feedbackFrom)return alert("Select who feedback is from");
+      if(!officialFeedback.trim())return alert("Official feedback details are mandatory");
+    } else {
+      if(!expectedDate)return alert("Expected date is mandatory");
+    }
+    setSaving(true);
+    try {
+      const data={
+        feedback_received:feedbackReceived,
+        feedback_from:feedbackFrom||null,
+        official_feedback:officialFeedback||null,
+        feedback_expected_date:expectedDate||null,
+        feedback_locked:feedbackReceived?true:false,
+      };
+      await onUpdate(data);
+      setEditMode(false);
+    } catch(e){alert("Error saving.");}
+    setSaving(false);
+  };
+
+  const fbColor=interview.overall_feedback==="went_well"?"#16A34A":interview.overall_feedback==="okay"?"#D97706":"#DC2626";
+  const fbBg=interview.overall_feedback==="went_well"?"#F0FDF4":interview.overall_feedback==="okay"?"#FFFBEB":"#FEF2F2";
+
+  return <div>
+    <button onClick={onBack} style={{background:"none",border:"none",color:"#2563EB",cursor:"pointer",fontSize:13,fontWeight:600,marginBottom:16,padding:0}}>← Back to interviews</button>
+
+    {/* LATEST STATUS — Top */}
+    <div style={{background:interview.feedback_received?"#F0FDF4":"#FFFBEB",border:`1px solid ${interview.feedback_received?"#BBF7D0":"#FDE68A"}`,borderRadius:12,padding:"16px 20px",marginBottom:16}}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+        <div>
+          <div style={{fontSize:13,fontWeight:700,color:interview.feedback_received?"#16A34A":"#D97706",marginBottom:4}}>
+            {interview.feedback_received
+              ? `Feedback received from ${interview.feedback_from||"—"}`
+              : `Waiting for feedback${interview.feedback_from?` from ${interview.feedback_from}`:""}`}
+          </div>
+          {!interview.feedback_received&&interview.feedback_expected_date&&<div style={{fontSize:12,color:"#D97706"}}>Expected by: {fmtDate(interview.feedback_expected_date)}</div>}
+          {interview.feedback_received&&interview.official_feedback&&<div style={{fontSize:12,color:"#16A34A",marginTop:2}}>Feedback on file</div>}
+        </div>
+        <div>
+          {isLocked&&!editMode&&<div style={{fontSize:11,color:"#94A3B8",background:"#F1F5F9",padding:"4px 10px",borderRadius:8}}>
+            {canEdit?<button onClick={()=>setEditMode(true)} style={{background:"none",border:"none",color:"#2563EB",cursor:"pointer",fontSize:11,fontWeight:600,padding:0}}>Edit feedback</button>:"Contact manager to edit"}
+          </div>}
+          {!isLocked&&!editMode&&<button onClick={()=>setEditMode(true)} style={{background:"#2563EB",color:"#fff",border:"none",borderRadius:8,padding:"6px 14px",fontSize:12,fontWeight:600,cursor:"pointer"}}>Update feedback status</button>}
+          {editMode&&<button onClick={()=>setEditMode(false)} style={{background:"none",border:"1px solid #E2E8F0",borderRadius:8,padding:"6px 14px",fontSize:12,cursor:"pointer",color:"#475569"}}>Cancel</button>}
+        </div>
+      </div>
+    </div>
+
+    {/* FEEDBACK UPDATE FORM */}
+    {editMode&&<Card style={{padding:20,marginBottom:16,border:"2px solid #2563EB"}}>
+      <div style={{fontSize:14,fontWeight:700,marginBottom:16}}>Update Feedback Status</div>
+      <div style={{marginBottom:14}}>
+        <label style={{display:"block",fontSize:12,fontWeight:600,color:"#475569",marginBottom:8}}>Feedback received?</label>
+        <div style={{display:"flex",gap:8}}>
+          <button onClick={()=>setFeedbackReceived(true)} style={{padding:"8px 20px",borderRadius:8,fontSize:13,fontWeight:600,cursor:"pointer",background:feedbackReceived?"#F0FDF4":"#fff",color:feedbackReceived?"#16A34A":"#94A3B8",border:`1px solid ${feedbackReceived?"#16A34A":"#E2E8F0"}`}}>Yes — Received</button>
+          <button onClick={()=>setFeedbackReceived(false)} style={{padding:"8px 20px",borderRadius:8,fontSize:13,fontWeight:600,cursor:"pointer",background:!feedbackReceived?"#FFFBEB":"#fff",color:!feedbackReceived?"#D97706":"#94A3B8",border:`1px solid ${!feedbackReceived?"#D97706":"#E2E8F0"}`}}>No — Still Waiting</button>
+        </div>
+      </div>
+
+      {feedbackReceived&&<>
+        <div style={{marginBottom:14}}>
+          <label style={{display:"block",fontSize:12,fontWeight:600,color:"#475569",marginBottom:8}}>Feedback from *</label>
+          <div style={{display:"flex",gap:8}}>
+            {["End Client","Prime Vendor","Vendor"].map(f=><button key={f} onClick={()=>setFeedbackFrom(f)} style={{padding:"6px 14px",borderRadius:8,fontSize:12,fontWeight:600,cursor:"pointer",background:feedbackFrom===f?"#EFF6FF":"#fff",color:feedbackFrom===f?"#2563EB":"#94A3B8",border:`1px solid ${feedbackFrom===f?"#2563EB":"#E2E8F0"}`}}>{f}</button>)}
+          </div>
+        </div>
+        <div style={{marginBottom:14}}>
+          <label style={{display:"block",fontSize:12,fontWeight:600,color:"#475569",marginBottom:6}}>Official feedback details *</label>
+          <textarea value={officialFeedback} onChange={e=>setOfficialFeedback(e.target.value)} placeholder="Enter the official feedback received..." rows={4} style={{width:"100%",border:"1px solid #E2E8F0",borderRadius:8,padding:"8px 12px",fontSize:13,outline:"none",resize:"vertical",boxSizing:"border-box"}}/>
+        </div>
+        <div style={{background:"#FEF2F2",border:"1px solid #FECACA",borderRadius:8,padding:"10px 14px",fontSize:12,color:"#DC2626",marginBottom:14}}>
+          Once saved with feedback received, this entry will be locked. Contact manager to edit.
+        </div>
+      </>}
+
+      {!feedbackReceived&&<div style={{marginBottom:14}}>
+        <label style={{display:"block",fontSize:12,fontWeight:600,color:"#475569",marginBottom:6}}>When can we expect feedback? *</label>
+        <input type="date" value={expectedDate} onChange={e=>setExpectedDate(e.target.value)} style={{border:"1px solid #E2E8F0",borderRadius:8,padding:"8px 12px",fontSize:13,outline:"none"}}/>
+      </div>}
+
+      <button onClick={saveFeedback} disabled={saving} style={{background:saving?"#94A3B8":"#2563EB",color:"#fff",border:"none",borderRadius:8,padding:"10px 20px",fontSize:13,fontWeight:600,cursor:saving?"not-allowed":"pointer"}}>{saving?"Saving...":"Save Feedback Status"}</button>
+    </Card>}
+
+    {/* INTERVIEW FULL DETAILS */}
+    <Card style={{padding:20,marginBottom:16}}>
+      <div style={{fontSize:14,fontWeight:700,color:"#475569",marginBottom:16,borderBottom:"1px solid #E2E8F0",paddingBottom:10}}>Interview Details</div>
+      <div style={{display:"flex",justifyContent:"space-between",marginBottom:12}}>
+        <div>
+          <div style={{fontSize:18,fontWeight:800}}>{ROUNDS[interview.round]||interview.round}</div>
+          {interview.with_whom&&<div style={{fontSize:13,color:"#2563EB",fontWeight:700,marginTop:4}}>{interview.with_whom}</div>}
+          <div style={{fontSize:12,color:"#94A3B8",marginTop:2}}>{fmtDate(interview.interview_date)}</div>
+        </div>
+        <span style={{background:fbBg,color:fbColor,fontSize:13,padding:"6px 16px",borderRadius:99,fontWeight:700,height:"fit-content"}}>{interview.overall_feedback==="went_well"?"Went Well":interview.overall_feedback==="okay"?"Okay":"Not Went Well"}</span>
+      </div>
+      <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:14}}>
+        <span style={{background:"#F5F3FF",color:"#7C3AED",fontSize:12,padding:"3px 10px",borderRadius:99,fontWeight:600}}>{DURATIONS[interview.duration]||interview.duration}</span>
+        <span style={{background:"#EFF6FF",color:"#2563EB",fontSize:12,padding:"3px 10px",borderRadius:99,fontWeight:600}}>{interview.interview_mode==="virtual"?"Virtual":"In-person"}</span>
+        {interview.tech_support_name&&<span style={{background:"#F0FDF4",color:"#16A34A",fontSize:12,padding:"3px 10px",borderRadius:99,fontWeight:600}}>Support: {interview.tech_support_name}</span>}
+        {interview.support_mode&&<span style={{background:"#FFFBEB",color:"#D97706",fontSize:12,padding:"3px 10px",borderRadius:99,fontWeight:600}}>{interview.support_mode}</span>}
+      </div>
+      <div style={{background:"#F8FAFC",borderRadius:10,padding:16,marginBottom:interview.official_feedback?14:0}}>
+        <div style={{fontSize:12,fontWeight:700,color:"#475569",marginBottom:8}}>Interview Feedback (Internal):</div>
+        <div style={{fontSize:13,color:"#334155",lineHeight:1.8}}>{interview.detailed_feedback}</div>
+      </div>
+      {interview.official_feedback&&<div style={{background:"#F0FDF4",border:"1px solid #BBF7D0",borderRadius:10,padding:16,marginTop:14}}>
+        <div style={{fontSize:12,fontWeight:700,color:"#16A34A",marginBottom:8}}>Official Feedback from {interview.feedback_from}:</div>
+        <div style={{fontSize:13,color:"#334155",lineHeight:1.8}}>{interview.official_feedback}</div>
+      </div>}
+    </Card>
   </div>;
 }
