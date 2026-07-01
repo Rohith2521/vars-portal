@@ -120,7 +120,7 @@ function Btn({ children, variant="primary", onClick, style, disabled }) {
   const s = { primary:{background:disabled?"#94A3B8":"#2563EB",color:"#fff",border:"none"}, outline:{background:"#fff",color:"#475569",border:"1px solid #E2E8F0"}, danger:{background:"#DC2626",color:"#fff",border:"none"}, success:{background:"#16A34A",color:"#fff",border:"none"} };
   return <button disabled={disabled} onClick={onClick} style={{ padding:"8px 16px", borderRadius:8, fontSize:13, fontWeight:600, cursor:disabled?"not-allowed":"pointer", ...s[variant], ...style }}>{children}</button>;
 }
-function GlobalSearch({candidates,members,onClose,onSelectCand}){
+function GlobalSearch({candidates,members,onClose,onSelectCand,onSelectMember}){
   const [q,setQ]=useState("");
   const inputRef=useRef(null);
   useEffect(()=>{inputRef.current?.focus();},[]);
@@ -150,7 +150,7 @@ function GlobalSearch({candidates,members,onClose,onSelectCand}){
             <span style={{fontSize:11,padding:"2px 8px",borderRadius:99,fontWeight:600,background:c.status==="Placed"?"#F0FDF4":c.status==="Dropped"?"#FEF2F2":"#EFF6FF",color:c.status==="Placed"?"#16A34A":c.status==="Dropped"?"#DC2626":"#2563EB"}}>{c.status}</span>
           </div>)}</>}
         {matchMembers.length>0&&<><div style={{padding:"8px 16px 4px",fontSize:11,fontWeight:700,color:"#94A3B8",letterSpacing:"0.05em"}}>TEAM MEMBERS</div>
-          {matchMembers.map(m=><div key={m.id} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 16px",cursor:"pointer",borderBottom:"1px solid #F8FAFC"}}>
+          {matchMembers.map(m=><div key={m.id} onClick={()=>onSelectMember&&onSelectMember(m)} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 16px",cursor:"pointer",borderBottom:"1px solid #F8FAFC",background:"transparent"}} onMouseEnter={e=>e.currentTarget.style.background="#F8FAFC"} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
             <div style={{width:36,height:36,borderRadius:"50%",background:"#F0FDF4",color:"#16A34A",display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:700}}>{m.name?.split(" ").map(w=>w[0]).join("").slice(0,2)}</div>
             <div style={{flex:1}}><div style={{fontSize:13,fontWeight:600}}>{m.name}</div><div style={{fontSize:11,color:"#94A3B8"}}>{m.email}</div></div>
             <span style={{fontSize:11,padding:"2px 8px",borderRadius:99,fontWeight:600,background:"#F1F5F9",color:roleColor[m.role]||"#475569"}}>{roleLabel[m.role]||m.role}</span>
@@ -400,6 +400,7 @@ export default function VARSPortal() {
   const [showSearch,setShowSearch]=useState(false);
   const [sidebarCollapsed,setSidebarCollapsed]=useState(false);
   const [pendingCand,setPendingCand]=useState(null);
+  const [pendingMember,setPendingMember]=useState(null);
   const showToast=(msg,type="success")=>setToast({msg,type});
 
   const loadData=useCallback(async(token)=>{
@@ -634,7 +635,7 @@ export default function VARSPortal() {
           {page==="stats"&&<StatsPage candidates={candidates} logs={logs} members={members}/>}
           {page==="interviews"&&<InterviewsPage user={user} rc={rc} candidates={myCands} token={user.token} loading={loading} setToast={setToast}/>
 }
-          {page==="team"&&<TeamPage user={user} rc={rc} members={members} candidates={candidates} logs={logs} onAddMember={addMember} loading={loading}/>}
+          {page==="team"&&<TeamPage user={user} rc={rc} members={members} candidates={candidates} logs={logs} onAddMember={addMember} loading={loading} pendingMember={pendingMember} onClearPendingMember={()=>setPendingMember(null)}/>}
           {page==="status_meeting"&&<StatusMeetingPage user={user} rc={rc} members={members} candidates={myCands} allCandidates={candidates} logs={logs} token={user?.token} onRefresh={()=>loadData()}/>}
           {page==="overall_status"&&<OverallStatusPage user={user} members={members} candidates={candidates} logs={logs} token={user?.token}/>}
           {page==="notifications"&&<NotifsPage notifications={notifications} onRefresh={()=>loadData()} onMarkRead={markRead} onMarkAllRead={markAllRead}/>}
@@ -643,7 +644,7 @@ export default function VARSPortal() {
           </div>
         </div>
       </div>
-      {showSearch&&<GlobalSearch candidates={candidates} members={members} onClose={()=>setShowSearch(false)} onSelectCand={(c)=>{setShowSearch(false);setPage("candidates");setPendingCand(c);}}/>}
+      {showSearch&&<GlobalSearch candidates={candidates} members={members} onClose={()=>setShowSearch(false)} onSelectCand={(c)=>{setShowSearch(false);setPage("candidates");setPendingCand(c);}} onSelectMember={(m)=>{setShowSearch(false);setPage("team");setPendingMember(m);}}/>}
       {toast&&<Toast msg={toast.msg} type={toast.type} onDone={()=>setToast(null)}/>}
     </div>
   );
@@ -1874,11 +1875,65 @@ function StatsPage({candidates,logs,members}){
 }
 
 // ─── TEAM ────────────────────────────────────────────────────────────────────
-function TeamPage({user,rc,members,candidates,logs,onAddMember,loading}){
-  const [showAdd,setShowAdd]=useState(false);const [form,setForm]=useState({});const set=(k,v)=>setForm(p=>({...p,[k]:v}));
+function TeamPage({user,rc,members,candidates,logs,onAddMember,loading,pendingMember,onClearPendingMember}){
+  const [showAdd,setShowAdd]=useState(false);
+  const [selectedMember,setSelectedMember]=useState(null);
+  const [form,setForm]=useState({});
+  const set=(k,v)=>setForm(p=>({...p,[k]:v}));
   const rLeads=members.filter(m=>m.role==="r_lead");
+
+  useEffect(()=>{
+    if(pendingMember){
+      setSelectedMember(pendingMember);
+      onClearPendingMember&&onClearPendingMember();
+    }
+  },[pendingMember]);
+
   const submit=()=>{if(!form.name?.trim()||!form.email?.trim())return alert("Name and email required");if(!form.role)return alert("Select a role");if(form.role==="recruiter"&&!form.r_lead_team)return alert("Select R Lead team");onAddMember(form);setForm({});setShowAdd(false);};
   const groups=["president","manager","r_lead","c_lead","recruiter","interview_coord"];
+
+  // Member profile view
+  if(selectedMember){
+    const m=selectedMember;
+    const rConf=ROLE_CONFIG[m.role];
+    const mCands=candidates.filter(c=>[c.recruiter_id,c.r_lead_id,c.c_lead_id,c.interview_coord_id].includes(m.id));
+    const mLogs=logs.filter(l=>l.user_id===m.id);
+    const rln=m.r_lead_team?members.find(x=>x.id===m.r_lead_team)?.name:null;
+    const weekAgo=new Date();weekAgo.setDate(weekAgo.getDate()-7);
+    const wLogs=mLogs.filter(l=>new Date(l.log_date)>=weekAgo&&l.type==="recruiter");
+    const weekEmails=wLogs.reduce((s,l)=>s+(l.emails_sent||0),0);
+    const weekSubs=wLogs.reduce((s,l)=>s+(l.submissions||0),0);
+    return <div>
+      <button onClick={()=>setSelectedMember(null)} style={{background:"none",border:"none",color:"#2563EB",cursor:"pointer",fontSize:13,fontWeight:600,marginBottom:16,padding:0}}>← Back to Team</button>
+      <Card style={{padding:24,marginBottom:16}}>
+        <div style={{display:"flex",alignItems:"center",gap:16,marginBottom:20}}>
+          <Av name={m.name} role={m.role} size={60}/>
+          <div>
+            <div style={{fontSize:20,fontWeight:800}}>{m.name}</div>
+            <RoleBadge role={m.role}/>
+            {rln&&<div style={{fontSize:12,color:"#94A3B8",marginTop:4}}>Team: {rln}</div>}
+            <div style={{fontSize:12,color:"#94A3B8",marginTop:2}}>{m.email}</div>
+          </div>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:16}}>
+          <div style={{background:"#F8FAFC",borderRadius:8,padding:"10px",textAlign:"center"}}><div style={{fontSize:22,fontWeight:800,color:rConf.color}}>{mCands.length}</div><div style={{fontSize:10,color:"#94A3B8",fontWeight:600}}>CANDIDATES</div></div>
+          <div style={{background:"#F8FAFC",borderRadius:8,padding:"10px",textAlign:"center"}}><div style={{fontSize:22,fontWeight:800,color:rConf.color}}>{mLogs.length}</div><div style={{fontSize:10,color:"#94A3B8",fontWeight:600}}>TOTAL LOGS</div></div>
+          {m.role==="recruiter"&&<><div style={{background:"#EFF6FF",borderRadius:8,padding:"10px",textAlign:"center"}}><div style={{fontSize:22,fontWeight:800,color:"#2563EB"}}>{weekEmails}</div><div style={{fontSize:10,color:"#2563EB",fontWeight:600}}>EMAILS/WEEK</div></div>
+          <div style={{background:"#F5F3FF",borderRadius:8,padding:"10px",textAlign:"center"}}><div style={{fontSize:22,fontWeight:800,color:"#7C3AED"}}>{weekSubs}</div><div style={{fontSize:10,color:"#7C3AED",fontWeight:600}}>SUBS/WEEK</div></div></>}
+          <div style={{background:candidates.filter(c=>c.status==="Placed"&&[c.recruiter_id,c.r_lead_id,c.c_lead_id,c.interview_coord_id].includes(m.id)).length>0?"#F0FDF4":"#F8FAFC",borderRadius:8,padding:"10px",textAlign:"center"}}><div style={{fontSize:22,fontWeight:800,color:"#16A34A"}}>{candidates.filter(c=>c.status==="Placed"&&[c.recruiter_id,c.r_lead_id,c.c_lead_id,c.interview_coord_id].includes(m.id)).length}</div><div style={{fontSize:10,color:"#16A34A",fontWeight:600}}>PLACEMENTS</div></div>
+        </div>
+        <div style={{fontSize:13,fontWeight:700,marginBottom:10}}>Assigned Candidates</div>
+        <div style={{display:"grid",gap:6}}>
+          {mCands.map(c=><div key={c.id} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 12px",background:"#F8FAFC",borderRadius:8}}>
+            <div><div style={{fontSize:13,fontWeight:600}}>{c.name}</div><div style={{fontSize:11,color:"#94A3B8"}}>{c.tech}</div></div>
+            <StatusBadge status={c.status}/>
+          </div>)}
+          {mCands.length===0&&<div style={{fontSize:13,color:"#94A3B8",padding:"8px 0"}}>No candidates assigned.</div>}
+        </div>
+      </Card>
+    </div>;
+  }
+
   return <div>
     <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:20 }}>
       <div><div style={{ fontSize:20, fontWeight:700 }}>Team</div><div style={{ fontSize:13, color:"#94A3B8" }}>{members.length} members</div></div>
@@ -1890,7 +1945,7 @@ function TeamPage({user,rc,members,candidates,logs,onAddMember,loading}){
         <div style={{ fontSize:12, fontWeight:700, color:rConf.color, marginBottom:10, textTransform:"uppercase", letterSpacing:"0.06em" }}>{rConf.label}s · {grp.length}</div>
         <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(210px,1fr))", gap:10 }}>
           {grp.map(m=>{const mL=logs.filter(l=>l.user_id===m.id);const mC=candidates.filter(c=>[c.recruiter_id,c.r_lead_id,c.c_lead_id,c.interview_coord_id].includes(m.id));const rln=m.r_lead_team?members.find(x=>x.id===m.r_lead_team)?.name:null;
-            return <Card key={m.id} style={{ padding:16 }}>
+            return <Card key={m.id} style={{ padding:16, cursor:"pointer" }} onClick={()=>setSelectedMember(m)}>
               <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:10 }}><Av name={m.name} role={m.role} size={40}/><div><div style={{ fontSize:14, fontWeight:700 }}>{m.name}</div><RoleBadge role={m.role}/>{rln&&<div style={{ fontSize:10, color:"#94A3B8", marginTop:3 }}>Team: {rln}</div>}</div></div>
               <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
                 <div style={{ background:"#F8FAFC", borderRadius:6, padding:"6px 10px" }}><div style={{ fontSize:10, color:"#94A3B8", fontWeight:600 }}>CANDIDATES</div><div style={{ fontWeight:800, fontSize:18, color:rConf.color }}>{mC.length}</div></div>
