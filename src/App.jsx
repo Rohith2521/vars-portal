@@ -458,6 +458,15 @@ export default function VARSPortal() {
     setLoading(false);
   };
 
+  useEffect(()=>{
+    const handler=(e)=>{
+      if((e.metaKey||e.ctrlKey)&&e.key==="k"){e.preventDefault();setShowSearch(s=>!s);}
+      if(e.key==="Escape")setShowSearch(false);
+    };
+    window.addEventListener("keydown",handler);
+    return()=>window.removeEventListener("keydown",handler);
+  },[]);
+
   const logout=async()=>{ await sb.signOut(user.token); setUser(null); setPage("dashboard"); setMembers([]); setCandidates([]); setLogs([]); setNotifications([]); setTimeline([]); };
 
   if(!user)return <LoginPage onLogin={u=>setUser(u)} />;
@@ -549,10 +558,14 @@ export default function VARSPortal() {
 
       <div style={{ display:"flex", flex:1 }}>
         <div style={{ width:190, background:"#fff", borderRight:"1px solid #E2E8F0", padding:"12px 0", flexShrink:0 }}>
-          {navItems.map(n=><div key={n.id} onClick={()=>setPage(n.id)} style={{ display:"flex", alignItems:"center", gap:10, padding:"9px 18px", fontSize:13, cursor:"pointer", borderLeft:`3px solid ${page===n.id?"#2563EB":"transparent"}`, color:page===n.id?"#2563EB":"#475569", background:page===n.id?"#EFF6FF":"transparent", fontWeight:page===n.id?600:400 }}>
+          {navItems.map(n=><div key={n.id} onClick={()=>setPage(n.id)} title={sidebarCollapsed?n.label:""} style={{ display:"flex", alignItems:"center", gap:10, padding:sidebarCollapsed?"9px 0":"9px 18px", justifyContent:sidebarCollapsed?"center":"flex-start", fontSize:13, cursor:"pointer", borderLeft:`3px solid ${page===n.id?"#2563EB":"transparent"}`, color:page===n.id?"#2563EB":"#475569", background:page===n.id?"#EFF6FF":"transparent", fontWeight:page===n.id?600:400 }}>
               <NavIcon id={n.id}/>
-              {n.label}
+              {!sidebarCollapsed&&n.label}
             </div>)}
+          <div onClick={()=>setSidebarCollapsed(s=>!s)} style={{ display:"flex", alignItems:"center", justifyContent:sidebarCollapsed?"center":"flex-start", gap:10, padding:sidebarCollapsed?"9px 0":"9px 18px", cursor:"pointer", color:"#CBD5E1", fontSize:12, marginTop:"auto", borderTop:"1px solid #F1F5F9", paddingTop:12 }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points={sidebarCollapsed?"9 18 15 12 9 6":"15 18 9 12 15 6"}/></svg>
+            {!sidebarCollapsed&&<span>Collapse</span>}
+          </div>
           <div style={{ margin:"16px 12px 0", padding:"10px 12px", background:rc.bg, borderRadius:8 }}>
             <div style={{ fontSize:11, fontWeight:700, color:rc.color }}>{rc.label}</div>
             <div style={{ fontSize:10, color:"#94A3B8", marginTop:2 }}>{rc.canViewAll?"Full view access":"Limited to assigned"}</div>
@@ -581,6 +594,7 @@ export default function VARSPortal() {
           </div>
         </div>
       </div>
+      {showSearch&&<GlobalSearch candidates={candidates} members={members} onSelectCand={(c)=>{setPage("candidates");}} onNav={setPage} onClose={()=>setShowSearch(false)}/>}
       {toast&&<Toast msg={toast.msg} type={toast.type} onDone={()=>setToast(null)}/>}
     </div>
   );
@@ -813,7 +827,13 @@ function DashPage({user,rc,candidates,allCandidates,logs,getMember,onNav,onRefre
       : user.role==="manager"
       ? <ManagerDashboardSection allCandidates={allCands||candidates} members={members||[]} logs={logs} getMember={getMember} interviewSessions={interviewSessions} onNav={onNav}/>
       : <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14 }}>
-          <Card><CardHeader title="My Candidates" action={<Btn variant="outline" onClick={()=>onNav("candidates")} style={{ fontSize:12, padding:"5px 10px" }}>View all</Btn>}/>
+          <Card>
+            <CardHeader title="My Candidates" action={<Btn variant="outline" onClick={()=>onNav("candidates")} style={{ fontSize:12, padding:"5px 10px" }}>View all</Btn>}/>
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:6, padding:"8px 16px 10px" }}>
+              <div style={{ background:"#EFF6FF", borderRadius:8, padding:"6px 10px", textAlign:"center" }}><div style={{ fontSize:18, fontWeight:700, color:"#2563EB" }}>{candidates.filter(c=>c.status==="Active").length}</div><div style={{ fontSize:10, color:"#2563EB", fontWeight:600 }}>ACTIVE</div></div>
+              <div style={{ background:"#F0FDF4", borderRadius:8, padding:"6px 10px", textAlign:"center" }}><div style={{ fontSize:18, fontWeight:700, color:"#16A34A" }}>{candidates.filter(c=>c.status==="Placed").length}</div><div style={{ fontSize:10, color:"#16A34A", fontWeight:600 }}>PLACED</div></div>
+              <div style={{ background:"#FEF2F2", borderRadius:8, padding:"6px 10px", textAlign:"center" }}><div style={{ fontSize:18, fontWeight:700, color:"#DC2626" }}>{candidates.filter(c=>c.status==="Dropped").length}</div><div style={{ fontSize:10, color:"#DC2626", fontWeight:600 }}>DROPPED</div></div>
+            </div>
             {candidates.slice(0,5).map(c=><div key={c.id} style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 16px", borderBottom:"1px solid #F1F5F9" }}><Av name={c.name} role="r_lead" size={34}/><div style={{ flex:1 }}><div style={{ fontSize:13, fontWeight:600 }}>{c.name}</div><div style={{ fontSize:11, color:"#94A3B8" }}>{c.tech}</div></div><StatusBadge status={c.status}/></div>)}
             {candidates.length===0&&<div style={{ padding:24, textAlign:"center", fontSize:13, color:"#94A3B8" }}>No candidates assigned yet.</div>}
           </Card>
