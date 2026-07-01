@@ -120,6 +120,47 @@ function Btn({ children, variant="primary", onClick, style, disabled }) {
   const s = { primary:{background:disabled?"#94A3B8":"#2563EB",color:"#fff",border:"none"}, outline:{background:"#fff",color:"#475569",border:"1px solid #E2E8F0"}, danger:{background:"#DC2626",color:"#fff",border:"none"}, success:{background:"#16A34A",color:"#fff",border:"none"} };
   return <button disabled={disabled} onClick={onClick} style={{ padding:"8px 16px", borderRadius:8, fontSize:13, fontWeight:600, cursor:disabled?"not-allowed":"pointer", ...s[variant], ...style }}>{children}</button>;
 }
+function GlobalSearch({candidates,members,onClose}){
+  const [q,setQ]=useState("");
+  const inputRef=React.useRef(null);
+  useEffect(()=>{inputRef.current?.focus();},[]);
+  useEffect(()=>{
+    const handler=(e)=>{if(e.key==="Escape")onClose();};
+    window.addEventListener("keydown",handler);
+    return()=>window.removeEventListener("keydown",handler);
+  },[]);
+  const roleColor={president:"#7C3AED",manager:"#0F766E",r_lead:"#2563EB",c_lead:"#D97706",recruiter:"#16A34A",interview_coord:"#DC2626"};
+  const roleLabel={president:"President",manager:"Manager",r_lead:"R Lead",c_lead:"C Lead",recruiter:"Recruiter",interview_coord:"IC"};
+  const matchCands=q.trim().length>1?candidates.filter(c=>c.name?.toLowerCase().includes(q.toLowerCase())||c.tech?.toLowerCase().includes(q.toLowerCase())).slice(0,6):[];
+  const matchMembers=q.trim().length>1?members.filter(m=>m.name?.toLowerCase().includes(q.toLowerCase())||m.email?.toLowerCase().includes(q.toLowerCase())).slice(0,4):[];
+  return <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:2000,display:"flex",alignItems:"flex-start",justifyContent:"center",paddingTop:80}} onClick={onClose}>
+    <div style={{background:"#fff",borderRadius:14,width:520,maxHeight:480,boxShadow:"0 16px 48px rgba(0,0,0,0.2)",overflow:"hidden"}} onClick={e=>e.stopPropagation()}>
+      <div style={{display:"flex",alignItems:"center",gap:10,padding:"12px 16px",borderBottom:"1px solid #E2E8F0"}}>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+        <input ref={inputRef} value={q} onChange={e=>setQ(e.target.value)} placeholder="Search candidates, team members..." style={{flex:1,border:"none",outline:"none",fontSize:14,background:"transparent",color:"#0F172A"}}/>
+        {q&&<button onClick={()=>setQ("")} style={{background:"none",border:"none",cursor:"pointer",color:"#94A3B8",fontSize:16}}>✕</button>}
+        <kbd style={{fontSize:11,color:"#94A3B8",background:"#F1F5F9",border:"1px solid #E2E8F0",borderRadius:4,padding:"1px 6px"}}>Esc</kbd>
+      </div>
+      <div style={{overflowY:"auto",maxHeight:400}}>
+        {q.trim().length<2&&<div style={{padding:32,textAlign:"center",color:"#94A3B8",fontSize:13}}>Type to search candidates and team members...</div>}
+        {matchCands.length>0&&<><div style={{padding:"8px 16px 4px",fontSize:11,fontWeight:700,color:"#94A3B8",letterSpacing:"0.05em"}}>CANDIDATES</div>
+          {matchCands.map(c=><div key={c.id} onClick={onClose} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 16px",cursor:"pointer",borderBottom:"1px solid #F8FAFC"}}>
+            <div style={{width:36,height:36,borderRadius:"50%",background:"#EFF6FF",color:"#2563EB",display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:700}}>{c.name?.split(" ").map(w=>w[0]).join("").slice(0,2)}</div>
+            <div style={{flex:1}}><div style={{fontSize:13,fontWeight:600}}>{c.name}</div><div style={{fontSize:11,color:"#94A3B8"}}>{c.tech}</div></div>
+            <span style={{fontSize:11,padding:"2px 8px",borderRadius:99,fontWeight:600,background:c.status==="Placed"?"#F0FDF4":c.status==="Dropped"?"#FEF2F2":"#EFF6FF",color:c.status==="Placed"?"#16A34A":c.status==="Dropped"?"#DC2626":"#2563EB"}}>{c.status}</span>
+          </div>)}</>}
+        {matchMembers.length>0&&<><div style={{padding:"8px 16px 4px",fontSize:11,fontWeight:700,color:"#94A3B8",letterSpacing:"0.05em"}}>TEAM MEMBERS</div>
+          {matchMembers.map(m=><div key={m.id} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 16px",cursor:"pointer",borderBottom:"1px solid #F8FAFC"}}>
+            <div style={{width:36,height:36,borderRadius:"50%",background:"#F0FDF4",color:"#16A34A",display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:700}}>{m.name?.split(" ").map(w=>w[0]).join("").slice(0,2)}</div>
+            <div style={{flex:1}}><div style={{fontSize:13,fontWeight:600}}>{m.name}</div><div style={{fontSize:11,color:"#94A3B8"}}>{m.email}</div></div>
+            <span style={{fontSize:11,padding:"2px 8px",borderRadius:99,fontWeight:600,background:"#F1F5F9",color:roleColor[m.role]||"#475569"}}>{roleLabel[m.role]||m.role}</span>
+          </div>)}</>}
+        {q.trim().length>1&&matchCands.length===0&&matchMembers.length===0&&<div style={{padding:32,textAlign:"center",color:"#94A3B8",fontSize:13}}>No results for "{q}"</div>}
+      </div>
+    </div>
+  </div>;
+}
+
 function Modal({ open, onClose, title, children, wide }) {
   if (!open) return null;
   return <div onClick={e=>e.target===e.currentTarget&&onClose()} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.45)", zIndex:1000, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
