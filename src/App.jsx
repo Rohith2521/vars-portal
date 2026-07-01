@@ -144,7 +144,7 @@ function GlobalSearch({candidates,members,onClose}){
       <div style={{overflowY:"auto",maxHeight:400}}>
         {q.trim().length<2&&<div style={{padding:32,textAlign:"center",color:"#94A3B8",fontSize:13}}>Type to search candidates and team members...</div>}
         {matchCands.length>0&&<><div style={{padding:"8px 16px 4px",fontSize:11,fontWeight:700,color:"#94A3B8",letterSpacing:"0.05em"}}>CANDIDATES</div>
-          {matchCands.map(c=><div key={c.id} onClick={()=>{onNav("candidates");sessionStorage.setItem("searchCand",c.id);onClose();}} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 16px",cursor:"pointer",borderBottom:"1px solid #F8FAFC"}}>
+          {matchCands.map(c=><div key={c.id} onClick={()=>onSelectCand&&onSelectCand(c)} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 16px",cursor:"pointer",borderBottom:"1px solid #F8FAFC",background:"transparent"}} onMouseEnter={e=>e.currentTarget.style.background="#F8FAFC"} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
             <div style={{width:36,height:36,borderRadius:"50%",background:"#EFF6FF",color:"#2563EB",display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:700}}>{c.name?.split(" ").map(w=>w[0]).join("").slice(0,2)}</div>
             <div style={{flex:1}}><div style={{fontSize:13,fontWeight:600}}>{c.name}</div><div style={{fontSize:11,color:"#94A3B8"}}>{c.tech}</div></div>
             <span style={{fontSize:11,padding:"2px 8px",borderRadius:99,fontWeight:600,background:c.status==="Placed"?"#F0FDF4":c.status==="Dropped"?"#FEF2F2":"#EFF6FF",color:c.status==="Placed"?"#16A34A":c.status==="Dropped"?"#DC2626":"#2563EB"}}>{c.status}</span>
@@ -642,7 +642,7 @@ export default function VARSPortal() {
           </div>
         </div>
       </div>
-      {showSearch&&<GlobalSearch candidates={candidates} members={members} onNav={setPage} onClose={()=>setShowSearch(false)}/>}
+      {showSearch&&<GlobalSearch candidates={candidates} members={members} onNav={setPage} onClose={()=>setShowSearch(false)} onSelectCand={(c)=>{setShowSearch(false);setPage("candidates");setTimeout(()=>{window.__searchCand=c;window.dispatchEvent(new CustomEvent("openCand",{detail:c}));},100);}}/>}
       {toast&&<Toast msg={toast.msg} type={toast.type} onDone={()=>setToast(null)}/>}
     </div>
   );
@@ -897,12 +897,12 @@ function DashPage({user,rc,candidates,allCandidates,logs,getMember,onNav,onRefre
 function CandPage({user,rc,candidates,members,onAdd,onAddMember,logs,getMember,loading,timeline,onAddTimeline,token,onRefresh}){
   const [selectedCand,setSelectedCand]=useState(null);
   useEffect(()=>{
-    const id=sessionStorage.getItem("searchCand");
-    if(id){
-      const cand=candidates.find(c=>c.id===id);
-      if(cand)setSelectedCand(cand);
-      sessionStorage.removeItem("searchCand");
-    }
+    const handler=(e)=>{
+      const cand=e.detail||candidates.find(c=>c.id===window.__searchCand?.id);
+      if(cand){setSelectedCand(cand);window.__searchCand=null;}
+    };
+    window.addEventListener("openCand",handler);
+    return()=>window.removeEventListener("openCand",handler);
   },[candidates]);
 
   return <div>
