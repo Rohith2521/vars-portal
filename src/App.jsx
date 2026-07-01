@@ -530,6 +530,11 @@ export default function VARSPortal() {
           <div style={{ fontSize:15, fontWeight:800, color:"#fff", letterSpacing:-0.3 }}>Mpower - VARS <span style={{ color:"#60A5FA" }}>IMS</span></div>
           <div style={{ fontSize:10, color:"#93C5FD", letterSpacing:"0.05em" }}>Internal Management System</div>
         </div>
+        {/* SEARCH BUTTON */}
+        <button onClick={()=>setShowSearch(true)} style={{ background:"rgba(255,255,255,0.1)", border:"1px solid rgba(255,255,255,0.15)", borderRadius:8, padding:"5px 12px", color:"rgba(255,255,255,0.7)", fontSize:12, cursor:"pointer", display:"flex", alignItems:"center", gap:6, marginRight:8 }}>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+          Search
+        </button>
         {rc.isAdmin&&<div style={{ position:"relative" }}>
           <button onClick={()=>setShowN(!showN)} style={{ background:"none", border:"none", color:"#93C5FD", cursor:"pointer", fontSize:18, position:"relative" }}>{unread>0&&<span style={{ position:"absolute", top:-4, right:-4, background:"#DC2626", color:"#fff", fontSize:10, borderRadius:99, padding:"1px 5px" }}>{unread}</span>}</button>
           {showN&&<div style={{ position:"absolute", right:0, top:38, background:"#fff", border:"1px solid #E2E8F0", borderRadius:10, width:340, zIndex:200, boxShadow:"0 8px 30px rgba(0,0,0,0.15)", maxHeight:420, overflowY:"auto" }}>
