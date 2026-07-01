@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 
 const SUPABASE_URL = "https://eiqwtejpouhzqlaoztce.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVpcXd0ZWpwb3VoenFsYW96dGNlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE3MDk4NTksImV4cCI6MjA5NzI4NTg1OX0.LOUdW2gAngUFlfsM-1A1dx5d2z4CH4Nkg07PU6suE7k";
@@ -122,7 +122,7 @@ function Btn({ children, variant="primary", onClick, style, disabled }) {
 }
 function GlobalSearch({candidates,members,onClose}){
   const [q,setQ]=useState("");
-  const inputRef=React.useRef(null);
+  const inputRef=useRef(null);
   useEffect(()=>{inputRef.current?.focus();},[]);
   useEffect(()=>{
     const handler=(e)=>{if(e.key==="Escape")onClose();};
