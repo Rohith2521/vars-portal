@@ -4056,7 +4056,13 @@ function ScreeningCallsPage({user,rc,candidates,allCandidates,members,token,getM
   const [showAdd,setShowAdd]=useState(false);
   const [form,setForm]=useState({});
   const [saving,setSaving]=useState(false);
+  const [selCand,setSelCand]=useState("");
   const set=(k,v)=>setForm(p=>({...p,[k]:v}));
+
+  const isAdmin=user.role==="manager"||user.role==="president";
+  const OUTCOMES=[{v:"positive",l:"Positive"},{v:"negative",l:"Negative"},{v:"pending",l:"Pending"},{v:"no_show",l:"No Show"}];
+  const outcomeColor={positive:"#16A34A",negative:"#DC2626",pending:"#D97706",no_show:"#94A3B8"};
+  const outcomeBg={positive:"#F0FDF4",negative:"#FEF2F2",pending:"#FFFBEB",no_show:"#F1F5F9"};
 
   useEffect(()=>{
     sb.get("screening_calls","select=*&order=call_date.desc",token).then(r=>{
@@ -4073,17 +4079,7 @@ function ScreeningCallsPage({user,rc,candidates,allCandidates,members,token,getM
     if(!form.outcome)return alert("Select outcome");
     setSaving(true);
     try {
-      const res=await sb.post("screening_calls",{
-        candidate_id:form.candidate_id,
-        user_id:user.id,
-        call_date:form.call_date,
-        with_whom:form.with_whom,
-        company_name:form.company_name,
-        company_details:form.company_details||"",
-        feedback:form.feedback||"",
-        outcome:form.outcome,
-        added_by:user.id,
-      },token);
+      await sb.post("screening_calls",{candidate_id:form.candidate_id,user_id:user.id,call_date:form.call_date,with_whom:form.with_whom,company_name:form.company_name,company_details:form.company_details||"",feedback:form.feedback||"",outcome:form.outcome,added_by:user.id},token);
       const r=await sb.get("screening_calls","select=*&order=call_date.desc",token);
       if(Array.isArray(r))setCalls(r);
       setForm({});setShowAdd(false);
@@ -4091,10 +4087,14 @@ function ScreeningCallsPage({user,rc,candidates,allCandidates,members,token,getM
     setSaving(false);
   };
 
-  const myCalls=rc.canViewAll?calls:calls.filter(c=>c.user_id===user.id);
-  const OUTCOMES=[{v:"positive",l:"Positive"},{v:"negative",l:"Negative"},{v:"pending",l:"Pending"},{v:"no_show",l:"No Show"}];
-  const outcomeColor={positive:"#16A34A",negative:"#DC2626",pending:"#D97706",no_show:"#94A3B8"};
-  const outcomeBg={positive:"#F0FDF4",negative:"#FEF2F2",pending:"#FFFBEB",no_show:"#F1F5F9"};
+  // All candidates for admin, own candidates for others
+  const allCands=allCandidates||candidates;
+  const myCandidates=isAdmin?allCands:candidates;
+  const allCalls=isAdmin?calls:calls.filter(c=>myCandidates.some(x=>x.id===c.candidate_id));
+
+  // Selected candidate data
+  const selectedCand=selCand?myCandidates.find(c=>c.id===selCand):null;
+  const filteredCalls=selCand?allCalls.filter(c=>c.candidate_id===selCand):allCalls;
 
   if(loading)return <div style={{padding:40,textAlign:"center",color:"#94A3B8"}}>Loading...</div>;
 
@@ -4102,29 +4102,49 @@ function ScreeningCallsPage({user,rc,candidates,allCandidates,members,token,getM
     <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}>
       <div>
         <div style={{fontSize:20,fontWeight:700,marginBottom:2}}>Screening Calls</div>
-        <div style={{fontSize:13,color:"#94A3B8"}}>{myCalls.length} total · {myCalls.filter(c=>c.outcome==="Positive").length} positive</div>
+        <div style={{fontSize:13,color:"#94A3B8"}}>{filteredCalls.length} total · {filteredCalls.filter(c=>c.outcome==="positive").length} positive</div>
       </div>
       {(user.role==="r_lead"||user.role==="c_lead")&&<Btn onClick={()=>setShowAdd(true)}>+ Add Screening Call</Btn>}
     </div>
 
+    {/* Candidate selector */}
+    <div style={{marginBottom:16}}>
+      <select value={selCand} onChange={e=>setSelCand(e.target.value)} style={{border:"1px solid #E2E8F0",borderRadius:8,padding:"8px 14px",fontSize:13,outline:"none",background:"#fff",minWidth:260}}>
+        <option value="">{isAdmin?"Select Candidate":"Your Candidates — All"}</option>
+        {myCandidates.map(c=><option key={c.id} value={c.id}>{c.name} · {c.tech} ({c.status})</option>)}
+      </select>
+    </div>
+
+    {/* Selected candidate card — admin only */}
+    {selectedCand&&isAdmin&&<Card style={{padding:16,marginBottom:16,background:"#F8FAFC"}}>
+      <div style={{fontSize:15,fontWeight:700,marginBottom:10}}>{selectedCand.name} · {selectedCand.tech}</div>
+      <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+        {selectedCand.recruiter_id&&<span style={{background:"#F0FDF4",color:"#16A34A",fontSize:12,padding:"4px 10px",borderRadius:99,fontWeight:600}}>Rec: {getMember(selectedCand.recruiter_id)?.name||"?"}</span>}
+        {selectedCand.r_lead_id&&<span style={{background:"#EFF6FF",color:"#2563EB",fontSize:12,padding:"4px 10px",borderRadius:99,fontWeight:600}}>R Lead: {getMember(selectedCand.r_lead_id)?.name||"?"}</span>}
+        {selectedCand.c_lead_id&&<span style={{background:"#FFFBEB",color:"#D97706",fontSize:12,padding:"4px 10px",borderRadius:99,fontWeight:600}}>C Lead: {getMember(selectedCand.c_lead_id)?.name||"?"}</span>}
+        {selectedCand.interview_coord_id&&<span style={{background:"#FEF2F2",color:"#DC2626",fontSize:12,padding:"4px 10px",borderRadius:99,fontWeight:600}}>IC: {getMember(selectedCand.interview_coord_id)?.name||"?"}</span>}
+      </div>
+    </Card>}
+
     {/* Stats */}
     <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:20}}>
       {OUTCOMES.map(o=><div key={o.v} style={{background:outcomeBg[o.v],borderRadius:10,padding:"12px 16px",textAlign:"center"}}>
-        <div style={{fontSize:22,fontWeight:800,color:outcomeColor[o.v]}}>{myCalls.filter(c=>c.outcome===o.v).length}</div>
+        <div style={{fontSize:22,fontWeight:800,color:outcomeColor[o.v]}}>{filteredCalls.filter(c=>c.outcome===o.v).length}</div>
         <div style={{fontSize:11,color:outcomeColor[o.v],fontWeight:600}}>{o.l.toUpperCase()}</div>
       </div>)}
     </div>
 
     {/* Calls list */}
     <div style={{display:"grid",gap:10}}>
-      {myCalls.map(c=>{
-        const cand=(allCandidates||candidates).find(x=>x.id===c.candidate_id);
+      {filteredCalls.map(c=>{
+        const cand=allCands.find(x=>x.id===c.candidate_id);
         const addedBy=getMember(c.added_by||c.user_id);
         return <Card key={c.id} style={{padding:16}}>
           <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:8}}>
             <div>
-              <div style={{fontSize:14,fontWeight:700}}>{cand?.name||"?"} · {c.company_name}</div>
-              <div style={{fontSize:12,color:"#94A3B8"}}>{fmtDate(c.call_date)} · With: {c.with_whom}</div>
+              {!selCand&&<div style={{fontSize:14,fontWeight:700,marginBottom:2}}>{cand?.name||"?"}</div>}
+              <div style={{fontSize:13,fontWeight:600}}>{c.company_name}</div>
+              <div style={{fontSize:12,color:"#94A3B8",marginTop:2}}>{fmtDate(c.call_date)} · With: {c.with_whom}</div>
               {addedBy&&<div style={{fontSize:11,color:"#2563EB",marginTop:2}}>Added by: {addedBy.name}</div>}
             </div>
             <span style={{background:outcomeBg[c.outcome]||"#F1F5F9",color:outcomeColor[c.outcome]||"#94A3B8",fontSize:12,padding:"3px 10px",borderRadius:99,fontWeight:600,flexShrink:0}}>{OUTCOMES.find(o=>o.v===c.outcome)?.l||c.outcome}</span>
@@ -4133,7 +4153,7 @@ function ScreeningCallsPage({user,rc,candidates,allCandidates,members,token,getM
           {c.feedback&&<div style={{background:"#F8FAFC",borderRadius:8,padding:"8px 12px",fontSize:13,color:"#334155"}}>{c.feedback}</div>}
         </Card>;
       })}
-      {myCalls.length===0&&<div style={{textAlign:"center",padding:60,color:"#94A3B8",fontSize:14}}>No screening calls yet.</div>}
+      {filteredCalls.length===0&&<div style={{textAlign:"center",padding:40,color:"#94A3B8",fontSize:14}}>{selCand?"No screening calls for this candidate yet.":"No screening calls yet."}</div>}
     </div>
 
     {/* Add Modal */}
