@@ -640,10 +640,13 @@ function DashPage({user,rc,candidates,allCandidates,logs,getMember,onNav,onRefre
     <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(140px,1fr))", gap:10, marginBottom:20 }}>
       {user.role==="president"
         ? <StatCard label="Total Marketing Candidates" value={(allCands||candidates).filter(c=>c.status==="Active").length} color="#2563EB" sub="active in marketing"/>
-        : <StatCard label="My candidates" value={candidates.length} color="#2563EB" sub="assigned to you"/>}
-      {user.role!=="president"&&<StatCard label="Today's logs" value={todayLogs.length} color="#7C3AED" sub="submitted today"/>}
-      {rc.canViewAll&&user.role!=="president"&&<StatCard label="Emails this week" value={wLogs.reduce((s,l)=>s+(l.emails_sent||0),0)} color="#0F766E" sub="all recruiters"/>}
-      {rc.canViewAll&&user.role!=="president"&&<StatCard label="Submissions week" value={wLogs.reduce((s,l)=>s+(l.submissions||0),0)} color="#D97706" sub="all recruiters"/>}
+        : user.role!=="manager"&&<StatCard label="My candidates" value={candidates.length} color="#2563EB" sub="assigned to you"/>}
+      {user.role!=="president"&&user.role!=="manager"&&<StatCard label="Today's logs" value={todayLogs.length} color="#7C3AED" sub="submitted today"/>}
+      {rc.canViewAll&&user.role!=="president"&&user.role!=="manager"&&<StatCard label="Emails this week" value={wLogs.reduce((s,l)=>s+(l.emails_sent||0),0)} color="#0F766E" sub="all recruiters"/>}
+      {rc.canViewAll&&user.role!=="president"&&user.role!=="manager"&&<StatCard label="Submissions week" value={wLogs.reduce((s,l)=>s+(l.submissions||0),0)} color="#D97706" sub="all recruiters"/>}
+      {user.role==="manager"&&<StatCard label="Active Candidates" value={(allCands||candidates).filter(c=>c.status==="Active").length} color="#2563EB" sub="in marketing"/>}
+      {user.role==="manager"&&<StatCard label="Placed This Month" value={placedThisMonth.length} color="#7C3AED" sub="closures"/>}
+      {user.role==="manager"&&<StatCard label="Interviews This Week" value={interviewSessions.filter(s=>{const d=new Date(s.interview_date);const wa=new Date();wa.setDate(wa.getDate()-7);return d>=wa;}).length} color="#0F766E" sub="last 7 days"/>}
     </div>
 
     {/* President sections */}
@@ -804,6 +807,8 @@ function DashPage({user,rc,candidates,allCandidates,logs,getMember,onNav,onRefre
 
     {user.role==="president"
       ? <TeamPerformanceSection allCandidates={allCands} members={members||[]} getMember={getMember}/>
+      : user.role==="manager"
+      ? <ManagerDashboardSection allCandidates={allCands||candidates} members={members||[]} logs={logs} getMember={getMember} interviewSessions={interviewSessions} onNav={onNav}/>
       : <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14 }}>
           <Card><CardHeader title="My Candidates" action={<Btn variant="outline" onClick={()=>onNav("candidates")} style={{ fontSize:12, padding:"5px 10px" }}>View all</Btn>}/>
             {candidates.slice(0,5).map(c=><div key={c.id} style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 16px", borderBottom:"1px solid #F1F5F9" }}><Av name={c.name} role="r_lead" size={34}/><div style={{ flex:1 }}><div style={{ fontSize:13, fontWeight:600 }}>{c.name}</div><div style={{ fontSize:11, color:"#94A3B8" }}>{c.tech}</div></div><StatusBadge status={c.status}/></div>)}
@@ -4397,5 +4402,166 @@ ${r.candSessions.map((s,i)=>`<tr>
         </div>
       </Card>}
     </div>}
+  </div>;
+}
+
+// ─── MANAGER DASHBOARD SECTION ───────────────────────────────────────────────
+function ManagerDashboardSection({allCandidates,members,logs,getMember,interviewSessions,onNav}){
+  const [expandedInterview,setExpandedInterview]=useState(null);
+  const ROUNDS={round_1:"Round 1",round_2:"Round 2",round_3:"Round 3",round_4:"Round 4",round_5:"Round 5",round_6:"Round 6",final:"Final"};
+
+  // Team activity today
+  const todayStr=today();
+  const allRoles=["recruiter","r_lead","c_lead","interview_coord"];
+  const roleLabel={recruiter:"Recruiter",r_lead:"R Lead",c_lead:"C Lead",interview_coord:"IC"};
+  const teamMembers=members.filter(m=>allRoles.includes(m.role)&&m.is_active!==false);
+  const submittedToday=teamMembers.filter(m=>logs.some(l=>l.user_id===m.id&&l.log_date===todayStr));
+  const pendingToday=teamMembers.filter(m=>!logs.some(l=>l.user_id===m.id&&l.log_date===todayStr));
+
+  // Pending actions
+  const waitingFeedback=interviewSessions.filter(s=>!s.feedback_received);
+  const noLogCandidates=allCandidates.filter(c=>c.status==="Active"&&!logs.some(l=>l.candidate_id===c.id&&l.log_date===todayStr&&l.type==="recruiter"));
+
+  // Recruiter performance this week
+  const weekAgo=new Date();weekAgo.setDate(weekAgo.getDate()-7);
+  const weekAgoStr=weekAgo.toISOString().split("T")[0];
+  const recruiters=members.filter(m=>m.role==="recruiter"&&m.is_active!==false);
+
+  // Interviews last 7 days
+  const recentInterviews=interviewSessions.filter(s=>s.interview_date>=weekAgoStr).sort((a,b)=>b.interview_date.localeCompare(a.interview_date));
+
+  return <div style={{display:"grid",gap:14}}>
+
+    {/* Row 1: Team Activity + Pending Actions */}
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+
+      {/* Team Activity Today */}
+      <Card>
+        <CardHeader title={`Team Activity Today — ${todayStr}`}/>
+        <div style={{padding:"0 0 8px"}}>
+          {submittedToday.length>0&&<>
+            <div style={{padding:"8px 16px",fontSize:11,fontWeight:700,color:"#16A34A",background:"#F0FDF4"}}>SUBMITTED ({submittedToday.length})</div>
+            {submittedToday.map(m=><div key={m.id} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 16px",borderBottom:"1px solid #F1F5F9"}}>
+              <div style={{display:"flex",alignItems:"center",gap:8}}><Av name={m.name} role={m.role} size={28}/><span style={{fontSize:13,fontWeight:500}}>{m.name}</span></div>
+              <RoleBadge role={m.role}/>
+            </div>)}
+          </>}
+          {pendingToday.length>0&&<>
+            <div style={{padding:"8px 16px",fontSize:11,fontWeight:700,color:"#DC2626",background:"#FEF2F2",marginTop:4}}>NOT SUBMITTED ({pendingToday.length})</div>
+            {pendingToday.map(m=><div key={m.id} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 16px",borderBottom:"1px solid #F1F5F9"}}>
+              <div style={{display:"flex",alignItems:"center",gap:8}}><Av name={m.name} role={m.role} size={28}/><span style={{fontSize:13,fontWeight:500,color:"#DC2626"}}>{m.name}</span></div>
+              <RoleBadge role={m.role}/>
+            </div>)}
+          </>}
+          {teamMembers.length===0&&<div style={{padding:16,textAlign:"center",fontSize:13,color:"#94A3B8"}}>No team members yet.</div>}
+        </div>
+      </Card>
+
+      {/* Pending Actions */}
+      <Card>
+        <CardHeader title="Pending Actions"/>
+        <div style={{padding:"0 0 8px"}}>
+          {/* Interviews waiting feedback */}
+          {waitingFeedback.length>0&&<>
+            <div style={{padding:"8px 16px",fontSize:11,fontWeight:700,color:"#D97706",background:"#FFFBEB"}}>WAITING FOR INTERVIEW FEEDBACK ({waitingFeedback.length})</div>
+            {waitingFeedback.slice(0,4).map(s=>{
+              const cand=allCandidates.find(c=>c.id===s.candidate_id);
+              return <div key={s.id} style={{padding:"8px 16px",borderBottom:"1px solid #F1F5F9",fontSize:12}}>
+                <div style={{fontWeight:600}}>{cand?.name||"?"} — {ROUNDS[s.round]||s.round}</div>
+                <div style={{color:"#94A3B8",fontSize:11}}>{s.with_whom&&`${s.with_whom} · `}{fmtDate(s.interview_date)}</div>
+              </div>;
+            })}
+            {waitingFeedback.length>4&&<div style={{padding:"6px 16px",fontSize:11,color:"#94A3B8"}}>+{waitingFeedback.length-4} more</div>}
+          </>}
+          {/* Candidates with no log today */}
+          {noLogCandidates.length>0&&<>
+            <div style={{padding:"8px 16px",fontSize:11,fontWeight:700,color:"#DC2626",background:"#FEF2F2",marginTop:4}}>NO RECRUITER LOG TODAY ({noLogCandidates.length})</div>
+            {noLogCandidates.slice(0,4).map(c=><div key={c.id} style={{padding:"8px 16px",borderBottom:"1px solid #F1F5F9",fontSize:12}}>
+              <div style={{fontWeight:600}}>{c.name} · {c.tech}</div>
+              <div style={{color:"#94A3B8",fontSize:11}}>Rec: {getMember(c.recruiter_id)?.name||"?"}</div>
+            </div>)}
+            {noLogCandidates.length>4&&<div style={{padding:"6px 16px",fontSize:11,color:"#94A3B8"}}>+{noLogCandidates.length-4} more</div>}
+          </>}
+          {waitingFeedback.length===0&&noLogCandidates.length===0&&<div style={{padding:16,textAlign:"center",fontSize:13,color:"#16A34A",fontWeight:600}}>All caught up!</div>}
+        </div>
+      </Card>
+    </div>
+
+    {/* Row 2: Recruiter Performance */}
+    <Card>
+      <CardHeader title="Recruiter Performance — Last 7 Days"/>
+      <div style={{overflowX:"auto"}}>
+        <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
+          <thead><tr style={{background:"#F8FAFC"}}>
+            {["Recruiter","Logs","Emails","Submissions","Avg Emails/Day","Today"].map(h=><th key={h} style={{padding:"10px 14px",textAlign:"left",fontWeight:600,color:"#475569",borderBottom:"1px solid #E2E8F0",fontSize:12}}>{h}</th>)}
+          </tr></thead>
+          <tbody>{recruiters.map(r=>{
+            const rLogs=logs.filter(l=>l.user_id===r.id&&l.type==="recruiter"&&l.log_date>=weekAgoStr);
+            const emails=rLogs.reduce((s,l)=>s+(l.emails_sent||0),0);
+            const subs=rLogs.reduce((s,l)=>s+(l.submissions||0),0);
+            const avgEmails=rLogs.length>0?(emails/rLogs.length).toFixed(1):0;
+            const submittedTodayFlag=logs.some(l=>l.user_id===r.id&&l.log_date===todayStr);
+            return <tr key={r.id} style={{borderBottom:"1px solid #F1F5F9"}}>
+              <td style={{padding:"10px 14px"}}>
+                <div style={{display:"flex",alignItems:"center",gap:8}}><Av name={r.name} role="recruiter" size={28}/><span style={{fontWeight:600}}>{r.name}</span></div>
+              </td>
+              <td style={{padding:"10px 14px",color:"#475569"}}>{rLogs.length}/7</td>
+              <td style={{padding:"10px 14px",fontWeight:700,color:"#2563EB"}}>{emails}</td>
+              <td style={{padding:"10px 14px",fontWeight:700,color:"#7C3AED"}}>{subs}</td>
+              <td style={{padding:"10px 14px",color:"#475569"}}>{avgEmails}</td>
+              <td style={{padding:"10px 14px"}}>
+                <span style={{background:submittedTodayFlag?"#F0FDF4":"#FEF2F2",color:submittedTodayFlag?"#16A34A":"#DC2626",fontSize:11,padding:"2px 8px",borderRadius:99,fontWeight:600}}>{submittedTodayFlag?"Submitted":"Pending"}</span>
+              </td>
+            </tr>;
+          })}</tbody>
+        </table>
+        {recruiters.length===0&&<div style={{padding:24,textAlign:"center",fontSize:13,color:"#94A3B8"}}>No recruiters yet.</div>}
+      </div>
+    </Card>
+
+    {/* Row 3: Interviews Last 7 Days */}
+    <Card>
+      <CardHeader title={`Interviews Last 7 Days (${recentInterviews.length})`} action={<span style={{fontSize:12,color:"#94A3B8"}}>{weekAgoStr} — {todayStr}</span>}/>
+      {recentInterviews.length===0&&<div style={{padding:"16px",fontSize:13,color:"#94A3B8",textAlign:"center"}}>No interviews in last 7 days.</div>}
+      <div style={{display:"grid",gap:0}}>
+        {recentInterviews.map(s=>{
+          const cand=allCandidates.find(c=>c.id===s.candidate_id);
+          const fbColor=s.feedback_received&&s.feedback_outcome==="positive"?"#16A34A":s.feedback_received&&s.feedback_outcome==="rejected"?"#DC2626":"#D97706";
+          const fbBg=s.feedback_received&&s.feedback_outcome==="positive"?"#F0FDF4":s.feedback_received&&s.feedback_outcome==="rejected"?"#FEF2F2":"#FFFBEB";
+          const fbLabel=s.feedback_received?s.feedback_outcome==="positive"?"Positive":"Rejected":"Waiting";
+          return <div key={s.id}>
+            <div onClick={()=>setExpandedInterview(expandedInterview===s.id?null:s.id)} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"12px 16px",borderBottom:"1px solid #F1F5F9",cursor:"pointer",background:expandedInterview===s.id?"#F8FAFC":"transparent"}}>
+              <div>
+                <div style={{fontSize:13,fontWeight:700}}>{cand?.name||"?"} — {ROUNDS[s.round]||s.round}</div>
+                <div style={{fontSize:11,color:"#94A3B8",marginTop:2}}>{s.with_whom&&`${s.with_whom} · `}{fmtDate(s.interview_date)}</div>
+              </div>
+              <div style={{display:"flex",alignItems:"center",gap:8}}>
+                <span style={{background:fbBg,color:fbColor,fontSize:11,padding:"2px 8px",borderRadius:99,fontWeight:600}}>{fbLabel}</span>
+                <span style={{fontSize:11,color:"#94A3B8"}}>{expandedInterview===s.id?"▲":"▼"}</span>
+              </div>
+            </div>
+            {expandedInterview===s.id&&<div style={{background:"#F8FAFC",borderBottom:"1px solid #E2E8F0",padding:"14px 16px"}}>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:10}}>
+                <div><span style={{fontSize:11,color:"#94A3B8",fontWeight:600}}>CANDIDATE</span><div style={{fontSize:13,fontWeight:600,marginTop:2}}>{cand?.name} · {cand?.tech}</div></div>
+                <div><span style={{fontSize:11,color:"#94A3B8",fontWeight:600}}>ROUND</span><div style={{fontSize:13,fontWeight:600,marginTop:2}}>{ROUNDS[s.round]||s.round}</div></div>
+                <div><span style={{fontSize:11,color:"#94A3B8",fontWeight:600}}>WITH</span><div style={{fontSize:13,fontWeight:600,marginTop:2}}>{s.with_whom||"—"}</div></div>
+                <div><span style={{fontSize:11,color:"#94A3B8",fontWeight:600}}>MODE</span><div style={{fontSize:13,fontWeight:600,marginTop:2}}>{s.interview_mode==="virtual"?"Virtual":"In-person"}</div></div>
+                <div><span style={{fontSize:11,color:"#94A3B8",fontWeight:600}}>SUPPORT</span><div style={{fontSize:13,fontWeight:600,marginTop:2}}>{s.tech_support_name||"—"} {s.support_mode?`· ${s.support_mode}`:""}</div></div>
+                <div><span style={{fontSize:11,color:"#94A3B8",fontWeight:600}}>OVERALL</span><div style={{fontSize:13,fontWeight:600,marginTop:2,color:s.overall_feedback==="went_well"?"#16A34A":"#DC2626"}}>{s.overall_feedback==="went_well"?"Went Well":s.overall_feedback==="okay"?"Okay":"Not Went Well"}</div></div>
+              </div>
+              <div style={{background:"#fff",borderRadius:8,padding:"10px 12px",border:"1px solid #E2E8F0",marginBottom:8}}>
+                <div style={{fontSize:11,color:"#94A3B8",fontWeight:600,marginBottom:4}}>INTERNAL FEEDBACK</div>
+                <div style={{fontSize:12,color:"#334155"}}>{s.detailed_feedback||"—"}</div>
+              </div>
+              {s.feedback_received&&<div style={{background:fbBg,borderRadius:8,padding:"10px 12px",border:`1px solid ${fbColor}30`}}>
+                <div style={{fontSize:11,color:fbColor,fontWeight:700,marginBottom:4}}>OFFICIAL — {(s.feedback_outcome||"").toUpperCase()} from {s.feedback_from}</div>
+                {s.feedback_reason&&<div style={{fontSize:12,color:"#334155",marginBottom:4}}>Reason: {s.feedback_reason}</div>}
+                {s.next_steps&&<div style={{fontSize:12,color:"#334155"}}>Next steps: {s.next_steps}</div>}
+              </div>}
+            </div>}
+          </div>;
+        })}
+      </div>
+    </Card>
   </div>;
 }
