@@ -120,7 +120,7 @@ function Btn({ children, variant="primary", onClick, style, disabled }) {
   const s = { primary:{background:disabled?"#94A3B8":"#2563EB",color:"#fff",border:"none"}, outline:{background:"#fff",color:"#475569",border:"1px solid #E2E8F0"}, danger:{background:"#DC2626",color:"#fff",border:"none"}, success:{background:"#16A34A",color:"#fff",border:"none"} };
   return <button disabled={disabled} onClick={onClick} style={{ padding:"8px 16px", borderRadius:8, fontSize:13, fontWeight:600, cursor:disabled?"not-allowed":"pointer", ...s[variant], ...style }}>{children}</button>;
 }
-function GlobalSearch({candidates,members,onClose}){
+function GlobalSearch({candidates,members,onClose,onSelectCand}){
   const [q,setQ]=useState("");
   const inputRef=useRef(null);
   useEffect(()=>{inputRef.current?.focus();},[]);
@@ -399,6 +399,7 @@ export default function VARSPortal() {
   const [toast,setToast]=useState(null); const [loading,setLoading]=useState(false); const [showN,setShowN]=useState(false); const [showProfile,setShowProfile]=useState(false);
   const [showSearch,setShowSearch]=useState(false);
   const [sidebarCollapsed,setSidebarCollapsed]=useState(false);
+  const [pendingCand,setPendingCand]=useState(null);
   const showToast=(msg,type="success")=>setToast({msg,type});
 
   const loadData=useCallback(async(token)=>{
@@ -624,7 +625,7 @@ export default function VARSPortal() {
           {loading&&<div style={{ position:"fixed", top:60, right:20, background:"#0F1F3D", color:"#fff", padding:"5px 14px", borderRadius:8, fontSize:12, zIndex:500 }}>Syncing...</div>}
           {page==="dashboard"&&<DashPage user={user} rc={rc} candidates={rc.canViewAll?candidates:myCands} allCandidates={candidates} logs={logs} getMember={getMember} onNav={setPage} onRefresh={()=>loadData()} members={members} token={user?.token}/>}
           {page==="daily_log"&&<LogPage user={user} rc={rc} candidates={myCands} allCands={candidates} onSubmit={addLog} loading={loading} members={members} logs={logs} allLogs={logs} onRefresh={()=>loadData()}/>}
-          {page==="candidates"&&<CandPage user={user} rc={rc} candidates={myCands} members={members} onAdd={addCandidate} onAddMember={addMember} logs={logs} getMember={getMember} loading={loading} timeline={timeline} onAddTimeline={addTimeline} token={user?.token} onRefresh={loadData}/>}
+          {page==="candidates"&&<CandPage user={user} rc={rc} candidates={myCands} allCandidates={candidates} members={members} onAdd={addCandidate} onAddMember={addMember} logs={logs} getMember={getMember} loading={loading} timeline={timeline} onAddTimeline={addTimeline} token={user?.token} onRefresh={loadData} pendingCand={pendingCand} onClearPendingCand={()=>setPendingCand(null)}/>}
           {page==="screening_calls"&&<ScreeningCallsPage user={user} rc={rc} candidates={rc.canViewAll?candidates:myCands} allCandidates={candidates} members={members} token={user?.token} getMember={getMember}/>}
           {page==="status_report"&&<StatusReportPage user={user} rc={rc} candidates={candidates} members={members} logs={logs} token={user?.token} getMember={getMember}/>}
           {page==="recruiters"&&<RecruitersPage user={user} rc={rc} members={members} candidates={candidates} logs={logs} getMember={getMember} loading={loading} token={user?.token} onRefresh={loadData} onAdd={addMember}/>}
@@ -642,7 +643,7 @@ export default function VARSPortal() {
           </div>
         </div>
       </div>
-      {showSearch&&<GlobalSearch candidates={candidates} members={members} onNav={setPage} onClose={()=>setShowSearch(false)} onSelectCand={(c)=>{setShowSearch(false);setPage("candidates");setTimeout(()=>{window.__searchCand=c;window.dispatchEvent(new CustomEvent("openCand",{detail:c}));},100);}}/>}
+      {showSearch&&<GlobalSearch candidates={candidates} members={members} onClose={()=>setShowSearch(false)} onSelectCand={(c)=>{setShowSearch(false);setPage("candidates");setPendingCand(c);}}/>}
       {toast&&<Toast msg={toast.msg} type={toast.type} onDone={()=>setToast(null)}/>}
     </div>
   );
@@ -894,16 +895,15 @@ function DashPage({user,rc,candidates,allCandidates,logs,getMember,onNav,onRefre
 }
 
 // ─── CANDIDATES PAGE (Manager view with tabs) ───────────────────────────────
-function CandPage({user,rc,candidates,members,onAdd,onAddMember,logs,getMember,loading,timeline,onAddTimeline,token,onRefresh}){
+function CandPage({user,rc,candidates,allCandidates,members,onAdd,onAddMember,logs,getMember,loading,timeline,onAddTimeline,token,onRefresh,pendingCand,onClearPendingCand}){
   const [selectedCand,setSelectedCand]=useState(null);
   useEffect(()=>{
-    const handler=(e)=>{
-      const cand=e.detail||candidates.find(c=>c.id===window.__searchCand?.id);
-      if(cand){setSelectedCand(cand);window.__searchCand=null;}
-    };
-    window.addEventListener("openCand",handler);
-    return()=>window.removeEventListener("openCand",handler);
-  },[candidates]);
+    if(pendingCand){
+      const cand=(allCandidates||candidates).find(c=>c.id===pendingCand.id)||pendingCand;
+      setSelectedCand(cand);
+      onClearPendingCand&&onClearPendingCand();
+    }
+  },[pendingCand]);
 
   return <div>
     <div style={{ fontSize:20, fontWeight:700, marginBottom:4 }}>
