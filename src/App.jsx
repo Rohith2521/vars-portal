@@ -576,6 +576,9 @@ export default function VARSPortal() {
           {page==="status_meeting"&&<StatusMeetingPage user={user} rc={rc} members={members} candidates={myCands} allCandidates={candidates} logs={logs} token={user?.token} onRefresh={()=>loadData()}/>}
           {page==="overall_status"&&<OverallStatusPage user={user} members={members} candidates={candidates} logs={logs} token={user?.token}/>}
           {page==="notifications"&&<NotifsPage notifications={notifications} onRefresh={()=>loadData()} onMarkRead={markRead} onMarkAllRead={markAllRead}/>}
+          <div style={{marginTop:40,paddingTop:16,borderTop:"1px solid #E2E8F0",textAlign:"center",fontSize:11,color:"#CBD5E1"}}>
+            © 2026 Mpower Logic Inc. & VARS Consulting Inc. · All rights reserved · Mpower-VARS IMS
+          </div>
         </div>
       </div>
       {toast&&<Toast msg={toast.msg} type={toast.type} onDone={()=>setToast(null)}/>}
