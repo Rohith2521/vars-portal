@@ -589,8 +589,8 @@ function DashPage({user,rc,candidates,allCandidates,logs,getMember,onNav,onRefre
   const [expandedInterview,setExpandedInterview]=useState(null);
   const [interviewSessions,setInterviewSessions]=useState([]);
   useEffect(()=>{
-    if(token&&user.role==="president"){
-      sb.get("interview_sessions","select=*&order=interview_date.desc&limit=20",token).then(r=>{if(Array.isArray(r))setInterviewSessions(r);});
+    if(token&&(user.role==="president"||user.role==="manager")){
+      sb.get("interview_sessions","select=*&order=interview_date.desc",token).then(r=>{if(Array.isArray(r))setInterviewSessions(r);});
     }
   },[token]);
   // Only manager/president see all logs
