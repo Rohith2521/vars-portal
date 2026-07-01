@@ -593,7 +593,9 @@ function DashPage({user,rc,candidates,allCandidates,logs,getMember,onNav,onRefre
       sb.get("interview_sessions","select=*&order=interview_date.desc&limit=20",token).then(r=>{if(Array.isArray(r))setInterviewSessions(r);});
     }
   },[token]);
-  const myLogs=rc.canViewAll?logs:logs.filter(l=>l.user_id===user.id);
+  // Only manager/president see all logs
+  const canViewAll=user.role==="manager"||user.role==="president";
+  const myLogs=canViewAll?logs:logs.filter(l=>l.user_id===user.id);
   const todayLogs=myLogs.filter(l=>l.log_date===today());
   const weekAgo=new Date();weekAgo.setDate(weekAgo.getDate()-7);
   const wLogs=logs.filter(l=>l.type==="recruiter"&&new Date(l.log_date)>=weekAgo);
