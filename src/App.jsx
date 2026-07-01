@@ -4126,7 +4126,8 @@ function ScreeningCallsPage({user,rc,candidates,allCandidates,members,token,getM
       </div>
     </Card>}
 
-    {/* Stats */}
+    {/* Stats + Calls — only show when candidate selected (for admin) or always for others */}
+    {(selCand||!isAdmin)&&<>
     <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:20}}>
       {OUTCOMES.map(o=><div key={o.v} style={{background:outcomeBg[o.v],borderRadius:10,padding:"12px 16px",textAlign:"center"}}>
         <div style={{fontSize:22,fontWeight:800,color:outcomeColor[o.v]}}>{filteredCalls.filter(c=>c.outcome===o.v).length}</div>
@@ -4134,7 +4135,6 @@ function ScreeningCallsPage({user,rc,candidates,allCandidates,members,token,getM
       </div>)}
     </div>
 
-    {/* Calls list */}
     <div style={{display:"grid",gap:10}}>
       {filteredCalls.map(c=>{
         const cand=allCands.find(x=>x.id===c.candidate_id);
@@ -4155,6 +4155,8 @@ function ScreeningCallsPage({user,rc,candidates,allCandidates,members,token,getM
       })}
       {filteredCalls.length===0&&<div style={{textAlign:"center",padding:40,color:"#94A3B8",fontSize:14}}>{selCand?"No screening calls for this candidate yet.":"No screening calls yet."}</div>}
     </div>
+    </>}
+    {isAdmin&&!selCand&&<div style={{textAlign:"center",padding:60,color:"#94A3B8",fontSize:14,background:"#F8FAFC",borderRadius:12,border:"1px dashed #E2E8F0"}}>Select a candidate to view their screening calls</div>}
 
     {/* Add Modal */}
     <Modal open={showAdd} onClose={()=>{setShowAdd(false);setForm({});}} title="Add Screening Call">
