@@ -1629,7 +1629,8 @@ function LogPage({user,rc,candidates,allCands,onSubmit,loading,members,logs,allL
 // ─── LOG HISTORY ────────────────────────────────────────────────────────────
 function HistPage({user,rc,candidates,logs,getMember,allCands}){
   const [ft,setFt]=useState("all");const [fc,setFc]=useState("all");const [fp,setFp]=useState("all");
-  const myLogs=rc.canViewAll?logs:logs.filter(l=>l.user_id===user.id);
+  const canViewAll=user.role==="manager"||user.role==="president";
+  const myLogs=canViewAll?logs:logs.filter(l=>l.user_id===user.id);
   const filtered=myLogs.filter(l=>{
     if(ft!=="all"&&l.type!==ft)return false;if(fc!=="all"&&l.candidate_id!==fc)return false;
     if(fp==="today"&&l.log_date!==today())return false;
@@ -1640,11 +1641,11 @@ function HistPage({user,rc,candidates,logs,getMember,allCands}){
   const sel={border:"1px solid #E2E8F0",borderRadius:8,padding:"6px 12px",fontSize:13,outline:"none",background:"#fff"};
   const roleMap={recruiter:"recruiter",r_lead:"r_lead",c_lead:"c_lead",interview_coord:"interview_coord",manager_feedback:"manager"};
   return <div>
-    <div style={{ fontSize:20, fontWeight:700, marginBottom:4 }}>Log History</div>
+    <div style={{ fontSize:20, fontWeight:700, marginBottom:4 }}>{canViewAll?"Log History":"Your Log History"}</div>
     <div style={{ fontSize:13, color:"#94A3B8", marginBottom:16 }}>{filtered.length} records</div>
     <div style={{ display:"flex", gap:10, marginBottom:16, flexWrap:"wrap" }}>
-      <select style={sel} value={ft} onChange={e=>setFt(e.target.value)}><option value="all">All roles</option><option value="recruiter">Recruiter</option><option value="r_lead">R Lead</option><option value="c_lead">C Lead</option><option value="interview_coord">IC</option><option value="manager_feedback">Manager</option></select>
-      <select style={sel} value={fc} onChange={e=>setFc(e.target.value)}><option value="all">All candidates</option>{(rc.canViewAll?allCands:candidates).map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select>
+      {canViewAll&&<select style={sel} value={ft} onChange={e=>setFt(e.target.value)}><option value="all">All roles</option><option value="recruiter">Recruiter</option><option value="r_lead">R Lead</option><option value="c_lead">C Lead</option><option value="interview_coord">IC</option><option value="manager_feedback">Manager</option></select>}
+      <select style={sel} value={fc} onChange={e=>setFc(e.target.value)}><option value="all">{canViewAll?"All candidates":"Your candidates"}</option>{(canViewAll?allCands:candidates).map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select>
       <select style={sel} value={fp} onChange={e=>setFp(e.target.value)}><option value="all">All time</option><option value="today">Today</option><option value="week">This week</option><option value="month">This month</option></select>
     </div>
     <div style={{ display:"grid", gap:10 }}>
