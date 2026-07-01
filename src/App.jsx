@@ -4029,9 +4029,9 @@ function ScreeningCallsPage({user,rc,candidates,allCandidates,members,token,getM
   };
 
   const myCalls=rc.canViewAll?calls:calls.filter(c=>c.user_id===user.id);
-  const OUTCOMES=["Positive","Negative","Pending","No Show"];
-  const outcomeColor={Positive:"#16A34A",Negative:"#DC2626",Pending:"#D97706","No Show":"#94A3B8"};
-  const outcomeBg={Positive:"#F0FDF4",Negative:"#FEF2F2",Pending:"#FFFBEB","No Show":"#F1F5F9"};
+  const OUTCOMES=[{v:"positive",l:"Positive"},{v:"negative",l:"Negative"},{v:"pending",l:"Pending"},{v:"no_show",l:"No Show"}];
+  const outcomeColor={positive:"#16A34A",negative:"#DC2626",pending:"#D97706",no_show:"#94A3B8"};
+  const outcomeBg={positive:"#F0FDF4",negative:"#FEF2F2",pending:"#FFFBEB",no_show:"#F1F5F9"};
 
   if(loading)return <div style={{padding:40,textAlign:"center",color:"#94A3B8"}}>Loading...</div>;
 
@@ -4046,9 +4046,9 @@ function ScreeningCallsPage({user,rc,candidates,allCandidates,members,token,getM
 
     {/* Stats */}
     <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:20}}>
-      {OUTCOMES.map(o=><div key={o} style={{background:outcomeBg[o],borderRadius:10,padding:"12px 16px",textAlign:"center"}}>
-        <div style={{fontSize:22,fontWeight:800,color:outcomeColor[o]}}>{myCalls.filter(c=>c.outcome===o).length}</div>
-        <div style={{fontSize:11,color:outcomeColor[o],fontWeight:600}}>{o.toUpperCase()}</div>
+      {OUTCOMES.map(o=><div key={o.v} style={{background:outcomeBg[o.v],borderRadius:10,padding:"12px 16px",textAlign:"center"}}>
+        <div style={{fontSize:22,fontWeight:800,color:outcomeColor[o.v]}}>{myCalls.filter(c=>c.outcome===o.v).length}</div>
+        <div style={{fontSize:11,color:outcomeColor[o.v],fontWeight:600}}>{o.l.toUpperCase()}</div>
       </div>)}
     </div>
 
@@ -4064,7 +4064,7 @@ function ScreeningCallsPage({user,rc,candidates,allCandidates,members,token,getM
               <div style={{fontSize:12,color:"#94A3B8"}}>{fmtDate(c.call_date)} · With: {c.with_whom}</div>
               {addedBy&&<div style={{fontSize:11,color:"#2563EB",marginTop:2}}>Added by: {addedBy.name}</div>}
             </div>
-            <span style={{background:outcomeBg[c.outcome]||"#F1F5F9",color:outcomeColor[c.outcome]||"#94A3B8",fontSize:12,padding:"3px 10px",borderRadius:99,fontWeight:600,flexShrink:0}}>{c.outcome}</span>
+            <span style={{background:outcomeBg[c.outcome]||"#F1F5F9",color:outcomeColor[c.outcome]||"#94A3B8",fontSize:12,padding:"3px 10px",borderRadius:99,fontWeight:600,flexShrink:0}}>{OUTCOMES.find(o=>o.v===c.outcome)?.l||c.outcome}</span>
           </div>
           {c.company_details&&<div style={{fontSize:12,color:"#475569",marginBottom:6}}>Details: {c.company_details}</div>}
           {c.feedback&&<div style={{background:"#F8FAFC",borderRadius:8,padding:"8px 12px",fontSize:13,color:"#334155"}}>{c.feedback}</div>}
@@ -4087,7 +4087,7 @@ function ScreeningCallsPage({user,rc,candidates,allCandidates,members,token,getM
       <div style={{marginBottom:14}}>
         <label style={{display:"block",fontSize:12,fontWeight:500,color:"#475569",marginBottom:8}}>Outcome *</label>
         <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-          {OUTCOMES.map(o=><button key={o} onClick={()=>set("outcome",o)} style={{padding:"6px 14px",borderRadius:8,fontSize:12,fontWeight:600,cursor:"pointer",background:form.outcome===o?outcomeBg[o]:"#fff",color:form.outcome===o?outcomeColor[o]:"#94A3B8",border:`1px solid ${form.outcome===o?outcomeColor[o]:"#E2E8F0"}`}}>{o}</button>)}
+          {OUTCOMES.map(o=><button key={o.v} onClick={()=>set("outcome",o.v)} style={{padding:"6px 14px",borderRadius:8,fontSize:12,fontWeight:600,cursor:"pointer",background:form.outcome===o.v?outcomeBg[o.v]:"#fff",color:form.outcome===o.v?outcomeColor[o.v]:"#94A3B8",border:`1px solid ${form.outcome===o.v?outcomeColor[o.v]:"#E2E8F0"}`}}>{o.l}</button>)}
         </div>
       </div>
       <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
