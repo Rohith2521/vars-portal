@@ -638,14 +638,72 @@ function DashPage({user,rc,candidates,allCandidates,logs,getMember,onNav,onRefre
     </div>
 
     <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(140px,1fr))", gap:10, marginBottom:20 }}>
-      <StatCard label="My candidates" value={candidates.length} color="#2563EB" sub="assigned to you"/>
-      <StatCard label="Today's logs" value={todayLogs.length} color="#7C3AED" sub="submitted today"/>
-      {rc.canViewAll&&<StatCard label="Emails this week" value={wLogs.reduce((s,l)=>s+(l.emails_sent||0),0)} color="#0F766E" sub="all recruiters"/>}
-      {rc.canViewAll&&<StatCard label="Submissions week" value={wLogs.reduce((s,l)=>s+(l.submissions||0),0)} color="#D97706" sub="all recruiters"/>}
+      {user.role==="president"
+        ? <StatCard label="Total Marketing Candidates" value={(allCands||candidates).filter(c=>c.status==="Active").length} color="#2563EB" sub="active in marketing"/>
+        : <StatCard label="My candidates" value={candidates.length} color="#2563EB" sub="assigned to you"/>}
+      {user.role!=="president"&&<StatCard label="Today's logs" value={todayLogs.length} color="#7C3AED" sub="submitted today"/>}
+      {rc.canViewAll&&user.role!=="president"&&<StatCard label="Emails this week" value={wLogs.reduce((s,l)=>s+(l.emails_sent||0),0)} color="#0F766E" sub="all recruiters"/>}
+      {rc.canViewAll&&user.role!=="president"&&<StatCard label="Submissions week" value={wLogs.reduce((s,l)=>s+(l.submissions||0),0)} color="#D97706" sub="all recruiters"/>}
     </div>
 
     {/* President sections */}
     {user.role==="president"&&<div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14, marginBottom:14 }}>
+
+      {/* Interviews Last 7 Days */}
+      {(()=>{
+        const sevenDaysAgo=new Date();sevenDaysAgo.setDate(sevenDaysAgo.getDate()-7);
+        const sevenDaysAgoStr=sevenDaysAgo.toISOString().split("T")[0];
+        const recentInterviews=interviewSessions.filter(s=>s.interview_date>=sevenDaysAgoStr).sort((a,b)=>b.interview_date.localeCompare(a.interview_date));
+        const periodEnd=today();
+        const periodStart=sevenDaysAgoStr;
+        const ROUNDS={round_1:"Round 1",round_2:"Round 2",round_3:"Round 3",round_4:"Round 4",round_5:"Round 5",round_6:"Round 6",final:"Final"};
+        return <Card style={{gridColumn:"1/-1"}}>
+          <CardHeader title={`Interviews Last 7 Days (${recentInterviews.length})`} action={<span style={{fontSize:12,color:"#94A3B8"}}>{periodStart} — {periodEnd}</span>}/>
+          {recentInterviews.length===0&&<div style={{padding:"16px",fontSize:13,color:"#94A3B8",textAlign:"center"}}>No interviews in last 7 days.</div>}
+          <div style={{display:"grid",gap:0}}>
+            {recentInterviews.map(s=>{
+              const cand=(allCands||candidates).find(c=>c.id===s.candidate_id);
+              const fbColor=s.feedback_received&&s.feedback_outcome==="positive"?"#16A34A":s.feedback_received&&s.feedback_outcome==="rejected"?"#DC2626":"#D97706";
+              const fbBg=s.feedback_received&&s.feedback_outcome==="positive"?"#F0FDF4":s.feedback_received&&s.feedback_outcome==="rejected"?"#FEF2F2":"#FFFBEB";
+              const fbLabel=s.feedback_received?s.feedback_outcome==="positive"?"Positive":"Rejected":"Waiting";
+              return <div key={s.id}>
+                <div onClick={()=>setExpandedInterview(expandedInterview===s.id?null:s.id)} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"12px 16px",borderBottom:"1px solid #F1F5F9",cursor:"pointer",background:expandedInterview===s.id?"#F8FAFC":"transparent"}}>
+                  <div>
+                    <div style={{fontSize:13,fontWeight:700}}>{cand?.name||"?"} — {ROUNDS[s.round]||s.round}</div>
+                    <div style={{fontSize:11,color:"#94A3B8",marginTop:2}}>{s.with_whom&&`${s.with_whom} · `}{fmtDate(s.interview_date)}</div>
+                  </div>
+                  <div style={{display:"flex",alignItems:"center",gap:8}}>
+                    <span style={{background:fbBg,color:fbColor,fontSize:11,padding:"2px 8px",borderRadius:99,fontWeight:600}}>{fbLabel}</span>
+                    <span style={{fontSize:11,color:"#94A3B8"}}>{expandedInterview===s.id?"▲":"▼"}</span>
+                  </div>
+                </div>
+                {expandedInterview===s.id&&<div style={{background:"#F8FAFC",borderBottom:"1px solid #E2E8F0",padding:"14px 16px"}}>
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:10}}>
+                    <div><span style={{fontSize:11,color:"#94A3B8",fontWeight:600}}>CANDIDATE</span><div style={{fontSize:13,fontWeight:600,marginTop:2}}>{cand?.name} · {cand?.tech}</div></div>
+                    <div><span style={{fontSize:11,color:"#94A3B8",fontWeight:600}}>ROUND</span><div style={{fontSize:13,fontWeight:600,marginTop:2}}>{ROUNDS[s.round]||s.round}</div></div>
+                    <div><span style={{fontSize:11,color:"#94A3B8",fontWeight:600}}>WITH</span><div style={{fontSize:13,fontWeight:600,marginTop:2}}>{s.with_whom||"—"}</div></div>
+                    <div><span style={{fontSize:11,color:"#94A3B8",fontWeight:600}}>DATE</span><div style={{fontSize:13,fontWeight:600,marginTop:2}}>{fmtDate(s.interview_date)}</div></div>
+                    <div><span style={{fontSize:11,color:"#94A3B8",fontWeight:600}}>MODE</span><div style={{fontSize:13,fontWeight:600,marginTop:2}}>{s.interview_mode==="virtual"?"Virtual":"In-person"}</div></div>
+                    <div><span style={{fontSize:11,color:"#94A3B8",fontWeight:600}}>SUPPORT</span><div style={{fontSize:13,fontWeight:600,marginTop:2}}>{s.tech_support_name||"—"} {s.support_mode?`· ${s.support_mode}`:""}</div></div>
+                  </div>
+                  <div style={{background:"#fff",borderRadius:8,padding:"10px 12px",border:"1px solid #E2E8F0",marginBottom:8}}>
+                    <div style={{fontSize:11,color:"#94A3B8",fontWeight:600,marginBottom:4}}>INTERNAL FEEDBACK</div>
+                    <div style={{fontSize:12,color:"#334155"}}>{s.detailed_feedback||"—"}</div>
+                  </div>
+                  {s.feedback_received&&<div style={{background:fbBg,borderRadius:8,padding:"10px 12px",border:`1px solid ${fbColor}30`}}>
+                    <div style={{fontSize:11,color:fbColor,fontWeight:700,marginBottom:4}}>OFFICIAL OUTCOME — {(s.feedback_outcome||"").toUpperCase()} from {s.feedback_from}</div>
+                    {s.feedback_reason&&<div style={{fontSize:12,color:"#334155",marginBottom:4}}>Reason: {s.feedback_reason}</div>}
+                    {s.next_steps&&<div style={{fontSize:12,color:"#334155"}}>Next steps: {s.next_steps}</div>}
+                  </div>}
+                  {!s.feedback_received&&s.feedback_expected_date&&<div style={{background:"#FFFBEB",borderRadius:8,padding:"8px 12px",border:"1px solid #FDE68A",fontSize:12,color:"#D97706"}}>
+                    Expected feedback by: {fmtDate(s.feedback_expected_date)}
+                  </div>}
+                </div>}
+              </div>;
+            })}
+          </div>
+        </Card>;
+      })()}
 
       {/* Closures This Year */}
       <Card>
