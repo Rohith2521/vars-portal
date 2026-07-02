@@ -4649,7 +4649,7 @@ ${r.candSessions.map((s,i)=>{
 
   return <div>
     <div style={{fontSize:20,fontWeight:700,marginBottom:4}}>Status Report</div>
-    <div style={{fontSize:13,color:"#94A3B8",marginBottom:20}}>Auto-generate candidate status report</div>
+    <div style={{fontSize:13,color:"#94A3B8",marginBottom:20}}>Auto-generate candidate status report — same format as weekly Excel</div>
 
     <Card style={{padding:20,marginBottom:20}}>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:14,marginBottom:16}}>
@@ -4663,88 +4663,113 @@ ${r.candSessions.map((s,i)=>{
       <div style={{display:"flex",gap:10}}>
         <Btn onClick={generate} disabled={generating}>{generating?"Generating...":"Generate Report"}</Btn>
         {report&&<Btn variant="outline" onClick={downloadPDF}>Download PDF</Btn>}
-        {report&&<Btn variant="outline" onClick={downloadExcel} style={{background:"#F0FDF4",color:"#16A34A",border:"1px solid #BBF7D0"}}>Download Excel</Btn>}
+        {report&&<Btn variant="outline" onClick={downloadExcel} style={{background:"#F0FDF4",color:"#16A34A",border:"1px solid #BBF7D0"}}>Download Excel (CSV)</Btn>}
       </div>
     </Card>
 
-    {report&&<div>
-      {/* Header */}
-      <Card style={{padding:20,marginBottom:14,border:"2px solid #0070C0"}}>
-        <div style={{fontSize:16,fontWeight:800,color:"#0070C0",marginBottom:4}}>{report.cand.name.toUpperCase()} — TEAM ({[report.rec?.name,report.rLead?.name,report.cLead?.name,report.ic?.name].filter(Boolean).join(", ")})</div>
-        <div style={{fontSize:12,marginBottom:2}}>Marketing Start: <strong>{fmtDate(report.cand.marketing_start_date||report.cand.added_on)}</strong></div>
-        <div style={{display:"flex",gap:16,fontSize:12,marginTop:4}}>
-          {report.rec&&<span>Rec: <strong>{report.rec.name}</strong></span>}
-          {report.rLead&&<span>R Lead: <strong>{report.rLead.name}</strong></span>}
-          {report.cLead&&<span>C Lead: <strong>{report.cLead.name}</strong></span>}
-          {report.ic&&<span>IC: <strong>{report.ic.name}</strong></span>}
-        </div>
-      </Card>
+    {report&&<div style={{border:"1px solid #ccc",borderRadius:8,overflow:"hidden",fontFamily:"Arial,sans-serif",fontSize:13}}>
 
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:14}}>
-        {/* Submissions */}
-        <Card style={{padding:16}}>
-          <div style={{fontSize:13,fontWeight:700,color:"#0070C0",marginBottom:10}}>SUBMISSIONS</div>
-          <div style={{display:"flex",gap:16,marginBottom:10}}>
-            <div style={{textAlign:"center"}}><div style={{fontSize:24,fontWeight:800,color:"#2563EB"}}>{report.totalEmails}</div><div style={{fontSize:11,color:"#94A3B8"}}>TOTAL EMAILS</div></div>
-            <div style={{textAlign:"center"}}><div style={{fontSize:24,fontWeight:800,color:"#7C3AED"}}>{report.totalSubs}</div><div style={{fontSize:11,color:"#94A3B8"}}>TOTAL SUBS</div></div>
+      {/* TOP SECTION — Left/Right split exactly like Excel */}
+      <div style={{display:"flex",borderBottom:"2px solid #000"}}>
+
+        {/* LEFT — Team info + Submissions */}
+        <div style={{flex:1,padding:"14px 16px",borderRight:"1px solid #ccc"}}>
+          <div style={{fontWeight:700,color:"#0070C0",fontSize:14,marginBottom:2}}>{report.cand.name.toUpperCase()} TEAM {report.cand.tech}</div>
+          <div style={{fontSize:12,marginBottom:8}}>({[report.rec?.name,report.rLead?.name,report.cLead?.name,report.ic?.name].filter(Boolean).join(", ")})</div>
+
+          <div style={{fontSize:12,marginBottom:2}}>MARKETING START DATE: <strong style={{color:"#C00000"}}>{report.mktStart}</strong></div>
+          {report.rec&&<div style={{fontSize:12,marginBottom:1}}>{report.rec.name.toUpperCase()} START DATE: {report.mktStart}</div>}
+          {report.rLead&&<div style={{fontSize:12,marginBottom:1}}>{report.rLead.name.toUpperCase()} START DATE: {report.mktStart}</div>}
+          {report.cLead&&<div style={{fontSize:12,marginBottom:1}}>{report.cLead.name.toUpperCase()} START DATE: {report.mktStart}</div>}
+          {report.ic&&<div style={{fontSize:12,marginBottom:1}}>{report.ic.name.toUpperCase()} START DATE: {report.mktStart}</div>}
+
+          <div style={{borderTop:"1px solid #ccc",marginTop:10,paddingTop:10}}>
+            <div style={{fontWeight:700,color:"#C00000",fontSize:12,marginBottom:6}}>SUBMISSIONS:</div>
+
+            {/* Previous Week */}
+            {report.prevWeekLogs.length>0&&<>
+              <div style={{fontSize:12,marginBottom:2}}>PERVIOUS WEEK SUBMISSIONS ({report.prevWeekLabel}): <strong>{report.prevSubs}</strong></div>
+              <div style={{fontSize:12,marginBottom:6}}>PERVIOUS WEEK EMAILS: <strong>{report.prevEmails}</strong></div>
+              <table style={{borderCollapse:"collapse",marginBottom:10,width:"100%"}}>
+                <tbody>
+                  <tr>{report.prevWeekLogs.map(x=><td key={x.date} style={{border:"1px solid #999",padding:"2px 8px",textAlign:"center",fontSize:11}}>{x.date.slice(5).replace("-","/")}</td>)}</tr>
+                  <tr>{report.prevWeekLogs.map(x=><td key={x.date} style={{border:"1px solid #999",padding:"2px 8px",textAlign:"center",fontSize:11}}>{x.log?`${x.log.submissions||0}(${x.log.emails_sent||0})`:"—"}</td>)}</tr>
+                </tbody>
+              </table>
+            </>}
+
+            {/* Current Week */}
+            {report.currWeekLogs.length>0&&<>
+              <div style={{fontSize:12,marginBottom:2}}>CURRENT WEEK SUBMISSIONS ({report.currWeekLabel}): <strong>{report.currSubs}</strong></div>
+              <div style={{fontSize:12,marginBottom:6}}>CURRENT WEEK EMAILS: <strong>{report.currEmails}</strong></div>
+              <table style={{borderCollapse:"collapse",width:"100%"}}>
+                <tbody>
+                  <tr>{report.currWeekLogs.map(x=><td key={x.date} style={{border:"1px solid #999",padding:"2px 8px",textAlign:"center",fontSize:11}}>{x.date.slice(5).replace("-","/")}</td>)}</tr>
+                  <tr>{report.currWeekLogs.map(x=><td key={x.date} style={{border:"1px solid #999",padding:"2px 8px",textAlign:"center",fontSize:11}}>{x.log?`${x.log.submissions||0}(${x.log.emails_sent||0})`:"—"}</td>)}</tr>
+                </tbody>
+              </table>
+            </>}
+
+            {report.prevWeekLogs.length===0&&report.currWeekLogs.length===0&&<div style={{fontSize:12,color:"#94A3B8"}}>No recruiter logs for this period.</div>}
           </div>
-          {report.recLogs.length>0&&<table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
-            <thead><tr style={{background:"#F8FAFC"}}><th style={{padding:"4px 8px",border:"1px solid #E2E8F0",textAlign:"left"}}>Date</th><th style={{padding:"4px 8px",border:"1px solid #E2E8F0"}}>Emails</th><th style={{padding:"4px 8px",border:"1px solid #E2E8F0"}}>Subs</th></tr></thead>
-            <tbody>{report.recLogs.map(l=><tr key={l.id}><td style={{padding:"4px 8px",border:"1px solid #E2E8F0"}}>{l.log_date}</td><td style={{padding:"4px 8px",border:"1px solid #E2E8F0",textAlign:"center"}}>{l.emails_sent||0}</td><td style={{padding:"4px 8px",border:"1px solid #E2E8F0",textAlign:"center"}}>{l.submissions||0}</td></tr>)}</tbody>
-          </table>}
-        </Card>
+        </div>
 
-        {/* Interviews + Screening + Mocks */}
-        <div style={{display:"grid",gap:10}}>
-          <Card style={{padding:14}}>
-            <div style={{fontSize:12,fontWeight:700,color:"#16A34A",marginBottom:8}}>INTERVIEWS — {report.candSessions.length} TOTAL</div>
-            <div style={{fontSize:12,marginBottom:4}}><strong>Active in pipeline:</strong> {report.activeInterviews.length}</div>
-            {report.activeInterviews.map((p,i)=><div key={p.id} style={{fontSize:11,color:"#475569",paddingLeft:8}}>{i+1}. {p.interview_with} ({ROUNDS[p.round]||p.round} Round)</div>)}
-            <div style={{fontSize:12,marginTop:6,marginBottom:4}}><strong>Final rounds:</strong> {report.finalRounds.length}</div>
-            <div style={{fontSize:12,marginTop:4}}><strong>New in pipeline:</strong> {report.newInterviews.length}</div>
-            {report.newInterviews.map((p,i)=><div key={p.id} style={{fontSize:11,color:"#475569",paddingLeft:8}}>{i+1}. {p.interview_with}</div>)}
-          </Card>
-          <Card style={{padding:14}}>
-            <div style={{fontSize:12,fontWeight:700,color:"#2563EB",marginBottom:6}}>SCREENING CALLS — {report.candCalls.length}</div>
-            <div style={{display:"flex",gap:12,fontSize:12}}>
-              <span style={{color:"#16A34A"}}>Positive: <strong>{report.positiveCalls}</strong></span>
-              <span style={{color:"#DC2626"}}>Negative: <strong>{report.negativeCalls}</strong></span>
-              <span style={{color:"#94A3B8"}}>No Feedback: <strong>{report.noFeedbackCalls}</strong></span>
-            </div>
-          </Card>
-          <Card style={{padding:14}}>
-            <div style={{fontSize:12,fontWeight:700,color:"#7C3AED",marginBottom:4}}>INTERVIEW MOCKS — {report.icLogs.reduce((s,l)=>s+(l.sessions_done||0),0)}</div>
-            <div style={{fontSize:12,fontWeight:700,color:"#7C3AED",marginTop:6}}>VENDOR MOCKS — {report.vendorMocks.length}</div>
-          </Card>
+        {/* RIGHT — Interviews, Screening, Mocks */}
+        <div style={{flex:1,padding:"14px 16px"}}>
+          <div style={{fontWeight:700,color:"#00B050",fontSize:12,marginBottom:2}}>TOTAL INTERVIEWS: {report.candSessions.length}</div>
+          {report.lastInterviewDate&&<div style={{fontWeight:700,color:"#00B050",fontSize:12,marginBottom:8}}>LAST INTERVIEW DATE: {report.lastInterviewDate.replace(/-/g,"/")}</div>}
+
+          <div style={{fontWeight:700,color:"#00B050",fontSize:12,marginBottom:2}}>ACTIVE INTERVIEWS: {report.activeInterviews.length}</div>
+          {report.activeInterviews.map((p,i)=><div key={p.id} style={{fontSize:12,marginLeft:12,marginBottom:1}}>{i+1}. {p.interview_with} ({ROUNDS[p.round]||p.round} ROUND)</div>)}
+
+          <div style={{fontWeight:700,color:"#00B050",fontSize:12,marginTop:6,marginBottom:2}}>FINAL ROUNDS IN PIPELINE: {report.finalRounds.length}</div>
+          <div style={{fontWeight:700,color:"#00B050",fontSize:12,marginBottom:2}}>NEW INTERVIEWS IN PIPELINE: {report.newInterviews.length}</div>
+          {report.newInterviews.map((p,i)=><div key={p.id} style={{fontSize:12,marginLeft:12,marginBottom:1}}>{i+1}. {p.interview_with} {p.created_at?.split("T")[0]?.slice(5).replace("-","/")}</div>)}
+
+          <div style={{borderTop:"1px solid #ccc",marginTop:10,paddingTop:10}}>
+            <div style={{fontWeight:700,color:"#0070C0",fontSize:12,marginBottom:4}}>SCREENING CALLS: {report.candCalls.length}</div>
+            <div style={{fontSize:12,marginLeft:8,marginBottom:1}}>POSITIVE: {report.positiveCalls}</div>
+            <div style={{fontSize:12,marginLeft:8,marginBottom:1}}>NEGATIVE: {report.negativeCalls}</div>
+            <div style={{fontSize:12,marginLeft:8,marginBottom:10}}>NO FEEDBACK: {report.noFeedbackCalls}</div>
+
+            <div style={{fontWeight:700,color:"#7030A0",fontSize:12,marginBottom:4}}>INTERVIEW MOCKS: {report.totalMockSessions}</div>
+            <div style={{fontSize:12,marginLeft:8,marginBottom:10}}>ISSUES: {report.icLogs.filter(l=>l.feedback).map(l=>l.feedback).join("; ")||""}</div>
+
+            <div style={{fontWeight:700,color:"#7030A0",fontSize:12,marginBottom:4}}>VENDOR MOCKS: {report.vendorMocks.length}</div>
+            <div style={{fontSize:12,marginLeft:8}}>ISSUES: {report.vendorMocks.filter(l=>l.vendor_mock_reason).map(l=>l.vendor_mock_reason).join("; ")||""}</div>
+          </div>
         </div>
       </div>
 
-      {/* Interview Table */}
-      {report.candSessions.length>0&&<Card style={{padding:16}}>
-        <div style={{fontSize:13,fontWeight:700,color:"#0F172A",marginBottom:12}}>Interview History</div>
-        <div style={{overflowX:"auto"}}>
-          <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
-            <thead><tr style={{background:"#F8FAFC"}}>
-              {["S.No","Date","Client","Round","Status","Support","Joined","Duration","Feedback"].map(h=><th key={h} style={{padding:"8px 10px",border:"1px solid #E2E8F0",textAlign:"left",fontWeight:600,color:"#475569"}}>{h}</th>)}
-            </tr></thead>
-            <tbody>{report.candSessions.map((s,i)=>{
-              const statusColor=s.feedback_received&&s.feedback_outcome==="positive"?"#16A34A":s.feedback_received&&s.feedback_outcome==="rejected"?"#DC2626":"#D97706";
-              const statusText=s.feedback_received?s.feedback_outcome==="positive"?"POSITIVE":"REJECTED":"NO FEEDBACK";
-              return <tr key={s.id}>
-                <td style={{padding:"8px 10px",border:"1px solid #E2E8F0",textAlign:"center"}}>{String(i+1).padStart(2,"0")}</td>
-                <td style={{padding:"8px 10px",border:"1px solid #E2E8F0"}}>{s.interview_date}</td>
-                <td style={{padding:"8px 10px",border:"1px solid #E2E8F0",fontWeight:600}}>{s.with_whom||"—"}</td>
-                <td style={{padding:"8px 10px",border:"1px solid #E2E8F0"}}>{ROUNDS[s.round]||s.round}</td>
-                <td style={{padding:"8px 10px",border:"1px solid #E2E8F0",color:statusColor,fontWeight:700}}>{statusText}</td>
-                <td style={{padding:"8px 10px",border:"1px solid #E2E8F0"}}>{s.tech_support_name||"—"}</td>
-                <td style={{padding:"8px 10px",border:"1px solid #E2E8F0",color:s.joined_on_time==="no"?"#DC2626":"#16A34A"}}>{s.joined_on_time==="no"?`${s.late_by_minutes||"?"}m Late`:"On Time"}</td>
-                <td style={{padding:"8px 10px",border:"1px solid #E2E8F0"}}>{{less_30:"<30m","30_min":"30m","45_min":"45m","1_hour":"1hr","1_30_hour":"1.5hr","2_hours":"2hr","3_hours":"3hr"}[s.duration]||s.duration}</td>
-                <td style={{padding:"8px 10px",border:"1px solid #E2E8F0",maxWidth:300,fontSize:11}}>{s.detailed_feedback}</td>
-              </tr>;
-            })}</tbody>
-          </table>
-        </div>
-      </Card>}
+      {/* INTERVIEW TABLE — full width below */}
+      {report.candSessions.length>0&&<table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+        <thead>
+          <tr style={{background:"#D9E1F2"}}>
+            {["S NO","DATE","CLIENT","ROUND","STATUS","REMARKS"].map(h=><th key={h} style={{border:"1px solid #999",padding:"6px 10px",textAlign:"left",fontWeight:700,fontSize:12}}>{h}</th>)}
+          </tr>
+        </thead>
+        <tbody>
+          {report.candSessions.map((s,i)=>{
+            const RDMAP={round_1:"1ST",round_2:"2ND",round_3:"3RD",round_4:"4TH",round_5:"5TH",round_6:"6TH",final:"FINAL"};
+            const DURMAP={less_30:"<30 MINS","30_min":"30 MINS","45_min":"45 MINS","1_hour":"1 HR","1_30_hour":"1.5 HRS","2_hours":"2 HRS","3_hours":"3 HRS"};
+            const status=s.feedback_received?s.feedback_outcome==="positive"?"CLEARED":s.feedback_outcome==="rejected"?"REJECTED":"NO FEEDBACK":"NO FEEDBACK";
+            const joinedTxt=s.joined_on_time==="no"?`${s.late_by_minutes||"?"}  MINS WAIT`:"";
+            return <tr key={s.id} style={{verticalAlign:"top"}}>
+              <td style={{border:"1px solid #ccc",padding:"6px 8px",textAlign:"center",fontWeight:700}}>{String(i+1).padStart(2,"0")}</td>
+              <td style={{border:"1px solid #ccc",padding:"6px 8px"}}>{s.interview_date?.replace(/-/g," ")}</td>
+              <td style={{border:"1px solid #ccc",padding:"6px 8px",fontWeight:600}}>{s.with_whom||"—"}</td>
+              <td style={{border:"1px solid #ccc",padding:"6px 8px"}}>{RDMAP[s.round]||s.round}</td>
+              <td style={{border:"1px solid #ccc",padding:"6px 8px",fontWeight:700,color:status==="CLEARED"?"#00B050":status==="REJECTED"?"#C00000":"#D97706"}}>{status}</td>
+              <td style={{border:"1px solid #ccc",padding:"6px 8px",lineHeight:1.6}}>
+                <strong>SUPPORT: {s.tech_support_name||"—"}</strong> JOINED: {joinedTxt?" - "+joinedTxt:"-"} DURATION: <strong>{DURMAP[s.duration]||s.duration||""}</strong>
+                <br/>{s.detailed_feedback||""}
+                {s.remarks&&<><br/><em>{s.remarks}</em></>}
+              </td>
+            </tr>;
+          })}
+        </tbody>
+      </table>}
+
     </div>}
   </div>;
 }
