@@ -4453,13 +4453,11 @@ function StatusReportPage({user,rc,candidates,members,logs,token,getMember}){
     }
 
     // Convert to CSV
-    const csv=rows.map(r=>r.map(cell=>{
+    const csv=rows.map(row=>row.map(cell=>{
       const str=String(cell||"");
-      if(str.includes(",")||str.includes('"')||str.includes('
-'))return `"${str.replace(/"/g,'""')}"`;
+      if(str.includes(",")||str.includes('"')||str.includes('\n'))return `"${str.replace(/"/g,'""')}"`;
       return str;
-    }).join(",")).join("
-");
+    }).join(",")).join("\n");
 
     // Download
     const blob=new Blob(["﻿"+csv],{type:"text/csv;charset=utf-8;"});
