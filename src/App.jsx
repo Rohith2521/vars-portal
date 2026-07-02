@@ -4645,6 +4645,8 @@ ${r.candSessions.map((s,i)=>{
 </body></html>`);
     win.document.close();
     setTimeout(()=>win.print(),600);
+  };
+
   return <div>
     <div style={{fontSize:20,fontWeight:700,marginBottom:4}}>Status Report</div>
     <div style={{fontSize:13,color:"#94A3B8",marginBottom:20}}>Auto-generate candidate status report</div>
@@ -4907,3 +4909,5 @@ function ManagerDashboardSection({allCandidates,members,logs,getMember,interview
     </Card>
   </div>;
 }
+
+// ─── APP END ─────────────────────────────────────────────────────────────────
