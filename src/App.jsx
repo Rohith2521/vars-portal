@@ -1942,7 +1942,17 @@ function TeamPage({user,rc,members,candidates,logs,onAddMember,loading,pendingMe
             <div style={{fontSize:22,fontWeight:800,color:"#2563EB"}}>{weekEmails}</div>
             <div style={{fontSize:10,color:"#2563EB",fontWeight:600}}>EMAILS/WEEK</div>
           </div>}
+          {m.role==="recruiter"&&<div style={{background:"#F5F3FF",borderRadius:8,padding:"10px",textAlign:"center"}}>
+            <div style={{fontSize:22,fontWeight:800,color:"#7C3AED"}}>{weekSubs}</div>
+            <div style={{fontSize:10,color:"#7C3AED",fontWeight:600}}>SUBS/WEEK</div>
+          </div>}
         </div>
+
+        {/* Recruiter - R Lead info */}
+        {m.role==="recruiter"&&rln&&<div style={{background:"#EFF6FF",border:"1px solid #BFDBFE",borderRadius:10,padding:"12px 16px",marginBottom:20}}>
+          <div style={{fontSize:11,color:"#94A3B8",fontWeight:600,marginBottom:4}}>R LEAD</div>
+          <div style={{fontSize:14,fontWeight:700,color:"#2563EB"}}>{rln}</div>
+        </div>}
 
         {/* R Lead - show team recruiters */}
         {m.role==="r_lead"&&teamRecruiters.length>0&&<>
