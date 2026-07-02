@@ -1878,6 +1878,7 @@ function StatsPage({candidates,logs,members}){
 function TeamPage({user,rc,members,candidates,logs,onAddMember,loading,pendingMember,onClearPendingMember}){
   const [showAdd,setShowAdd]=useState(false);
   const [selectedMember,setSelectedMember]=useState(null);
+  const [selectedCand,setSelectedCand]=useState(null);
   const [form,setForm]=useState({});
   const set=(k,v)=>setForm(p=>({...p,[k]:v}));
   const rLeads=members.filter(m=>m.role==="r_lead");
@@ -1903,6 +1904,9 @@ function TeamPage({user,rc,members,candidates,logs,onAddMember,loading,pendingMe
     const wLogs=mLogs.filter(l=>new Date(l.log_date)>=weekAgo&&l.type==="recruiter");
     const weekEmails=wLogs.reduce((s,l)=>s+(l.emails_sent||0),0);
     const weekSubs=wLogs.reduce((s,l)=>s+(l.submissions||0),0);
+    const teamRecruiters=m.role==="r_lead"?members.filter(x=>x.role==="recruiter"&&x.r_lead_team===m.id):[];
+    const placements=candidates.filter(c=>c.status==="Placed"&&[c.recruiter_id,c.r_lead_id,c.c_lead_id,c.interview_coord_id].includes(m.id));
+
     return <div>
       <button onClick={()=>setSelectedMember(null)} style={{background:"none",border:"none",color:"#2563EB",cursor:"pointer",fontSize:13,fontWeight:600,marginBottom:16,padding:0}}>← Back to Team</button>
       <Card style={{padding:24,marginBottom:16}}>
@@ -1915,22 +1919,73 @@ function TeamPage({user,rc,members,candidates,logs,onAddMember,loading,pendingMe
             <div style={{fontSize:12,color:"#94A3B8",marginTop:2}}>{m.email}</div>
           </div>
         </div>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:16}}>
-          <div style={{background:"#F8FAFC",borderRadius:8,padding:"10px",textAlign:"center"}}><div style={{fontSize:22,fontWeight:800,color:rConf.color}}>{mCands.length}</div><div style={{fontSize:10,color:"#94A3B8",fontWeight:600}}>CANDIDATES</div></div>
-          <div style={{background:"#F8FAFC",borderRadius:8,padding:"10px",textAlign:"center"}}><div style={{fontSize:22,fontWeight:800,color:rConf.color}}>{mLogs.length}</div><div style={{fontSize:10,color:"#94A3B8",fontWeight:600}}>TOTAL LOGS</div></div>
-          {m.role==="recruiter"&&<><div style={{background:"#EFF6FF",borderRadius:8,padding:"10px",textAlign:"center"}}><div style={{fontSize:22,fontWeight:800,color:"#2563EB"}}>{weekEmails}</div><div style={{fontSize:10,color:"#2563EB",fontWeight:600}}>EMAILS/WEEK</div></div>
-          <div style={{background:"#F5F3FF",borderRadius:8,padding:"10px",textAlign:"center"}}><div style={{fontSize:22,fontWeight:800,color:"#7C3AED"}}>{weekSubs}</div><div style={{fontSize:10,color:"#7C3AED",fontWeight:600}}>SUBS/WEEK</div></div></>}
-          <div style={{background:candidates.filter(c=>c.status==="Placed"&&[c.recruiter_id,c.r_lead_id,c.c_lead_id,c.interview_coord_id].includes(m.id)).length>0?"#F0FDF4":"#F8FAFC",borderRadius:8,padding:"10px",textAlign:"center"}}><div style={{fontSize:22,fontWeight:800,color:"#16A34A"}}>{candidates.filter(c=>c.status==="Placed"&&[c.recruiter_id,c.r_lead_id,c.c_lead_id,c.interview_coord_id].includes(m.id)).length}</div><div style={{fontSize:10,color:"#16A34A",fontWeight:600}}>PLACEMENTS</div></div>
+
+        {/* Stats */}
+        <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:20}}>
+          <div style={{background:"#F8FAFC",borderRadius:8,padding:"10px",textAlign:"center"}}>
+            <div style={{fontSize:22,fontWeight:800,color:rConf.color}}>{mCands.length}</div>
+            <div style={{fontSize:10,color:"#94A3B8",fontWeight:600}}>CANDIDATES</div>
+          </div>
+          <div style={{background:"#F8FAFC",borderRadius:8,padding:"10px",textAlign:"center"}}>
+            <div style={{fontSize:22,fontWeight:800,color:rConf.color}}>{mLogs.length}</div>
+            <div style={{fontSize:10,color:"#94A3B8",fontWeight:600}}>TOTAL LOGS</div>
+          </div>
+          <div style={{background:"#F0FDF4",borderRadius:8,padding:"10px",textAlign:"center"}}>
+            <div style={{fontSize:22,fontWeight:800,color:"#16A34A"}}>{placements.length}</div>
+            <div style={{fontSize:10,color:"#16A34A",fontWeight:600}}>PLACEMENTS</div>
+          </div>
+          {m.role==="r_lead"&&<div style={{background:"#EFF6FF",borderRadius:8,padding:"10px",textAlign:"center"}}>
+            <div style={{fontSize:22,fontWeight:800,color:"#2563EB"}}>{teamRecruiters.length}</div>
+            <div style={{fontSize:10,color:"#2563EB",fontWeight:600}}>RECRUITERS</div>
+          </div>}
+          {m.role==="recruiter"&&<div style={{background:"#EFF6FF",borderRadius:8,padding:"10px",textAlign:"center"}}>
+            <div style={{fontSize:22,fontWeight:800,color:"#2563EB"}}>{weekEmails}</div>
+            <div style={{fontSize:10,color:"#2563EB",fontWeight:600}}>EMAILS/WEEK</div>
+          </div>}
         </div>
+
+        {/* R Lead - show team recruiters */}
+        {m.role==="r_lead"&&teamRecruiters.length>0&&<>
+          <div style={{fontSize:13,fontWeight:700,marginBottom:10}}>Team Recruiters</div>
+          <div style={{display:"grid",gap:8,marginBottom:20}}>
+            {teamRecruiters.map(r=>{
+              const rCands=candidates.filter(c=>c.recruiter_id===r.id);
+              const todayLog=logs.some(l=>l.user_id===r.id&&l.log_date===today()&&l.type==="recruiter");
+              return <div key={r.id} onClick={()=>setSelectedMember(r)} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 14px",background:"#F8FAFC",borderRadius:10,cursor:"pointer",border:"1px solid #E2E8F0"}}>
+                <div style={{display:"flex",alignItems:"center",gap:10}}>
+                  <Av name={r.name} role="recruiter" size={36}/>
+                  <div>
+                    <div style={{fontSize:13,fontWeight:600}}>{r.name}</div>
+                    <div style={{fontSize:11,color:"#94A3B8"}}>{rCands.length} candidates</div>
+                  </div>
+                </div>
+                <div style={{display:"flex",alignItems:"center",gap:8}}>
+                  <span style={{background:todayLog?"#F0FDF4":"#FEF2F2",color:todayLog?"#16A34A":"#DC2626",fontSize:11,padding:"2px 8px",borderRadius:99,fontWeight:600}}>{todayLog?"Submitted":"Pending"}</span>
+                  <span style={{fontSize:11,color:"#94A3B8"}}>→</span>
+                </div>
+              </div>;
+            })}
+          </div>
+        </>}
+
+        {/* Assigned Candidates */}
         <div style={{fontSize:13,fontWeight:700,marginBottom:10}}>Assigned Candidates</div>
         <div style={{display:"grid",gap:6}}>
-          {mCands.map(c=><div key={c.id} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 12px",background:"#F8FAFC",borderRadius:8}}>
+          {mCands.map(c=><div key={c.id} onClick={()=>setSelectedCand(c)} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 14px",background:"#F8FAFC",borderRadius:10,cursor:"pointer",border:"1px solid #E2E8F0"}}>
             <div><div style={{fontSize:13,fontWeight:600}}>{c.name}</div><div style={{fontSize:11,color:"#94A3B8"}}>{c.tech}</div></div>
-            <StatusBadge status={c.status}/>
+            <div style={{display:"flex",alignItems:"center",gap:8}}><StatusBadge status={c.status}/><span style={{fontSize:11,color:"#94A3B8"}}>→</span></div>
           </div>)}
           {mCands.length===0&&<div style={{fontSize:13,color:"#94A3B8",padding:"8px 0"}}>No candidates assigned.</div>}
         </div>
       </Card>
+
+      {/* Candidate Profile Modal */}
+      {selectedCand&&<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.4)",zIndex:1000,display:"flex",alignItems:"center",justifyContent:"center",padding:20}} onClick={()=>setSelectedCand(null)}>
+        <div style={{background:"#fff",borderRadius:14,width:"90%",maxWidth:700,maxHeight:"85vh",overflowY:"auto",padding:24}} onClick={e=>e.stopPropagation()}>
+          <button onClick={()=>setSelectedCand(null)} style={{background:"none",border:"none",color:"#2563EB",cursor:"pointer",fontSize:13,fontWeight:600,marginBottom:16,padding:0}}>✕ Close</button>
+          <CandidateProfile candidate={selectedCand} members={members} logs={logs} timeline={[]} getMember={(id)=>members.find(m=>m.id===id)} onAddTimeline={()=>{}} loading={false} user={user} onBack={()=>setSelectedCand(null)} token={user?.token} onRefresh={()=>{}}/>
+        </div>
+      </div>}
     </div>;
   }
 
