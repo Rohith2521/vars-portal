@@ -4401,6 +4401,75 @@ function StatusReportPage({user,rc,candidates,members,logs,token,getMember}){
     }
   },[token]);
 
+  const downloadExcel=()=>{
+    if(!report)return;
+    const r=report;
+    const ROUNDS={round_1:"1st",round_2:"2nd",round_3:"3rd",round_4:"4th",round_5:"5th",round_6:"6th",final:"Final"};
+    const DURATIONS={less_30:"<30 MINS","30_min":"30 MINS","45_min":"45 MINS","1_hour":"1 HR","1_30_hour":"1.5 HRS","2_hours":"2 HRS","3_hours":"3 HRS"};
+
+    // Build CSV content matching the Excel format
+    const rows=[];
+    
+    // Header
+    rows.push([`${r.cand.name.toUpperCase()} TEAM (${[r.rec?.name,r.rLead?.name,r.cLead?.name,r.ic?.name].filter(Boolean).join(", ")})`,"","","","","","","","","","",""]);
+    rows.push([`(${[r.rec?.name,r.rLead?.name,r.cLead?.name,r.ic?.name].filter(Boolean).join(", ")})`,"","","","","","","","","","",""]);
+    rows.push([""]);
+    rows.push([`MARKETING START DATE:`,fmtDate(r.cand.marketing_start_date||r.cand.added_on),"","","","TOTAL INTERVIEWS:",r.candSessions.length,"","","","",""]);
+    rows.push([`${r.rec?.name?.toUpperCase()||""} START DATE:`,fmtDate(r.cand.marketing_start_date||r.cand.added_on),"","","","LAST INTERVIEW DATE:",r.candSessions[0]?fmtDate(r.candSessions[0].interview_date):"N/A","","","","",""]);
+    rows.push([""]);
+    rows.push(["SUBMISSIONS:","","","","","ACTIVE INTERVIEWS:",r.activeInterviews.length,"","","","",""]);
+    rows.push([`PERIOD (${r.fromDate} - ${r.toDate}):`,r.totalSubs,"","","","",""]);
+    rows.push([`TOTAL EMAILS:`,r.totalEmails,"","","","FINAL ROUNDS IN PIPELINE:",r.finalRounds.length,"","","","",""]);
+    rows.push([""]);
+    
+    // Day wise table
+    rows.push(["DATE","EMAILS","SUBS","","","NEW INTERVIEWS IN PIPELINE:",r.newInterviews.length,"","","","",""]);
+    r.recLogs.forEach((l,i)=>{
+      const pRow=["","","","","",i===0?"":"",(r.newInterviews[i]?r.newInterviews[i].interview_with:""),"","","","",""];
+      pRow[0]=l.log_date;pRow[1]=l.emails_sent||0;pRow[2]=l.submissions||0;
+      rows.push(pRow);
+    });
+    rows.push([""]);
+    rows.push(["","","","","","SCREENING CALLS:",r.candCalls.length,"","","","",""]);
+    rows.push(["","","","","","POSITIVE:",r.positiveCalls,"","","","",""]);
+    rows.push(["","","","","","NEGATIVE:",r.negativeCalls,"","","","",""]);
+    rows.push(["","","","","","NO FEEDBACK:",r.noFeedbackCalls,"","","","",""]);
+    rows.push([""]);
+    rows.push(["","","","","","INTERVIEW MOCKS:",r.icLogs.reduce((s,l)=>s+(l.sessions_done||0),0),"","","","",""]);
+    rows.push(["","","","","","ISSUES:",r.icLogs.filter(l=>l.feedback).map(l=>l.feedback).join("; ")||"None","","","","",""]);
+    rows.push([""]);
+    rows.push(["","","","","","VENDOR MOCKS:",r.vendorMocks.length,"","","","",""]);
+    rows.push(["","","","","","ISSUES:",r.vendorMocks.filter(l=>l.vendor_mock_reason).map(l=>l.vendor_mock_reason).join("; ")||"None","","","","",""]);
+    rows.push([""]);
+    
+    // Interview table
+    if(r.candSessions.length>0){
+      rows.push(["S NO","DATE","CLIENT","ROUND","STATUS","REMARKS"]);
+      r.candSessions.forEach((s,i)=>{
+        const statusText=s.feedback_received?s.feedback_outcome==="positive"?"CLEARED":"REJECTED":"NO FEEDBACK";
+        const remarks=`SUPPORT: ${s.tech_support_name||"—"} | JOINED: ${s.joined_on_time==="no"?`${s.late_by_minutes||"?"}M LATE`:"ON TIME"} | DURATION: ${DURATIONS[s.duration]||s.duration} | ${s.detailed_feedback||""}`;
+        rows.push([String(i+1).padStart(2,"0"),s.interview_date?.replace(/-/g,"/"),s.with_whom||"—",`${ROUNDS[s.round]||s.round} ROUND`,statusText,remarks]);
+      });
+    }
+
+    // Convert to CSV
+    const csv=rows.map(r=>r.map(cell=>{
+      const str=String(cell||"");
+      if(str.includes(",")||str.includes('"')||str.includes('
+'))return `"${str.replace(/"/g,'""')}"`;
+      return str;
+    }).join(",")).join("
+");
+
+    // Download
+    const blob=new Blob(["﻿"+csv],{type:"text/csv;charset=utf-8;"});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement("a");
+    a.href=url;a.download=`${r.cand.name.replace(/\s+/g,"_")}_Status_Report_${r.fromDate}_${r.toDate}.csv`;
+    document.body.appendChild(a);a.click();document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   const generate=()=>{
     if(!selCand)return alert("Select a candidate");
     if(!fromDate||!toDate)return alert("Select period");
@@ -4541,6 +4610,7 @@ ${r.candSessions.map((s,i)=>`<tr>
       <div style={{display:"flex",gap:10}}>
         <Btn onClick={generate} disabled={generating}>{generating?"Generating...":"Generate Report"}</Btn>
         {report&&<Btn variant="outline" onClick={downloadPDF}>Download PDF</Btn>}
+        {report&&<Btn variant="outline" onClick={downloadExcel} style={{background:"#F0FDF4",color:"#16A34A",border:"1px solid #BBF7D0"}}>Download Excel</Btn>}
       </div>
     </Card>
 
