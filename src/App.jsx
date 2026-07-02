@@ -544,7 +544,7 @@ export default function VARSPortal() {
     {id:"my_recruiters",label:"My Recruiters",show:user.role==="r_lead"},
     {id:"interviews",label:"Interviews",show:user.role==="r_lead"||user.role==="c_lead"||user.role==="manager"||user.role==="president"},
     {id:"screening_calls",label:"Screening Calls",show:user.role==="r_lead"||user.role==="c_lead"||user.role==="manager"||user.role==="president"},
-    {id:"status_report",label:"Status Report",show:user.role==="manager"||user.role==="president"},
+    {id:"status_report",label:"Status Report",show:user.role==="manager"||user.role==="r_lead"},
     {id:"logs_history",label:"Log History",always:true},
     {id:"status_meeting",label:"Status Meeting",always:true},
     {id:"overall_status",label:"Overall Status",show:user.role==="president"},
@@ -628,7 +628,7 @@ export default function VARSPortal() {
           {page==="daily_log"&&<LogPage user={user} rc={rc} candidates={myCands} allCands={candidates} onSubmit={addLog} loading={loading} members={members} logs={logs} allLogs={logs} onRefresh={()=>loadData()}/>}
           {page==="candidates"&&<CandPage user={user} rc={rc} candidates={myCands} allCandidates={candidates} members={members} onAdd={addCandidate} onAddMember={addMember} logs={logs} getMember={getMember} loading={loading} timeline={timeline} onAddTimeline={addTimeline} token={user?.token} onRefresh={loadData} pendingCand={pendingCand} onClearPendingCand={()=>setPendingCand(null)}/>}
           {page==="screening_calls"&&<ScreeningCallsPage user={user} rc={rc} candidates={rc.canViewAll?candidates:myCands} allCandidates={candidates} members={members} token={user?.token} getMember={getMember}/>}
-          {page==="status_report"&&<StatusReportPage user={user} rc={rc} candidates={candidates} members={members} logs={logs} token={user?.token} getMember={getMember}/>}
+          {page==="status_report"&&<StatusReportPage user={user} rc={rc} candidates={rc.canViewAll?candidates:myCands} allCandidates={candidates} members={members} logs={logs} token={user?.token} getMember={getMember}/>}
           {page==="recruiters"&&<RecruitersPage user={user} rc={rc} members={members} candidates={candidates} logs={logs} getMember={getMember} loading={loading} token={user?.token} onRefresh={loadData} onAdd={addMember}/>}
           {page==="my_recruiters"&&<MyRecruitersPage user={user} members={members} candidates={candidates} logs={logs} timeline={timeline} getMember={getMember} onAddTimeline={addTimeline} loading={loading}/>}
           {page==="logs_history"&&<HistPage user={user} rc={rc} candidates={myCands} logs={logs} getMember={getMember} allCands={candidates}/>}
@@ -4481,32 +4481,78 @@ function StatusReportPage({user,rc,candidates,members,logs,token,getMember}){
     const cLead=getMember(cand.c_lead_id);
     const ic=getMember(cand.interview_coord_id);
 
-    // Logs
+    // All team members start dates from candidate_assignments (use marketing_start_date as fallback)
+    const mktStart=cand.marketing_start_date||cand.added_on;
+
+    // Logs in period
     const recLogs=logs.filter(l=>l.candidate_id===selCand&&l.type==="recruiter"&&inPeriod(l.log_date)).sort((a,b)=>a.log_date.localeCompare(b.log_date));
     const rLeadLogs=logs.filter(l=>l.candidate_id===selCand&&l.type==="r_lead"&&inPeriod(l.log_date));
     const icLogs=logs.filter(l=>l.candidate_id===selCand&&l.type==="interview_coord"&&inPeriod(l.log_date));
 
-    // Submissions breakdown by day
+    // Split into previous week and current week
+    // Previous week = Monday-Friday of last week relative to toDate
+    const toD=new Date(toDate);
+    const dayOfWeek=toD.getDay(); // 0=Sun,1=Mon,...,6=Sat
+    // Current week: Mon of this week to toDate
+    const currMonday=new Date(toD);
+    currMonday.setDate(toD.getDate()-(dayOfWeek===0?6:dayOfWeek-1));
+    const currMondayStr=currMonday.toISOString().split("T")[0];
+    // Previous week: Mon-Fri before currMonday
+    const prevFriday=new Date(currMonday);prevFriday.setDate(currMonday.getDate()-3);
+    const prevMonday=new Date(currMonday);prevMonday.setDate(currMonday.getDate()-7);
+    const prevMondayStr=prevMonday.toISOString().split("T")[0];
+    const prevFridayStr=prevFriday.toISOString().split("T")[0];
+
+    // Generate all days in period
+    const getAllDays=(from,to)=>{
+      const days=[];const cur=new Date(from);const end=new Date(to);
+      while(cur<=end){
+        const d=cur.toISOString().split("T")[0];
+        const dow=cur.getDay();
+        if(dow>=1&&dow<=5)days.push(d); // Mon-Fri only
+        cur.setDate(cur.getDate()+1);
+      }
+      return days;
+    };
+
+    const prevWeekDays=getAllDays(prevMondayStr,prevFridayStr).filter(d=>d>=fromDate&&d<=toDate);
+    const currWeekDays=getAllDays(currMondayStr,toDate).filter(d=>d>=fromDate&&d<=toDate);
+
+    const getLogForDay=(day)=>recLogs.find(l=>l.log_date===day);
+
+    const prevWeekLogs=prevWeekDays.map(d=>({date:d,log:getLogForDay(d)}));
+    const currWeekLogs=currWeekDays.map(d=>({date:d,log:getLogForDay(d)}));
+
+    const prevEmails=prevWeekLogs.reduce((s,x)=>s+(x.log?.emails_sent||0),0);
+    const prevSubs=prevWeekLogs.reduce((s,x)=>s+(x.log?.submissions||0),0);
+    const currEmails=currWeekLogs.reduce((s,x)=>s+(x.log?.emails_sent||0),0);
+    const currSubs=currWeekLogs.reduce((s,x)=>s+(x.log?.submissions||0),0);
     const totalEmails=recLogs.reduce((s,l)=>s+(l.emails_sent||0),0);
     const totalSubs=recLogs.reduce((s,l)=>s+(l.submissions||0),0);
 
-    // Interviews
-    const candSessions=sessions.filter(s=>s.candidate_id===selCand&&inPeriod(s.interview_date));
+    // Interviews - ALL time (not just period)
+    const candSessions=sessions.filter(s=>s.candidate_id===selCand).sort((a,b)=>b.interview_date.localeCompare(a.interview_date));
+    const lastInterviewDate=candSessions[0]?.interview_date;
     const activeInterviews=pipeline.filter(p=>p.candidate_id===selCand&&p.status==="active");
     const finalRounds=activeInterviews.filter(p=>p.round?.toLowerCase().includes("final"));
     const newInterviews=activeInterviews.filter(p=>!p.round?.toLowerCase().includes("final"));
 
-    // Screening calls
-    const candCalls=screeningCalls.filter(s=>s.candidate_id===selCand&&inPeriod(s.call_date));
-    const positiveCalls=candCalls.filter(c=>c.outcome==="Positive").length;
-    const negativeCalls=candCalls.filter(c=>c.outcome==="Negative").length;
-    const noFeedbackCalls=candCalls.filter(c=>c.outcome==="Pending"||c.outcome==="No Show").length;
+    // Screening calls - ALL time
+    const candCalls=screeningCalls.filter(s=>s.candidate_id===selCand);
+    const positiveCalls=candCalls.filter(c=>c.outcome==="positive").length;
+    const negativeCalls=candCalls.filter(c=>c.outcome==="negative").length;
+    const noFeedbackCalls=candCalls.filter(c=>c.outcome==="pending"||c.outcome==="no_show").length;
 
-    // Mocks
+    // Mocks - period
     const vendorMocks=rLeadLogs.filter(l=>l.vendor_mock_conducted==="yes");
     const interviewMocks=icLogs.filter(l=>l.sessions_done>0);
+    const totalMockSessions=icLogs.reduce((s,l)=>s+(l.sessions_done||0),0);
 
-    setReport({cand,rec,rLead,cLead,ic,recLogs,totalEmails,totalSubs,candSessions,activeInterviews,finalRounds,newInterviews,candCalls,positiveCalls,negativeCalls,noFeedbackCalls,vendorMocks,interviewMocks,icLogs,fromDate,toDate});
+    // Format date range labels
+    const prevWeekLabel=prevWeekDays.length>0?`${prevWeekDays[0]?.replace(/-/g,"/")} - ${prevWeekDays[prevWeekDays.length-1]?.replace(/-/g,"/")}`:"-";
+    const currWeekLabel=currWeekDays.length>0?`${currWeekDays[0]?.replace(/-/g,"/")} - ${currWeekDays[currWeekDays.length-1]?.replace(/-/g,"/")}`:"-";
+
+    setReport({cand,rec,rLead,cLead,ic,mktStart,recLogs,totalEmails,totalSubs,prevWeekLogs,currWeekLogs,prevEmails,prevSubs,currEmails,currSubs,prevWeekLabel,currWeekLabel,candSessions,lastInterviewDate,activeInterviews,finalRounds,newInterviews,candCalls,positiveCalls,negativeCalls,noFeedbackCalls,vendorMocks,interviewMocks,totalMockSessions,icLogs,fromDate,toDate});
     setGenerating(false);
   };
 
@@ -4515,83 +4561,90 @@ function StatusReportPage({user,rc,candidates,members,logs,token,getMember}){
   const downloadPDF=()=>{
     if(!report)return;
     const r=report;
+    const ROUNDS={round_1:"1ST",round_2:"2ND",round_3:"3RD",round_4:"4TH",round_5:"5TH",round_6:"6TH",final:"FINAL"};
+    const DURATIONS={less_30:"<30 MINS","30_min":"30 MINS","45_min":"45 MINS","1_hour":"1 HR","1_30_hour":"1.5 HRS","2_hours":"2 HRS","3_hours":"3 HRS"};
+    const team=[r.rec?.name,r.rLead?.name,r.cLead?.name,r.ic?.name].filter(Boolean);
     const win=window.open("","_blank");
     win.document.write(`<!DOCTYPE html><html><head><title>Status Report — ${r.cand.name}</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
-body{font-family:Arial,sans-serif;font-size:11pt;padding:20px;color:#000;}
-.header{border:2px solid #000;padding:10px;margin-bottom:10px;}
-.section{margin-bottom:12px;}
-.title{font-weight:bold;color:#0070C0;font-size:11pt;margin-bottom:4px;}
-.team{color:#0070C0;font-weight:bold;font-size:12pt;}
-table{width:100%;border-collapse:collapse;margin-top:6px;}
-th,td{border:1px solid #000;padding:4px 6px;font-size:10pt;}
-th{background:#f0f0f0;font-weight:bold;}
+body{font-family:Arial,sans-serif;font-size:10pt;padding:16px;color:#000;}
+.top{display:flex;gap:0;border:1px solid #000;margin-bottom:8px;}
+.left{flex:1;padding:10px;border-right:1px solid #000;}
+.right{flex:1;padding:10px;}
+.cname{color:#0070C0;font-weight:bold;font-size:11pt;}
 .green{color:#00B050;font-weight:bold;}
 .blue{color:#0070C0;font-weight:bold;}
 .purple{color:#7030A0;font-weight:bold;}
-@media print{body{padding:10px;}}
+.pink{color:#C00000;font-weight:bold;}
+table{border-collapse:collapse;margin-top:4px;}
+table.full{width:100%;}
+th,td{border:1px solid #000;padding:3px 5px;font-size:9pt;}
+th{background:#f0f0f0;font-weight:bold;}
+.day-table td{text-align:center;}
+.interview-table th{background:#D9E1F2;}
+sup{font-size:7pt;}
+@media print{body{padding:8px;}@page{margin:10mm;}}
 </style></head><body>
-<div class="header">
-<div class="team">${r.cand.name.toUpperCase()} TEAM (${[r.rec?.name,r.rLead?.name,r.cLead?.name,r.ic?.name].filter(Boolean).join(", ")})</div>
-<div>MARKETING START DATE: <strong>${fmtDate(r.cand.marketing_start_date||r.cand.added_on)}</strong></div>
-${r.rec?`<div>${r.rec.name.toUpperCase()} START DATE: ${fmtDate(r.cand.marketing_start_date||r.cand.added_on)}</div>`:""}
+<div class="top">
+<div class="left">
+<div class="cname">${r.cand.name.toUpperCase()} TEAM ${r.cand.tech?`<span style="font-weight:normal;font-size:9pt;">${r.cand.tech}</span>`:""}</div>
+<div style="font-size:9pt;margin-bottom:6px;">(${team.join(", ")})</div>
+<div style="font-size:9pt;margin-bottom:2px;">MARKETING START DATE: <strong style="color:#C00000;">${r.mktStart||"—"}</strong></div>
+${r.rec?`<div style="font-size:9pt;margin-bottom:1px;">${r.rec.name.toUpperCase()} START DATE: ${r.mktStart||"—"}</div>`:""}
+${r.rLead?`<div style="font-size:9pt;margin-bottom:1px;">${r.rLead.name.toUpperCase()} START DATE: ${r.mktStart||"—"}</div>`:""}
+${r.cLead?`<div style="font-size:9pt;margin-bottom:1px;">${r.cLead.name.toUpperCase()} START DATE: ${r.mktStart||"—"}</div>`:""}
+${r.ic?`<div style="font-size:9pt;margin-bottom:1px;">${r.ic.name.toUpperCase()} START DATE: ${r.mktStart||"—"}</div>`:""}
+<br/>
+<div class="pink" style="margin-bottom:4px;">SUBMISSIONS:</div>
+${r.prevWeekLogs.length>0?`
+<div style="font-size:9pt;margin-bottom:2px;">PERVIOUS WEEK SUBMISSIONS (${r.prevWeekLabel}): ${r.prevSubs}</div>
+<div style="font-size:9pt;margin-bottom:4px;">PERVIOUS WEEK EMAILS: ${r.prevEmails}</div>
+<table class="day-table">
+<tr>${r.prevWeekLogs.map(x=>`<td style="font-size:8pt;padding:2px 6px;">${x.date.slice(5).replace("-","/")} </td>`).join("")}</tr>
+<tr>${r.prevWeekLogs.map(x=>`<td style="font-size:8pt;padding:2px 6px;">${x.log?`${x.log.submissions||0}(${x.log.emails_sent||0})`:"—"}</td>`).join("")}</tr>
+</table><br/>`:""}
+${r.currWeekLogs.length>0?`
+<div style="font-size:9pt;margin-bottom:2px;">CURRENT WEEK SUBMISSIONS (${r.currWeekLabel}): ${r.currSubs}</div>
+<div style="font-size:9pt;margin-bottom:4px;">CURRENT WEEK EMAILS: ${r.currEmails}</div>
+<table class="day-table">
+<tr>${r.currWeekLogs.map(x=>`<td style="font-size:8pt;padding:2px 6px;">${x.date.slice(5).replace("-","/")} </td>`).join("")}</tr>
+<tr>${r.currWeekLogs.map(x=>`<td style="font-size:8pt;padding:2px 6px;">${x.log?`${x.log.submissions||0}(${x.log.emails_sent||0})`:"—"}</td>`).join("")}</tr>
+</table>`:""}
 </div>
-
-<div style="display:flex;gap:20px;">
-<div style="flex:1;">
-<div class="section">
-<div class="title">SUBMISSIONS:</div>
-<div>PERIOD (${r.fromDate} - ${r.toDate}): ${r.totalSubs}</div>
-<div>TOTAL EMAILS: ${r.totalEmails}</div>
-${r.recLogs.length>0?`<table><tr><th>DATE</th><th>EMAILS</th><th>SUBS</th></tr>${r.recLogs.map(l=>`<tr><td>${l.log_date}</td><td>${l.emails_sent||0}</td><td>${l.submissions||0}</td></tr>`).join("")}</table>`:""}
-</div>
-</div>
-
-<div style="flex:1;">
-<div class="section">
-<div class="title green">TOTAL INTERVIEWS: ${r.candSessions.length}</div>
-${r.candSessions.length>0?`<div>LAST INTERVIEW DATE: ${fmtDate(r.candSessions[0]?.interview_date)}</div>`:""}
-<div class="green">ACTIVE INTERVIEWS: ${r.activeInterviews.length}</div>
-${r.activeInterviews.map((p,i)=>`<div>${i+1}. ${p.interview_with} (${ROUNDS[p.round]||p.round} ROUND)</div>`).join("")}
-<div class="green">FINAL ROUNDS IN PIPELINE: ${r.finalRounds.length}</div>
-<div class="green">NEW INTERVIEWS IN PIPELINE: ${r.newInterviews.length}</div>
-${r.newInterviews.map((p,i)=>`<div>${i+1}. ${p.interview_with} ${p.created_at?.split("T")[0]?.slice(5)}</div>`).join("")}
-</div>
-<div class="section">
-<div class="blue">SCREENING CALLS: ${r.candCalls.length}</div>
-<div>POSITIVE: ${r.positiveCalls}</div>
-<div>NEGATIVE: ${r.negativeCalls}</div>
-<div>NO FEEDBACK: ${r.noFeedbackCalls}</div>
-</div>
-<div class="section">
-<div class="purple">INTERVIEW MOCKS: ${r.icLogs.reduce((s,l)=>s+(l.sessions_done||0),0)}</div>
-<div>ISSUES: ${r.icLogs.filter(l=>l.feedback).map(l=>l.feedback).join("; ")||"None"}</div>
-</div>
-<div class="section">
-<div class="purple">VENDOR MOCKS: ${r.vendorMocks.length}</div>
-<div>ISSUES: ${r.vendorMocks.filter(l=>l.vendor_mock_reason).map(l=>l.vendor_mock_reason).join("; ")||"None"}</div>
-</div>
+<div class="right">
+<div class="green" style="margin-bottom:2px;">TOTAL INTERVIEWS: ${r.candSessions.length}</div>
+${r.lastInterviewDate?`<div class="green" style="margin-bottom:6px;">LAST INTERVIEW DATE: ${r.lastInterviewDate.replace(/-/g,"/")}</div>`:""}
+<div class="green" style="margin-bottom:2px;">ACTIVE INTERVIEWS: ${r.activeInterviews.length}</div>
+${r.activeInterviews.map((p,i)=>`<div style="font-size:9pt;margin-left:8px;margin-bottom:1px;">${i+1}. ${p.interview_with} (${ROUNDS[p.round]||p.round} ROUND${p.interview_mode==="f2f"?"/ F2F":""})</div>`).join("")}
+<div class="green" style="margin-top:4px;margin-bottom:2px;">FINAL ROUNDS IN PIPELINE: ${r.finalRounds.length}</div>
+<div class="green" style="margin-bottom:2px;">NEW INTERVIEWS IN PIPELINE: ${r.newInterviews.length}</div>
+${r.newInterviews.map((p,i)=>`<div style="font-size:9pt;margin-left:8px;margin-bottom:1px;">${i+1}. ${p.interview_with} ${p.created_at?.split("T")[0]?.slice(5).replace("-","/")}</div>`).join("")}
+<br/>
+<div class="blue" style="margin-bottom:2px;">SCREENING CALLS: ${r.candCalls.length}</div>
+<div style="font-size:9pt;margin-left:8px;">POSITIVE: ${r.positiveCalls}</div>
+<div style="font-size:9pt;margin-left:8px;">NEGATIVE: ${r.negativeCalls}</div>
+<div style="font-size:9pt;margin-left:8px;margin-bottom:6px;">NO FEEDBACK: ${r.noFeedbackCalls}</div>
+<div class="purple" style="margin-bottom:2px;">INTERVIEW MOCKS: ${r.totalMockSessions}</div>
+<div style="font-size:9pt;margin-left:8px;margin-bottom:6px;">ISSUES: ${r.icLogs.filter(l=>l.feedback).map(l=>l.feedback).join("; ")||""}</div>
+<div class="purple" style="margin-bottom:2px;">VENDOR MOCKS: ${r.vendorMocks.length}</div>
+<div style="font-size:9pt;margin-left:8px;">ISSUES: ${r.vendorMocks.filter(l=>l.vendor_mock_reason).map(l=>l.vendor_mock_reason).join("; ")||""}</div>
 </div>
 </div>
 
 ${r.candSessions.length>0?`
-<table>
+<table class="full interview-table">
 <tr><th>S NO</th><th>DATE</th><th>CLIENT</th><th>ROUND</th><th>STATUS</th><th>REMARKS</th></tr>
-${r.candSessions.map((s,i)=>`<tr>
-<td>${String(i+1).padStart(2,"0")}</td>
-<td>${s.interview_date?.replace(/-/g,"/")}</td>
-<td>${s.with_whom||"—"}</td>
-<td>${ROUNDS[s.round]||s.round}</td>
-<td>${s.feedback_received?s.feedback_outcome?.toUpperCase():"NO FEEDBACK"}</td>
-<td>SUPPORT: ${s.tech_support_name||"—"} JOINED: ${s.joined_on_time==="no"?`${s.late_by_minutes||"?"} MINS LATE`:"ON TIME"} DURATION: ${({less_30:"<30 MINS","30_min":"30 MINS","45_min":"45 MINS","1_hour":"1 HR","1_30_hour":"1.5 HRS","2_hours":"2 HRS","3_hours":"3 HRS"})[s.duration]||s.duration}<br>${s.detailed_feedback||""}</td>
-</tr>`).join("")}
+${r.candSessions.map((s,i)=>{
+  const status=s.feedback_received?s.feedback_outcome==="positive"?"CLEARED":s.feedback_outcome==="rejected"?"REJECTED":"NO FEEDBACK":"NO FEEDBACK";
+  const joined=s.joined_on_time==="no"?`${s.late_by_minutes||"?"}  MINS WAIT`:"";
+  const remarks=`SUPPORT: <strong>${s.tech_support_name||"AI"}</strong> JOINED: ${joined?" ":"- "} DURATION: <strong>${DURATIONS[s.duration]||s.duration||""}</strong><br/>${s.detailed_feedback||""}${s.remarks?`<br/><em>${s.remarks}</em>`:""}`;
+  return `<tr><td style="text-align:center">${String(i+1).padStart(2,"0")}</td><td>${s.interview_date?.replace(/-/g," ")}</td><td>${s.with_whom||"—"}</td><td>${ROUNDS[s.round]||s.round}</td><td>${status}</td><td>${remarks}</td></tr>`;
+}).join("")}
 </table>`:""}
 </body></html>`);
     win.document.close();
-    setTimeout(()=>win.print(),500);
-  };
-
+    setTimeout(()=>win.print(),600);
   return <div>
     <div style={{fontSize:20,fontWeight:700,marginBottom:4}}>Status Report</div>
     <div style={{fontSize:13,color:"#94A3B8",marginBottom:20}}>Auto-generate candidate status report</div>
