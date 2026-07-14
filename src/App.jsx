@@ -576,6 +576,7 @@ export default function VARSPortal() {
     overall_status:"ti-chart-pie",
     stats:"ti-chart-bar",
     team:"ti-building",
+    issues:"ti-alert-circle",
     notifications:"ti-bell",
     screening_calls:"ti-phone",
     status_report:"ti-file-text",
@@ -594,6 +595,7 @@ export default function VARSPortal() {
     {id:"overall_status",label:"Overall Status",show:user.role==="president"},
     {id:"stats",label:"Stats & Reports",show:rc.canViewAll},
     {id:"team",label:"Team",show:rc.isAdmin||user.role==="r_lead"||user.role==="c_lead"},
+    {id:"issues",label:"Issues",always:true},
     {id:"notifications",label:`Alerts${unread>0?` (${unread})`:""}`,show:rc.isAdmin},
   ].filter(n=>n.always||n.show);
 
@@ -688,6 +690,8 @@ export default function VARSPortal() {
           {page==="team"&&<TeamPage user={user} rc={rc} members={members} candidates={candidates} logs={logs} onAddMember={addMember} loading={loading} pendingMember={pendingMember} onClearPendingMember={()=>setPendingMember(null)}/>}
           {page==="status_meeting"&&<StatusMeetingPage user={user} rc={rc} members={members} candidates={myCands} allCandidates={candidates} logs={logs} token={user?.token} onRefresh={()=>loadData()}/>}
           {page==="overall_status"&&<OverallStatusPage user={user} members={members} candidates={candidates} logs={logs} token={user?.token}/>}
+          {page==="issues"&&<IssuesPage user={user} rc={rc} members={members} candidates={candidates} token={user?.token} getMember={getMember}/>
+          }
           {page==="notifications"&&<NotifsPage notifications={notifications} onRefresh={()=>loadData()} onMarkRead={markRead} onMarkAllRead={markAllRead}/>}
           <div style={{marginTop:40,paddingTop:16,borderTop:"1px solid #E2E8F0",textAlign:"center",fontSize:11,color:"#CBD5E1"}}>
             © 2026 Mpower Logic Inc. & VARS Consulting Inc. · All rights reserved · Mpower-VARS IMS
@@ -4992,3 +4996,219 @@ function ManagerDashboardSection({allCandidates,members,logs,getMember,interview
 }
 
 // ─── APP END ─────────────────────────────────────────────────────────────────
+
+// ─── ISSUES PAGE ─────────────────────────────────────────────────────────────
+function IssuesPage({user,rc,members,candidates,token,getMember}){
+  const [issues,setIssues]=useState([]);
+  const [loading,setLoading]=useState(true);
+  const [tab,setTab]=useState("existing"); // existing | resolved
+  const [showAdd,setShowAdd]=useState(false);
+  const [form,setForm]=useState({issue_type:"",r_lead_id:"",recruiter_id:"",candidate_id:"",description:"",next_steps:"",status:"open"});
+  const [saving,setSaving]=useState(false);
+  const [expandedIssue,setExpandedIssue]=useState(null);
+  const [updatingId,setUpdatingId]=useState(null);
+  const set=(k,v)=>setForm(p=>({...p,[k]:v}));
+
+  const isAdmin=user.role==="manager"||user.role==="president";
+
+  useEffect(()=>{
+    loadIssues();
+  },[token]);
+
+  const loadIssues=async()=>{
+    setLoading(true);
+    const r=await sb.get("issues","select=*&order=created_at.desc",token);
+    if(Array.isArray(r))setIssues(r);
+    setLoading(false);
+  };
+
+  const rLeads=members.filter(m=>m.role==="r_lead"&&m.is_active!==false);
+
+  // Get recruiters under selected r_lead
+  const recUnderRLead=form.r_lead_id?members.filter(m=>m.role==="recruiter"&&m.r_lead_team===form.r_lead_id&&m.is_active!==false):[];
+  // Get candidates under selected r_lead
+  const candsUnderRLead=form.r_lead_id?candidates.filter(c=>c.r_lead_id===form.r_lead_id&&c.status==="Active"):[];
+
+  const submit=async()=>{
+    if(!form.issue_type)return alert("Select issue type");
+    if(!form.description?.trim())return alert("Issue description is mandatory");
+    if(form.issue_type==="recruiter"&&!form.recruiter_id)return alert("Select recruiter");
+    if(form.issue_type==="candidate"&&!form.candidate_id)return alert("Select candidate");
+    setSaving(true);
+    try {
+      await sb.post("issues",{
+        issue_type:form.issue_type,
+        r_lead_id:form.r_lead_id||null,
+        recruiter_id:form.recruiter_id||null,
+        candidate_id:form.candidate_id||null,
+        description:form.description,
+        next_steps:form.next_steps||null,
+        status:"open",
+        reported_by:user.id,
+      },token);
+      await loadIssues();
+      setForm({issue_type:"",r_lead_id:"",recruiter_id:"",candidate_id:"",description:"",next_steps:"",status:"open"});
+      setShowAdd(false);
+    } catch(e){alert("Error saving issue.");}
+    setSaving(false);
+  };
+
+  const updateStatus=async(id,status,solution)=>{
+    setUpdatingId(id);
+    try {
+      await sb.patch("issues",id,{status,solution:solution||null,resolved_by:status==="resolved"?user.id:null,updated_at:new Date().toISOString()},token);
+      await loadIssues();
+    } catch(e){alert("Error updating.");}
+    setUpdatingId(null);
+  };
+
+  const existingIssues=issues.filter(i=>i.status!=="resolved");
+  const resolvedIssues=issues.filter(i=>i.status==="resolved");
+
+  const statusColor={open:"#DC2626",in_progress:"#D97706",resolved:"#16A34A"};
+  const statusBg={open:"#FEF2F2",in_progress:"#FFFBEB",resolved:"#F0FDF4"};
+  const statusLabel={open:"Open",in_progress:"In Progress",resolved:"Resolved"};
+
+  const IssueCard=({issue})=>{
+    const [solution,setSolution]=useState(issue.solution||"");
+    const reporter=getMember(issue.reported_by);
+    const rec=issue.recruiter_id?getMember(issue.recruiter_id):null;
+    const rLead=issue.r_lead_id?getMember(issue.r_lead_id):null;
+    const cand=issue.candidate_id?candidates.find(c=>c.id===issue.candidate_id):null;
+    const isExpanded=expandedIssue===issue.id;
+
+    return <Card style={{padding:0,marginBottom:10,border:`1px solid ${statusColor[issue.status]}40`}}>
+      <div onClick={()=>setExpandedIssue(isExpanded?null:issue.id)} style={{padding:"14px 16px",cursor:"pointer",display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:12}}>
+        <div style={{flex:1}}>
+          <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
+            <span style={{background:statusBg[issue.status],color:statusColor[issue.status],fontSize:11,padding:"2px 8px",borderRadius:99,fontWeight:700}}>{statusLabel[issue.status]}</span>
+            <span style={{background:"#F1F5F9",color:"#475569",fontSize:11,padding:"2px 8px",borderRadius:99,fontWeight:600}}>
+              {issue.issue_type==="recruiter"?"Recruiter Issue":issue.issue_type==="candidate"?"Candidate Issue":"Other Issue"}
+            </span>
+          </div>
+          <div style={{fontSize:13,fontWeight:600,marginBottom:4}}>{issue.description}</div>
+          <div style={{fontSize:11,color:"#94A3B8"}}>
+            {rLead&&<span>R Lead: {rLead.name} · </span>}
+            {rec&&<span>Rec: {rec.name} · </span>}
+            {cand&&<span>Candidate: {cand.name} · </span>}
+            {reporter&&<span>Reported by: {reporter.name} · </span>}
+            {fmtDate(issue.created_at?.split("T")[0])}
+          </div>
+        </div>
+        <span style={{fontSize:11,color:"#94A3B8"}}>{isExpanded?"▲":"▼"}</span>
+      </div>
+
+      {isExpanded&&<div style={{padding:"14px 16px",borderTop:"1px solid #F1F5F9",background:"#F8FAFC"}}>
+        {issue.next_steps&&<div style={{background:"#EFF6FF",borderRadius:8,padding:"10px 12px",marginBottom:12}}>
+          <div style={{fontSize:11,fontWeight:700,color:"#2563EB",marginBottom:4}}>NEXT STEPS</div>
+          <div style={{fontSize:13,color:"#334155"}}>{issue.next_steps}</div>
+        </div>}
+
+        {issue.solution&&<div style={{background:"#F0FDF4",borderRadius:8,padding:"10px 12px",marginBottom:12}}>
+          <div style={{fontSize:11,fontWeight:700,color:"#16A34A",marginBottom:4}}>SOLUTION / RESOLUTION</div>
+          <div style={{fontSize:13,color:"#334155"}}>{issue.solution}</div>
+        </div>}
+
+        {/* Status update */}
+        {issue.status!=="resolved"&&<div style={{marginBottom:8}}>
+          <div style={{fontSize:12,fontWeight:600,color:"#475569",marginBottom:8}}>Update Status:</div>
+          <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:10}}>
+            {issue.status==="open"&&<button onClick={()=>updateStatus(issue.id,"in_progress",null)} disabled={updatingId===issue.id} style={{padding:"5px 12px",borderRadius:8,fontSize:12,fontWeight:600,cursor:"pointer",background:"#FFFBEB",color:"#D97706",border:"1px solid #FDE68A"}}>Mark In Progress</button>}
+            <button onClick={()=>updateStatus(issue.id,"resolved",solution)} disabled={updatingId===issue.id||!solution.trim()} style={{padding:"5px 12px",borderRadius:8,fontSize:12,fontWeight:600,cursor:"pointer",background:"#F0FDF4",color:"#16A34A",border:"1px solid #BBF7D0"}}>Mark Resolved</button>
+          </div>
+          <div style={{marginBottom:4}}>
+            <label style={{display:"block",fontSize:12,fontWeight:500,color:"#475569",marginBottom:4}}>Solution / How it was resolved *</label>
+            <textarea value={solution} onChange={e=>setSolution(e.target.value)} placeholder="Describe how this issue was resolved..." rows={2} style={{width:"100%",border:"1px solid #E2E8F0",borderRadius:8,padding:"8px 12px",fontSize:13,outline:"none",resize:"vertical",boxSizing:"border-box"}}/>
+          </div>
+        </div>}
+      </div>}
+    </Card>;
+  };
+
+  if(loading)return <div style={{padding:40,textAlign:"center",color:"#94A3B8"}}>Loading issues...</div>;
+
+  return <div>
+    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}>
+      <div>
+        <div style={{fontSize:20,fontWeight:700,marginBottom:2}}>Issues</div>
+        <div style={{fontSize:13,color:"#94A3B8"}}>{existingIssues.length} open · {resolvedIssues.length} resolved</div>
+      </div>
+      <Btn onClick={()=>setShowAdd(true)}>+ Add New Issue</Btn>
+    </div>
+
+    {/* Stats */}
+    <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:20}}>
+      <div style={{background:"#FEF2F2",borderRadius:10,padding:"12px 16px",textAlign:"center"}}>
+        <div style={{fontSize:22,fontWeight:800,color:"#DC2626"}}>{issues.filter(i=>i.status==="open").length}</div>
+        <div style={{fontSize:11,color:"#DC2626",fontWeight:600}}>OPEN</div>
+      </div>
+      <div style={{background:"#FFFBEB",borderRadius:10,padding:"12px 16px",textAlign:"center"}}>
+        <div style={{fontSize:22,fontWeight:800,color:"#D97706"}}>{issues.filter(i=>i.status==="in_progress").length}</div>
+        <div style={{fontSize:11,color:"#D97706",fontWeight:600}}>IN PROGRESS</div>
+      </div>
+      <div style={{background:"#F0FDF4",borderRadius:10,padding:"12px 16px",textAlign:"center"}}>
+        <div style={{fontSize:22,fontWeight:800,color:"#16A34A"}}>{issues.filter(i=>i.status==="resolved").length}</div>
+        <div style={{fontSize:11,color:"#16A34A",fontWeight:600}}>RESOLVED</div>
+      </div>
+    </div>
+
+    {/* Tabs */}
+    <div style={{display:"flex",gap:4,marginBottom:16,borderBottom:"1px solid #E2E8F0"}}>
+      <button onClick={()=>setTab("existing")} style={{padding:"8px 16px",fontSize:13,fontWeight:600,cursor:"pointer",background:"none",border:"none",borderBottom:`2px solid ${tab==="existing"?"#2563EB":"transparent"}`,color:tab==="existing"?"#2563EB":"#94A3B8",marginBottom:-1}}>
+        Existing Issues ({existingIssues.length})
+      </button>
+      <button onClick={()=>setTab("resolved")} style={{padding:"8px 16px",fontSize:13,fontWeight:600,cursor:"pointer",background:"none",border:"none",borderBottom:`2px solid ${tab==="resolved"?"#2563EB":"transparent"}`,color:tab==="resolved"?"#2563EB":"#94A3B8",marginBottom:-1}}>
+        Resolved Issues ({resolvedIssues.length})
+      </button>
+    </div>
+
+    {/* Issues list */}
+    {tab==="existing"&&<div>
+      {existingIssues.length===0&&<div style={{textAlign:"center",padding:60,color:"#94A3B8",fontSize:14,background:"#F8FAFC",borderRadius:12,border:"1px dashed #E2E8F0"}}>No open issues. All clear!</div>}
+      {existingIssues.map(i=><IssueCard key={i.id} issue={i}/>)}
+    </div>}
+
+    {tab==="resolved"&&<div>
+      {resolvedIssues.length===0&&<div style={{textAlign:"center",padding:60,color:"#94A3B8",fontSize:14}}>No resolved issues yet.</div>}
+      {resolvedIssues.map(i=><IssueCard key={i.id} issue={i}/>)}
+    </div>}
+
+    {/* Add Issue Modal */}
+    <Modal open={showAdd} onClose={()=>{setShowAdd(false);setForm({issue_type:"",r_lead_id:"",recruiter_id:"",candidate_id:"",description:"",next_steps:"",status:"open"});}} title="Add New Issue">
+
+      {/* Issue Type */}
+      <div style={{marginBottom:14}}>
+        <label style={{display:"block",fontSize:12,fontWeight:600,color:"#475569",marginBottom:8}}>Issue Type *</label>
+        <div style={{display:"flex",gap:8}}>
+          {[{v:"recruiter",l:"Recruiter Issue"},{v:"candidate",l:"Candidate Issue"},{v:"other",l:"Other Issue"}].map(t=><button key={t.v} onClick={()=>set("issue_type",t.v)} style={{padding:"8px 14px",borderRadius:8,fontSize:12,fontWeight:600,cursor:"pointer",background:form.issue_type===t.v?"#EFF6FF":"#fff",color:form.issue_type===t.v?"#2563EB":"#94A3B8",border:`1px solid ${form.issue_type===t.v?"#2563EB":"#E2E8F0"}`}}>{t.l}</button>)}
+        </div>
+      </div>
+
+      {/* R Lead select */}
+      {(form.issue_type==="recruiter"||form.issue_type==="candidate")&&<Select label="Select R Lead *" value={form.r_lead_id||""} onChange={e=>{set("r_lead_id",e.target.value);set("recruiter_id","");set("candidate_id","");}}>
+        <option value="">-- Select R Lead --</option>
+        {rLeads.map(m=><option key={m.id} value={m.id}>{m.name}</option>)}
+      </Select>}
+
+      {/* Recruiter select */}
+      {form.issue_type==="recruiter"&&form.r_lead_id&&<Select label="Select Recruiter *" value={form.recruiter_id||""} onChange={e=>set("recruiter_id",e.target.value)}>
+        <option value="">-- Select Recruiter --</option>
+        {recUnderRLead.map(m=><option key={m.id} value={m.id}>{m.name}</option>)}
+      </Select>}
+
+      {/* Candidate select */}
+      {form.issue_type==="candidate"&&form.r_lead_id&&<Select label="Select Candidate *" value={form.candidate_id||""} onChange={e=>set("candidate_id",e.target.value)}>
+        <option value="">-- Select Candidate --</option>
+        {candsUnderRLead.map(c=><option key={c.id} value={c.id}>{c.name} · {c.tech}</option>)}
+      </Select>}
+
+      <Textarea label="Issue Description *" value={form.description||""} onChange={e=>set("description",e.target.value)} placeholder="Describe the issue in detail..."/>
+      <Textarea label="Next Steps / Expected Solution" value={form.next_steps||""} onChange={e=>set("next_steps",e.target.value)} placeholder="What needs to be done to resolve this?"/>
+
+      <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
+        <Btn variant="outline" onClick={()=>setShowAdd(false)}>Cancel</Btn>
+        <Btn onClick={submit} disabled={saving}>{saving?"Saving...":"Submit Issue"}</Btn>
+      </div>
+    </Modal>
+  </div>;
+}
