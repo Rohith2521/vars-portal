@@ -790,7 +790,6 @@ function DashPage({user,rc,candidates,allCandidates,logs,getMember,onNav,onRefre
       ? <CLeadDashboard user={user} candidates={candidates} allCandidates={allCands||candidates} logs={logs} members={members||[]} getMember={getMember} onNav={onNav} token={token}/>
       : user.role==="interview_coord"
       ? <ICDashboard user={user} candidates={candidates} allCandidates={allCands||candidates} logs={logs} members={members||[]} getMember={getMember} onNav={onNav} token={token}/>
-      : null
       : user.role==="president"
       ? null
       : <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14 }}>
