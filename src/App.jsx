@@ -936,6 +936,8 @@ function DashPage({user,rc,candidates,allCandidates,logs,getMember,onNav,onRefre
       ? <TeamPerformanceSection allCandidates={allCands} members={members||[]} getMember={getMember}/>
       : user.role==="manager"
       ? <ManagerDashboardSection allCandidates={allCands||candidates} members={members||[]} logs={logs} getMember={getMember} interviewSessions={interviewSessions} onNav={onNav}/>
+      : user.role==="recruiter"
+      ? <RecruiterDashboard user={user} candidates={candidates} logs={logs} onNav={onNav}/>
       : <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14 }}>
           <Card>
             <CardHeader title="My Candidates" action={<Btn variant="outline" onClick={()=>onNav("candidates")} style={{ fontSize:12, padding:"5px 10px" }}>View all</Btn>}/>
@@ -5288,5 +5290,209 @@ function IssuesPage({user,rc,members,candidates,token,getMember}){
         <Btn onClick={submit} disabled={saving}>{saving?"Saving...":"Submit Issue"}</Btn>
       </div>
     </Modal>
+  </div>;
+}
+
+// ─── RECRUITER DASHBOARD ─────────────────────────────────────────────────────
+function RecruiterDashboard({user,candidates,logs,onNav}){
+  const [notifEnabled,setNotifEnabled]=useState(Notification?.permission==="granted");
+  const [notifRequesting,setNotifRequesting]=useState(false);
+
+  // My logs
+  const myLogs=logs.filter(l=>l.user_id===user.id&&l.type==="recruiter").sort((a,b)=>b.log_date.localeCompare(a.log_date));
+  const todayStr=today();
+  const todayLog=myLogs.find(l=>l.log_date===todayStr);
+
+  // Last 7 days
+  const weekAgo=new Date();weekAgo.setDate(weekAgo.getDate()-6);
+  const weekAgoStr=weekAgo.toISOString().split("T")[0];
+  const weekLogs=myLogs.filter(l=>l.log_date>=weekAgoStr);
+
+  // Last 14 days for trend
+  const twoWeeksAgo=new Date();twoWeeksAgo.setDate(twoWeeksAgo.getDate()-13);
+  const twoWeeksStr=twoWeeksAgo.toISOString().split("T")[0];
+  const allWeekLogs=myLogs.filter(l=>l.log_date>=twoWeeksStr);
+
+  // This week stats
+  const thisWeekEmails=weekLogs.reduce((s,l)=>s+(l.emails_sent||0),0);
+  const thisWeekSubs=weekLogs.reduce((s,l)=>s+(l.submissions||0),0);
+  const avgEmails=weekLogs.length>0?(thisWeekEmails/weekLogs.length).toFixed(1):0;
+
+  // Previous week for comparison
+  const prevWeekStart=new Date();prevWeekStart.setDate(prevWeekStart.getDate()-13);
+  const prevWeekEnd=new Date();prevWeekEnd.setDate(prevWeekEnd.getDate()-7);
+  const prevWeekLogs=myLogs.filter(l=>l.log_date>=prevWeekStart.toISOString().split("T")[0]&&l.log_date<=prevWeekEnd.toISOString().split("T")[0]);
+  const prevWeekEmails=prevWeekLogs.reduce((s,l)=>s+(l.emails_sent||0),0);
+  const prevWeekSubs=prevWeekLogs.reduce((s,l)=>s+(l.submissions||0),0);
+
+  const emailTrend=prevWeekEmails>0?((thisWeekEmails-prevWeekEmails)/prevWeekEmails*100).toFixed(0):null;
+  const subsTrend=prevWeekSubs>0?((thisWeekSubs-prevWeekSubs)/prevWeekSubs*100).toFixed(0):null;
+
+  // My active candidates
+  const myCands=candidates.filter(c=>c.recruiter_id===user.id&&c.status==="Active");
+  const myPlaced=candidates.filter(c=>c.recruiter_id===user.id&&c.status==="Placed");
+
+  // Daily checklist
+  const checklistItems=[
+    {id:"emails",label:"Sent 15+ emails",done:(todayLog?.emails_sent||0)>=15,value:`${todayLog?.emails_sent||0} sent`,target:15},
+    {id:"subs",label:"Made submissions",done:(todayLog?.submissions||0)>0,value:`${todayLog?.submissions||0} submissions`,target:1},
+    {id:"log",label:"Daily log submitted",done:!!todayLog,value:todayLog?"Submitted at "+todayLog.log_time:"Not submitted"},
+    {id:"issues",label:"No open issues",done:true,value:"All clear"},
+  ];
+  const doneCount=checklistItems.filter(i=>i.done).length;
+  const pct=Math.round(doneCount/checklistItems.length*100);
+
+  // Request notification permission
+  const requestNotif=async()=>{
+    setNotifRequesting(true);
+    try {
+      const perm=await Notification.requestPermission();
+      setNotifEnabled(perm==="granted");
+      if(perm==="granted"){
+        // Schedule check every minute
+        const checkTime=()=>{
+          const now=new Date();
+          const h=now.getHours(),m=now.getMinutes();
+          // 5:30 PM EST = 17:30 local (approximate)
+          if(h===17&&m===30){
+            const todayDone=logs.some(l=>l.user_id===user.id&&l.log_date===today()&&l.type==="recruiter");
+            if(!todayDone){
+              new Notification("VARS IMS — Daily Log Reminder",{
+                body:"Don't forget to submit your daily log before 6:00 PM EST!",
+                icon:"/icon-192.png",
+              });
+            }
+          }
+        };
+        setInterval(checkTime,60000);
+        alert("Notification enabled! You'll get a reminder at 5:30 PM if log not submitted.");
+      }
+    } catch(e){console.error(e);}
+    setNotifRequesting(false);
+  };
+
+  // Generate last 7 days for chart
+  const chartDays=Array.from({length:7},(_,i)=>{
+    const d=new Date();d.setDate(d.getDate()-(6-i));
+    const str=d.toISOString().split("T")[0];
+    const log=myLogs.find(l=>l.log_date===str);
+    return {date:str,label:d.toLocaleDateString("en-US",{weekday:"short"}),emails:log?.emails_sent||0,subs:log?.submissions||0};
+  });
+  const maxEmails=Math.max(...chartDays.map(d=>d.emails),1);
+
+  return <div>
+    {/* Welcome + notification */}
+    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}>
+      <div>
+        <div style={{fontSize:20,fontWeight:700}}>Welcome back, {user.name.split(" ")[0]}!</div>
+        <div style={{fontSize:13,color:"#94A3B8"}}>Week {Math.ceil((new Date()-new Date(new Date().getFullYear(),0,1))/604800000)} · {todayLog?"Log submitted today ✓":"Log pending today"}</div>
+      </div>
+      {!notifEnabled&&<button onClick={requestNotif} disabled={notifRequesting} style={{background:"#FFFBEB",color:"#D97706",border:"1px solid #FDE68A",borderRadius:8,padding:"6px 12px",fontSize:12,fontWeight:600,cursor:"pointer",display:"flex",alignItems:"center",gap:6}}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        Enable 5:30 PM reminder
+      </button>}
+      {notifEnabled&&<span style={{background:"#F0FDF4",color:"#16A34A",border:"1px solid #BBF7D0",borderRadius:8,padding:"6px 12px",fontSize:12,fontWeight:600}}>Reminders ON</span>}
+    </div>
+
+    {/* Stats row */}
+    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:20}}>
+      <div style={{background:"#EFF6FF",borderRadius:10,padding:"14px 16px"}}>
+        <div style={{fontSize:11,color:"#2563EB",fontWeight:700,marginBottom:4}}>EMAILS THIS WEEK</div>
+        <div style={{fontSize:26,fontWeight:800,color:"#2563EB"}}>{thisWeekEmails}</div>
+        {emailTrend&&<div style={{fontSize:11,color:emailTrend>0?"#16A34A":"#DC2626",marginTop:2}}>{emailTrend>0?"▲":"▼"} {Math.abs(emailTrend)}% vs last week</div>}
+      </div>
+      <div style={{background:"#F5F3FF",borderRadius:10,padding:"14px 16px"}}>
+        <div style={{fontSize:11,color:"#7C3AED",fontWeight:700,marginBottom:4}}>SUBMISSIONS THIS WEEK</div>
+        <div style={{fontSize:26,fontWeight:800,color:"#7C3AED"}}>{thisWeekSubs}</div>
+        {subsTrend&&<div style={{fontSize:11,color:subsTrend>0?"#16A34A":"#DC2626",marginTop:2}}>{subsTrend>0?"▲":"▼"} {Math.abs(subsTrend)}% vs last week</div>}
+      </div>
+      <div style={{background:"#F0FDFA",borderRadius:10,padding:"14px 16px"}}>
+        <div style={{fontSize:11,color:"#0F766E",fontWeight:700,marginBottom:4}}>AVG EMAILS/DAY</div>
+        <div style={{fontSize:26,fontWeight:800,color:"#0F766E"}}>{avgEmails}</div>
+        <div style={{fontSize:11,color:"#94A3B8",marginTop:2}}>Target: 15/day</div>
+      </div>
+      <div style={{background:"#FFF7ED",borderRadius:10,padding:"14px 16px"}}>
+        <div style={{fontSize:11,color:"#C2410C",fontWeight:700,marginBottom:4}}>MY CANDIDATES</div>
+        <div style={{fontSize:26,fontWeight:800,color:"#C2410C"}}>{myCands.length}</div>
+        <div style={{fontSize:11,color:"#94A3B8",marginTop:2}}>{myPlaced.length} placed total</div>
+      </div>
+    </div>
+
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:14}}>
+
+      {/* Daily Checklist */}
+      <Card>
+        <CardHeader title={`Today's Checklist — ${todayStr}`}/>
+        <div style={{padding:"8px 16px 4px"}}>
+          {/* Progress bar */}
+          <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16}}>
+            <div style={{flex:1,background:"#F1F5F9",borderRadius:99,height:8,overflow:"hidden"}}>
+              <div style={{height:"100%",borderRadius:99,background:pct===100?"#16A34A":pct>=50?"#2563EB":"#D97706",width:`${pct}%`,transition:"width 0.3s ease"}}/>
+            </div>
+            <span style={{fontSize:13,fontWeight:700,color:pct===100?"#16A34A":pct>=50?"#2563EB":"#D97706"}}>{pct}%</span>
+          </div>
+          {checklistItems.map(item=><div key={item.id} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 0",borderBottom:"1px solid #F8FAFC"}}>
+            <div style={{width:22,height:22,borderRadius:"50%",background:item.done?"#F0FDF4":"#FEF2F2",border:`1.5px solid ${item.done?"#16A34A":"#FECACA"}`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+              {item.done?<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#16A34A" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>:<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>}
+            </div>
+            <div style={{flex:1}}>
+              <div style={{fontSize:13,fontWeight:500,color:item.done?"#0F172A":"#475569"}}>{item.label}</div>
+              <div style={{fontSize:11,color:item.done?"#16A34A":"#94A3B8"}}>{item.value}</div>
+            </div>
+          </div>)}
+          {!todayLog&&<button onClick={()=>onNav("daily_log")} style={{width:"100%",marginTop:12,padding:"8px",borderRadius:8,background:"#2563EB",color:"#fff",border:"none",fontSize:13,fontWeight:600,cursor:"pointer"}}>Submit Today's Log →</button>}
+          {todayLog&&pct===100&&<div style={{marginTop:12,padding:"10px",borderRadius:8,background:"#F0FDF4",textAlign:"center",fontSize:13,color:"#16A34A",fontWeight:600}}>All done for today!</div>}
+        </div>
+      </Card>
+
+      {/* Performance Chart */}
+      <Card>
+        <CardHeader title="My Performance — Last 7 Days"/>
+        <div style={{padding:"8px 16px 16px"}}>
+          {/* Bar chart */}
+          <div style={{display:"flex",alignItems:"flex-end",gap:6,height:120,marginBottom:8}}>
+            {chartDays.map(d=><div key={d.date} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
+              <div style={{fontSize:9,color:"#94A3B8",marginBottom:2}}>{d.emails>0?d.emails:""}</div>
+              <div style={{width:"100%",background:d.date===todayStr?"#2563EB":"#93C5FD",borderRadius:"4px 4px 0 0",height:`${Math.max(d.emails/maxEmails*90,d.emails>0?8:2)}px`,transition:"height 0.3s ease"}}/>
+              <div style={{fontSize:9,color:"#94A3B8",marginTop:2}}>{d.label}</div>
+            </div>)}
+          </div>
+          <div style={{display:"flex",alignItems:"center",gap:16,padding:"10px 0",borderTop:"1px solid #F1F5F9"}}>
+            <div style={{display:"flex",alignItems:"center",gap:6}}>
+              <div style={{width:10,height:10,borderRadius:2,background:"#93C5FD"}}/>
+              <span style={{fontSize:11,color:"#94A3B8"}}>Emails (bars)</span>
+            </div>
+            <div style={{flex:1}}/>
+            <div style={{fontSize:11,color:"#475569"}}>
+              Best day: <strong>{Math.max(...chartDays.map(d=>d.emails))} emails</strong>
+            </div>
+          </div>
+          {/* Submissions row */}
+          <div style={{marginTop:8}}>
+            <div style={{fontSize:11,color:"#94A3B8",marginBottom:6}}>Submissions per day:</div>
+            <div style={{display:"flex",gap:6}}>
+              {chartDays.map(d=><div key={d.date} style={{flex:1,textAlign:"center"}}>
+                <div style={{background:d.subs>0?"#7C3AED":"#F1F5F9",color:d.subs>0?"#fff":"#94A3B8",borderRadius:6,padding:"3px 0",fontSize:11,fontWeight:d.subs>0?700:400}}>{d.subs||"—"}</div>
+              </div>)}
+            </div>
+          </div>
+        </div>
+      </Card>
+    </div>
+
+    {/* My Candidates quick view */}
+    <Card>
+      <CardHeader title="My Candidates" action={<button onClick={()=>onNav("candidates")} style={{background:"none",border:"1px solid #E2E8F0",borderRadius:8,padding:"4px 10px",fontSize:12,cursor:"pointer",color:"#475569"}}>View all</button>}/>
+      <div>
+        {myCands.slice(0,5).map(c=><div key={c.id} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 16px",borderBottom:"1px solid #F8FAFC"}}>
+          <div style={{display:"flex",alignItems:"center",gap:10}}>
+            <Av name={c.name} role="r_lead" size={32}/>
+            <div><div style={{fontSize:13,fontWeight:600}}>{c.name}</div><div style={{fontSize:11,color:"#94A3B8"}}>{c.tech}</div></div>
+          </div>
+          <StatusBadge status={c.status}/>
+        </div>)}
+        {myCands.length===0&&<div style={{padding:"24px",textAlign:"center",color:"#94A3B8",fontSize:13}}>No active candidates assigned.</div>}
+      </div>
+    </Card>
   </div>;
 }
