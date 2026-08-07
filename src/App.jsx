@@ -935,7 +935,7 @@ function DashPage({user,rc,candidates,allCandidates,logs,getMember,onNav,onRefre
     {user.role==="president"
       ? <TeamPerformanceSection allCandidates={allCands} members={members||[]} getMember={getMember}/>
       : user.role==="manager"
-      ? <ManagerDashboardSection allCandidates={allCands||candidates} members={members||[]} logs={logs} getMember={getMember} interviewSessions={interviewSessions} onNav={onNav}/>
+      ? <ManagerDashboardSection allCandidates={allCands||candidates} members={members||[]} logs={logs} getMember={getMember} interviewSessions={interviewSessions} onNav={onNav} token={token} user={user}/>
       : user.role==="recruiter"
       ? <RecruiterDashboard user={user} candidates={candidates} logs={logs} onNav={onNav}/>
       : user.role==="r_lead"
@@ -4843,14 +4843,19 @@ ${r.candSessions.map((s,i)=>{
 }
 
 // ─── MANAGER DASHBOARD SECTION ───────────────────────────────────────────────
-function ManagerDashboardSection({allCandidates,members,logs,getMember,interviewSessions,onNav}){
+function ManagerDashboardSection({allCandidates,members,logs,getMember,interviewSessions,onNav,token,user}){
   const [expandedInterview,setExpandedInterview]=useState(null);
+  const [weekSummary,setWeekSummary]=useState(false);
   const ROUNDS={round_1:"Round 1",round_2:"Round 2",round_3:"Round 3",round_4:"Round 4",round_5:"Round 5",round_6:"Round 6",final:"Final"};
 
-  // Team activity today
   const todayStr=today();
+  const weekAgo=new Date();weekAgo.setDate(weekAgo.getDate()-7);
+  const weekAgoStr=weekAgo.toISOString().split("T")[0];
+  const prevWeekAgo=new Date();prevWeekAgo.setDate(prevWeekAgo.getDate()-14);
+  const prevWeekStr=prevWeekAgo.toISOString().split("T")[0];
+
+  // Team activity today
   const allRoles=["recruiter","r_lead","c_lead","interview_coord"];
-  const roleLabel={recruiter:"Recruiter",r_lead:"R Lead",c_lead:"C Lead",interview_coord:"IC"};
   const teamMembers=members.filter(m=>allRoles.includes(m.role)&&m.is_active!==false);
   const submittedToday=teamMembers.filter(m=>logs.some(l=>l.user_id===m.id&&l.log_date===todayStr));
   const pendingToday=teamMembers.filter(m=>!logs.some(l=>l.user_id===m.id&&l.log_date===todayStr));
@@ -4859,20 +4864,96 @@ function ManagerDashboardSection({allCandidates,members,logs,getMember,interview
   const waitingFeedback=interviewSessions.filter(s=>!s.feedback_received);
   const noLogCandidates=allCandidates.filter(c=>c.status==="Active"&&!logs.some(l=>l.candidate_id===c.id&&l.log_date===todayStr&&l.type==="recruiter"));
 
-  // Recruiter performance this week
-  const weekAgo=new Date();weekAgo.setDate(weekAgo.getDate()-7);
-  const weekAgoStr=weekAgo.toISOString().split("T")[0];
+  // Recruiter performance
   const recruiters=members.filter(m=>m.role==="recruiter"&&m.is_active!==false);
+  const recStats=recruiters.map(r=>{
+    const wLogs=logs.filter(l=>l.user_id===r.id&&l.type==="recruiter"&&l.log_date>=weekAgoStr);
+    const pwLogs=logs.filter(l=>l.user_id===r.id&&l.type==="recruiter"&&l.log_date>=prevWeekStr&&l.log_date<weekAgoStr);
+    const emails=wLogs.reduce((s,l)=>s+(l.emails_sent||0),0);
+    const subs=wLogs.reduce((s,l)=>s+(l.submissions||0),0);
+    const prevEmails=pwLogs.reduce((s,l)=>s+(l.emails_sent||0),0);
+    const avgEmails=wLogs.length>0?(emails/wLogs.length).toFixed(1):0;
+    const submittedTodayFlag=logs.some(l=>l.user_id===r.id&&l.log_date===todayStr);
+    // Low performer flag: avg < 15 emails/day for this week
+    const isLowPerformer=wLogs.length>=3&&avgEmails<15;
+    const emailTrend=prevEmails>0?((emails-prevEmails)/prevEmails*100).toFixed(0):null;
+    return {...r,wLogs,emails,subs,avgEmails,submittedTodayFlag,isLowPerformer,emailTrend,prevEmails};
+  });
+
+  const lowPerformers=recStats.filter(r=>r.isLowPerformer);
 
   // Interviews last 7 days
   const recentInterviews=interviewSessions.filter(s=>s.interview_date>=weekAgoStr).sort((a,b)=>b.interview_date.localeCompare(a.interview_date));
 
+  // Weekly summary data
+  const totalWeekEmails=recStats.reduce((s,r)=>s+r.emails,0);
+  const totalWeekSubs=recStats.reduce((s,r)=>s+r.subs,0);
+  const weekPlacements=allCandidates.filter(c=>c.status==="Placed"&&c.status_updated_at?.split("T")[0]>=weekAgoStr);
+  const weekInterviewsPositive=interviewSessions.filter(s=>s.interview_date>=weekAgoStr&&s.feedback_received&&s.feedback_outcome==="positive");
+
   return <div style={{display:"grid",gap:14}}>
+
+    {/* Top stats */}
+    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10}}>
+      <div style={{background:"#EFF6FF",borderRadius:10,padding:"12px 16px",textAlign:"center"}}><div style={{fontSize:24,fontWeight:800,color:"#2563EB"}}>{allCandidates.filter(c=>c.status==="Active").length}</div><div style={{fontSize:10,color:"#2563EB",fontWeight:700}}>ACTIVE CANDIDATES</div></div>
+      <div style={{background:lowPerformers.length>0?"#FEF2F2":"#F0FDF4",borderRadius:10,padding:"12px 16px",textAlign:"center",cursor:lowPerformers.length>0?"pointer":"default"}} onClick={()=>lowPerformers.length>0&&setWeekSummary(true)}>
+        <div style={{fontSize:24,fontWeight:800,color:lowPerformers.length>0?"#DC2626":"#16A34A"}}>{lowPerformers.length}</div>
+        <div style={{fontSize:10,color:lowPerformers.length>0?"#DC2626":"#16A34A",fontWeight:700}}>LOW PERFORMERS{lowPerformers.length>0?" ⚠":""}</div>
+      </div>
+      <div style={{background:"#FFFBEB",borderRadius:10,padding:"12px 16px",textAlign:"center"}}><div style={{fontSize:24,fontWeight:800,color:"#D97706"}}>{waitingFeedback.length}</div><div style={{fontSize:10,color:"#D97706",fontWeight:700}}>FEEDBACK PENDING</div></div>
+      <div style={{background:"#F5F3FF",borderRadius:10,padding:"12px 16px",textAlign:"center",cursor:"pointer"}} onClick={()=>setWeekSummary(s=>!s)}>
+        <div style={{fontSize:24,fontWeight:800,color:"#7C3AED"}}>{totalWeekSubs}</div>
+        <div style={{fontSize:10,color:"#7C3AED",fontWeight:700}}>SUBS THIS WEEK</div>
+      </div>
+    </div>
+
+    {/* Low Performer Alert */}
+    {lowPerformers.length>0&&<div style={{background:"#FEF2F2",border:"1px solid #FECACA",borderRadius:12,padding:"14px 16px"}}>
+      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        <div style={{fontSize:13,fontWeight:700,color:"#DC2626"}}>Low Performer Alert — {lowPerformers.length} recruiter{lowPerformers.length>1?"s":""} below target</div>
+      </div>
+      <div style={{display:"grid",gap:8}}>
+        {lowPerformers.map(r=><div key={r.id} style={{display:"flex",alignItems:"center",justifyContent:"space-between",background:"#fff",borderRadius:8,padding:"10px 14px",border:"1px solid #FECACA"}}>
+          <div style={{display:"flex",alignItems:"center",gap:10}}>
+            <Av name={r.name} role="recruiter" size={30}/>
+            <div>
+              <div style={{fontSize:13,fontWeight:600}}>{r.name}</div>
+              <div style={{fontSize:11,color:"#DC2626"}}>Avg {r.avgEmails} emails/day (target: 15) · {r.wLogs.length} logs this week</div>
+            </div>
+          </div>
+          <div style={{textAlign:"right"}}>
+            <div style={{fontSize:13,fontWeight:700,color:"#DC2626"}}>{r.emails} emails</div>
+            {r.emailTrend&&<div style={{fontSize:10,color:r.emailTrend<0?"#DC2626":"#16A34A"}}>{r.emailTrend<0?"▼":"▲"} {Math.abs(r.emailTrend)}% vs last week</div>}
+          </div>
+        </div>)}
+      </div>
+    </div>}
+
+    {/* Weekly Summary Modal */}
+    {weekSummary&&<div style={{background:"#F0FDF4",border:"1px solid #BBF7D0",borderRadius:12,padding:"16px"}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+        <div style={{fontSize:14,fontWeight:700,color:"#16A34A"}}>Weekly Team Summary — Last 7 Days</div>
+        <button onClick={()=>setWeekSummary(false)} style={{background:"none",border:"none",cursor:"pointer",color:"#94A3B8",fontSize:16}}>✕</button>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:12}}>
+        <div style={{background:"#fff",borderRadius:8,padding:"10px",textAlign:"center"}}><div style={{fontSize:20,fontWeight:800,color:"#2563EB"}}>{totalWeekEmails}</div><div style={{fontSize:10,color:"#94A3B8",fontWeight:600}}>TOTAL EMAILS</div></div>
+        <div style={{background:"#fff",borderRadius:8,padding:"10px",textAlign:"center"}}><div style={{fontSize:20,fontWeight:800,color:"#7C3AED"}}>{totalWeekSubs}</div><div style={{fontSize:10,color:"#94A3B8",fontWeight:600}}>SUBMISSIONS</div></div>
+        <div style={{background:"#fff",borderRadius:8,padding:"10px",textAlign:"center"}}><div style={{fontSize:20,fontWeight:800,color:"#16A34A"}}>{weekInterviewsPositive.length}</div><div style={{fontSize:10,color:"#94A3B8",fontWeight:600}}>INTERVIEWS CLEARED</div></div>
+        <div style={{background:"#fff",borderRadius:8,padding:"10px",textAlign:"center"}}><div style={{fontSize:20,fontWeight:800,color:"#D97706"}}>{weekPlacements.length}</div><div style={{fontSize:10,color:"#94A3B8",fontWeight:600}}>PLACEMENTS</div></div>
+      </div>
+      <div style={{fontSize:12,fontWeight:600,color:"#16A34A",marginBottom:8}}>Per Recruiter:</div>
+      {recStats.sort((a,b)=>b.emails-a.emails).map((r,i)=><div key={r.id} style={{display:"flex",alignItems:"center",gap:10,padding:"6px 0",borderBottom:"1px solid #BBF7D0"}}>
+        <span style={{fontSize:12,color:"#94A3B8",width:16}}>{i+1}.</span>
+        <span style={{fontSize:13,fontWeight:500,flex:1}}>{r.name}</span>
+        <span style={{fontSize:12,color:"#2563EB",fontWeight:600}}>{r.emails}e</span>
+        <span style={{fontSize:12,color:"#7C3AED",fontWeight:600}}>{r.subs}s</span>
+        <span style={{background:r.isLowPerformer?"#FEF2F2":"#F0FDF4",color:r.isLowPerformer?"#DC2626":"#16A34A",fontSize:10,padding:"1px 6px",borderRadius:99,fontWeight:600}}>{r.avgEmails}/day</span>
+      </div>)}
+    </div>}
 
     {/* Row 1: Team Activity + Pending Actions */}
     <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
-
-      {/* Team Activity Today */}
       <Card>
         <CardHeader title={`Team Activity Today — ${todayStr}`}/>
         <div style={{padding:"0 0 8px"}}>
@@ -4894,28 +4975,29 @@ function ManagerDashboardSection({allCandidates,members,logs,getMember,interview
         </div>
       </Card>
 
-      {/* Pending Actions */}
       <Card>
         <CardHeader title="Pending Actions"/>
         <div style={{padding:"0 0 8px"}}>
-          {/* Interviews waiting feedback */}
           {waitingFeedback.length>0&&<>
-            <div style={{padding:"8px 16px",fontSize:11,fontWeight:700,color:"#D97706",background:"#FFFBEB"}}>WAITING FOR INTERVIEW FEEDBACK ({waitingFeedback.length})</div>
+            <div style={{padding:"8px 16px",fontSize:11,fontWeight:700,color:"#D97706",background:"#FFFBEB"}}>WAITING FOR FEEDBACK ({waitingFeedback.length})</div>
             {waitingFeedback.slice(0,4).map(s=>{
               const cand=allCandidates.find(c=>c.id===s.candidate_id);
-              return <div key={s.id} style={{padding:"8px 16px",borderBottom:"1px solid #F1F5F9",fontSize:12}}>
-                <div style={{fontWeight:600}}>{cand?.name||"?"} — {ROUNDS[s.round]||s.round}</div>
-                <div style={{color:"#94A3B8",fontSize:11}}>{s.with_whom&&`${s.with_whom} · `}{fmtDate(s.interview_date)}</div>
+              const daysAgo=Math.floor((new Date()-new Date(s.interview_date))/86400000);
+              return <div key={s.id} style={{padding:"8px 16px",borderBottom:"1px solid #F1F5F9"}}>
+                <div style={{display:"flex",justifyContent:"space-between"}}>
+                  <div style={{fontSize:12,fontWeight:600}}>{cand?.name||"?"} — {ROUNDS[s.round]||s.round}</div>
+                  <span style={{fontSize:10,color:daysAgo>7?"#DC2626":"#D97706",fontWeight:600}}>{daysAgo}d ago</span>
+                </div>
+                <div style={{fontSize:11,color:"#94A3B8"}}>{s.with_whom&&`${s.with_whom} · `}{fmtDate(s.interview_date)}</div>
               </div>;
             })}
             {waitingFeedback.length>4&&<div style={{padding:"6px 16px",fontSize:11,color:"#94A3B8"}}>+{waitingFeedback.length-4} more</div>}
           </>}
-          {/* Candidates with no log today */}
           {noLogCandidates.length>0&&<>
             <div style={{padding:"8px 16px",fontSize:11,fontWeight:700,color:"#DC2626",background:"#FEF2F2",marginTop:4}}>NO RECRUITER LOG TODAY ({noLogCandidates.length})</div>
-            {noLogCandidates.slice(0,4).map(c=><div key={c.id} style={{padding:"8px 16px",borderBottom:"1px solid #F1F5F9",fontSize:12}}>
-              <div style={{fontWeight:600}}>{c.name} · {c.tech}</div>
-              <div style={{color:"#94A3B8",fontSize:11}}>Rec: {getMember(c.recruiter_id)?.name||"?"}</div>
+            {noLogCandidates.slice(0,4).map(c=><div key={c.id} style={{padding:"8px 16px",borderBottom:"1px solid #F1F5F9"}}>
+              <div style={{fontSize:12,fontWeight:600}}>{c.name} · {c.tech}</div>
+              <div style={{fontSize:11,color:"#94A3B8"}}>Rec: {getMember(c.recruiter_id)?.name||"?"}</div>
             </div>)}
             {noLogCandidates.length>4&&<div style={{padding:"6px 16px",fontSize:11,color:"#94A3B8"}}>+{noLogCandidates.length-4} more</div>}
           </>}
@@ -4924,39 +5006,40 @@ function ManagerDashboardSection({allCandidates,members,logs,getMember,interview
       </Card>
     </div>
 
-    {/* Row 2: Recruiter Performance */}
+    {/* Recruiter Performance Table */}
     <Card>
       <CardHeader title="Recruiter Performance — Last 7 Days"/>
       <div style={{overflowX:"auto"}}>
         <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
           <thead><tr style={{background:"#F8FAFC"}}>
-            {["Recruiter","Logs","Emails","Submissions","Avg Emails/Day","Today"].map(h=><th key={h} style={{padding:"10px 14px",textAlign:"left",fontWeight:600,color:"#475569",borderBottom:"1px solid #E2E8F0",fontSize:12}}>{h}</th>)}
+            {["Recruiter","Logs","Emails","Subs","Avg/Day","Trend","Today"].map(h=><th key={h} style={{padding:"10px 14px",textAlign:"left",fontWeight:600,color:"#475569",borderBottom:"1px solid #E2E8F0",fontSize:12}}>{h}</th>)}
           </tr></thead>
-          <tbody>{recruiters.map(r=>{
-            const rLogs=logs.filter(l=>l.user_id===r.id&&l.type==="recruiter"&&l.log_date>=weekAgoStr);
-            const emails=rLogs.reduce((s,l)=>s+(l.emails_sent||0),0);
-            const subs=rLogs.reduce((s,l)=>s+(l.submissions||0),0);
-            const avgEmails=rLogs.length>0?(emails/rLogs.length).toFixed(1):0;
-            const submittedTodayFlag=logs.some(l=>l.user_id===r.id&&l.log_date===todayStr);
-            return <tr key={r.id} style={{borderBottom:"1px solid #F1F5F9"}}>
-              <td style={{padding:"10px 14px"}}>
-                <div style={{display:"flex",alignItems:"center",gap:8}}><Av name={r.name} role="recruiter" size={28}/><span style={{fontWeight:600}}>{r.name}</span></div>
-              </td>
-              <td style={{padding:"10px 14px",color:"#475569"}}>{rLogs.length}/7</td>
-              <td style={{padding:"10px 14px",fontWeight:700,color:"#2563EB"}}>{emails}</td>
-              <td style={{padding:"10px 14px",fontWeight:700,color:"#7C3AED"}}>{subs}</td>
-              <td style={{padding:"10px 14px",color:"#475569"}}>{avgEmails}</td>
-              <td style={{padding:"10px 14px"}}>
-                <span style={{background:submittedTodayFlag?"#F0FDF4":"#FEF2F2",color:submittedTodayFlag?"#16A34A":"#DC2626",fontSize:11,padding:"2px 8px",borderRadius:99,fontWeight:600}}>{submittedTodayFlag?"Submitted":"Pending"}</span>
-              </td>
-            </tr>;
-          })}</tbody>
+          <tbody>{recStats.sort((a,b)=>b.emails-a.emails).map((r,i)=><tr key={r.id} style={{borderBottom:"1px solid #F1F5F9",background:r.isLowPerformer?"#FFF8F8":"i===0"?"#FAFFFE":"transparent"}}>
+            <td style={{padding:"10px 14px"}}>
+              <div style={{display:"flex",alignItems:"center",gap:8}}>
+                {i===0&&<span>🥇</span>}
+                {r.isLowPerformer&&<span title="Below target">⚠️</span>}
+                <Av name={r.name} role="recruiter" size={28}/>
+                <span style={{fontWeight:600}}>{r.name}</span>
+              </div>
+            </td>
+            <td style={{padding:"10px 14px",color:"#475569"}}>{r.wLogs.length}/7</td>
+            <td style={{padding:"10px 14px",fontWeight:700,color:"#2563EB"}}>{r.emails}</td>
+            <td style={{padding:"10px 14px",fontWeight:700,color:"#7C3AED"}}>{r.subs}</td>
+            <td style={{padding:"10px 14px",color:r.avgEmails>=15?"#16A34A":r.avgEmails>=10?"#D97706":"#DC2626",fontWeight:600}}>{r.avgEmails}</td>
+            <td style={{padding:"10px 14px",fontSize:12}}>
+              {r.emailTrend?<span style={{color:r.emailTrend>0?"#16A34A":"#DC2626",fontWeight:600}}>{r.emailTrend>0?"▲":"▼"}{Math.abs(r.emailTrend)}%</span>:"—"}
+            </td>
+            <td style={{padding:"10px 14px"}}>
+              <span style={{background:r.submittedTodayFlag?"#F0FDF4":"#FEF2F2",color:r.submittedTodayFlag?"#16A34A":"#DC2626",fontSize:11,padding:"2px 8px",borderRadius:99,fontWeight:600}}>{r.submittedTodayFlag?"Done":"Pending"}</span>
+            </td>
+          </tr>)}</tbody>
         </table>
         {recruiters.length===0&&<div style={{padding:24,textAlign:"center",fontSize:13,color:"#94A3B8"}}>No recruiters yet.</div>}
       </div>
     </Card>
 
-    {/* Row 3: Interviews Last 7 Days */}
+    {/* Interviews Last 7 Days */}
     <Card>
       <CardHeader title={`Interviews Last 7 Days (${recentInterviews.length})`} action={<span style={{fontSize:12,color:"#94A3B8"}}>{weekAgoStr} — {todayStr}</span>}/>
       {recentInterviews.length===0&&<div style={{padding:"16px",fontSize:13,color:"#94A3B8",textAlign:"center"}}>No interviews in last 7 days.</div>}
@@ -4982,16 +5065,14 @@ function ManagerDashboardSection({allCandidates,members,logs,getMember,interview
                 <div><span style={{fontSize:11,color:"#94A3B8",fontWeight:600}}>CANDIDATE</span><div style={{fontSize:13,fontWeight:600,marginTop:2}}>{cand?.name} · {cand?.tech}</div></div>
                 <div><span style={{fontSize:11,color:"#94A3B8",fontWeight:600}}>ROUND</span><div style={{fontSize:13,fontWeight:600,marginTop:2}}>{ROUNDS[s.round]||s.round}</div></div>
                 <div><span style={{fontSize:11,color:"#94A3B8",fontWeight:600}}>WITH</span><div style={{fontSize:13,fontWeight:600,marginTop:2}}>{s.with_whom||"—"}</div></div>
-                <div><span style={{fontSize:11,color:"#94A3B8",fontWeight:600}}>MODE</span><div style={{fontSize:13,fontWeight:600,marginTop:2}}>{s.interview_mode==="virtual"?"Virtual":"In-person"}</div></div>
-                <div><span style={{fontSize:11,color:"#94A3B8",fontWeight:600}}>SUPPORT</span><div style={{fontSize:13,fontWeight:600,marginTop:2}}>{s.tech_support_name||"—"} {s.support_mode?`· ${s.support_mode}`:""}</div></div>
-                <div><span style={{fontSize:11,color:"#94A3B8",fontWeight:600}}>OVERALL</span><div style={{fontSize:13,fontWeight:600,marginTop:2,color:s.overall_feedback==="went_well"?"#16A34A":"#DC2626"}}>{s.overall_feedback==="went_well"?"Went Well":s.overall_feedback==="okay"?"Okay":"Not Went Well"}</div></div>
+                <div><span style={{fontSize:11,color:"#94A3B8",fontWeight:600}}>SUPPORT</span><div style={{fontSize:13,fontWeight:600,marginTop:2}}>{s.tech_support_name||"—"}</div></div>
               </div>
               <div style={{background:"#fff",borderRadius:8,padding:"10px 12px",border:"1px solid #E2E8F0",marginBottom:8}}>
                 <div style={{fontSize:11,color:"#94A3B8",fontWeight:600,marginBottom:4}}>INTERNAL FEEDBACK</div>
                 <div style={{fontSize:12,color:"#334155"}}>{s.detailed_feedback||"—"}</div>
               </div>
               {s.feedback_received&&<div style={{background:fbBg,borderRadius:8,padding:"10px 12px",border:`1px solid ${fbColor}30`}}>
-                <div style={{fontSize:11,color:fbColor,fontWeight:700,marginBottom:4}}>OFFICIAL — {(s.feedback_outcome||"").toUpperCase()} from {s.feedback_from}</div>
+                <div style={{fontSize:11,color:fbColor,fontWeight:700,marginBottom:4}}>OFFICIAL — {(s.feedback_outcome||"").toUpperCase()}</div>
                 {s.feedback_reason&&<div style={{fontSize:12,color:"#334155",marginBottom:4}}>Reason: {s.feedback_reason}</div>}
                 {s.next_steps&&<div style={{fontSize:12,color:"#334155"}}>Next steps: {s.next_steps}</div>}
               </div>}
@@ -5002,6 +5083,8 @@ function ManagerDashboardSection({allCandidates,members,logs,getMember,interview
     </Card>
   </div>;
 }
+
+
 
 // ─── APP END ─────────────────────────────────────────────────────────────────
 
