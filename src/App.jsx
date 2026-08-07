@@ -940,6 +940,8 @@ function DashPage({user,rc,candidates,allCandidates,logs,getMember,onNav,onRefre
       ? <RecruiterDashboard user={user} candidates={candidates} logs={logs} onNav={onNav}/>
       : user.role==="r_lead"
       ? <RLeadDashboard user={user} candidates={candidates} allCandidates={allCands||candidates} logs={logs} members={members||[]} getMember={getMember} onNav={onNav} token={token}/>
+      : user.role==="c_lead"
+      ? <CLeadDashboard user={user} candidates={candidates} allCandidates={allCands||candidates} logs={logs} members={members||[]} getMember={getMember} onNav={onNav} token={token}/>
       : <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14 }}>
           <Card>
             <CardHeader title="My Candidates" action={<Btn variant="outline" onClick={()=>onNav("candidates")} style={{ fontSize:12, padding:"5px 10px" }}>View all</Btn>}/>
@@ -5710,6 +5712,203 @@ function RLeadDashboard({user,candidates,allCandidates,logs,members,getMember,on
           </div>;
         })}
         {myCands.length===0&&<div style={{padding:"12px 0",textAlign:"center",color:"#94A3B8",fontSize:13}}>No active candidates.</div>}
+      </div>
+    </Card>
+  </div>;
+}
+
+// ─── C LEAD DASHBOARD ────────────────────────────────────────────────────────
+function CLeadDashboard({user,candidates,allCandidates,logs,members,getMember,onNav,token}){
+  const [sessions,setSessions]=useState([]);
+  const [loadingSessions,setLoadingSessions]=useState(true);
+
+  useEffect(()=>{
+    if(token){
+      sb.get("interview_sessions","select=*&order=interview_date.desc",token).then(r=>{
+        if(Array.isArray(r))setSessions(r);
+        setLoadingSessions(false);
+      });
+    }
+  },[token]);
+
+  const todayStr=today();
+  const weekAgo=new Date();weekAgo.setDate(weekAgo.getDate()-6);
+  const weekAgoStr=weekAgo.toISOString().split("T")[0];
+
+  // My candidates
+  const myCands=allCandidates.filter(c=>c.c_lead_id===user.id&&c.status==="Active");
+  const myPlaced=allCandidates.filter(c=>c.c_lead_id===user.id&&c.status==="Placed");
+
+  // My C Lead logs
+  const myLogs=logs.filter(l=>l.user_id===user.id&&l.type==="c_lead").sort((a,b)=>b.log_date.localeCompare(a.log_date));
+  const todayLog=myLogs.find(l=>l.log_date===todayStr);
+
+  // Floor issues history from logs
+  const floorIssues=myLogs.filter(l=>l.floor_issues).map(l=>({
+    date:l.log_date,
+    issue:l.floor_issues,
+    status:l.resolution_status,
+    candidate:allCandidates.find(c=>c.id===l.candidate_id),
+  }));
+  const openIssues=floorIssues.filter(i=>i.status!=="Resolved"&&i.status!=="resolved");
+  const resolvedIssues=floorIssues.filter(i=>i.status==="Resolved"||i.status==="resolved");
+
+  // Tomorrow's interviews
+  const tomorrow=new Date();tomorrow.setDate(tomorrow.getDate()+1);
+  const tomorrowStr=tomorrow.toISOString().split("T")[0];
+  const tomorrowInterviews=sessions.filter(s=>{
+    const cand=allCandidates.find(c=>c.id===s.candidate_id);
+    return s.interview_date===tomorrowStr&&cand?.c_lead_id===user.id;
+  });
+
+  // Today's interviews
+  const todayInterviews=sessions.filter(s=>{
+    const cand=allCandidates.find(c=>c.id===s.candidate_id);
+    return s.interview_date===todayStr&&cand?.c_lead_id===user.id;
+  });
+
+  // This week interviews
+  const weekInterviews=sessions.filter(s=>{
+    const cand=allCandidates.find(c=>c.id===s.candidate_id);
+    return s.interview_date>=weekAgoStr&&cand?.c_lead_id===user.id;
+  });
+
+  // Screening calls stats
+  const [calls,setCalls]=useState([]);
+  useEffect(()=>{
+    if(token){
+      sb.get("screening_calls","select=*&order=call_date.desc",token).then(r=>{if(Array.isArray(r))setCalls(r);});
+    }
+  },[token]);
+
+  const myCalls=calls.filter(c=>myCands.some(x=>x.id===c.candidate_id));
+  const positiveCalls=myCalls.filter(c=>c.outcome==="positive").length;
+  const totalCalls=myCalls.length;
+  const positiveRate=totalCalls>0?Math.round(positiveCalls/totalCalls*100):0;
+
+  const ROUNDS={round_1:"Round 1",round_2:"Round 2",round_3:"Round 3",round_4:"Round 4",round_5:"Round 5",round_6:"Round 6",final:"Final"};
+  const DURATIONS={less_30:"<30m","30_min":"30m","45_min":"45m","1_hour":"1hr","1_30_hour":"1.5hr","2_hours":"2hr","3_hours":"3hr"};
+
+  // Daily checklist
+  const checklist=[
+    {label:"Daily log submitted",done:!!todayLog},
+    {label:"No open floor issues",done:openIssues.length===0},
+    {label:"Tomorrow interviews checked",done:tomorrowInterviews.length===0||true},
+  ];
+  const pct=Math.round(checklist.filter(i=>i.done).length/checklist.length*100);
+
+  return <div>
+    <div style={{fontSize:20,fontWeight:700,marginBottom:4}}>Welcome back, {user.name.split(" ")[0]}!</div>
+    <div style={{fontSize:13,color:"#94A3B8",marginBottom:20}}>{myCands.length} active candidates · {myPlaced.length} placed · {todayLog?"Log submitted":"Log pending"}</div>
+
+    {/* Stats */}
+    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:20}}>
+      <div style={{background:"#EFF6FF",borderRadius:10,padding:"12px 16px",textAlign:"center"}}><div style={{fontSize:24,fontWeight:800,color:"#2563EB"}}>{myCands.length}</div><div style={{fontSize:10,color:"#2563EB",fontWeight:700}}>ACTIVE CANDIDATES</div></div>
+      <div style={{background:"#FFFBEB",borderRadius:10,padding:"12px 16px",textAlign:"center"}}><div style={{fontSize:24,fontWeight:800,color:"#D97706"}}>{openIssues.length}</div><div style={{fontSize:10,color:"#D97706",fontWeight:700}}>OPEN ISSUES</div></div>
+      <div style={{background:"#F0FDF4",borderRadius:10,padding:"12px 16px",textAlign:"center"}}><div style={{fontSize:24,fontWeight:800,color:"#16A34A"}}>{weekInterviews.length}</div><div style={{fontSize:10,color:"#16A34A",fontWeight:700}}>INTERVIEWS THIS WEEK</div></div>
+      <div style={{background:"#F5F3FF",borderRadius:10,padding:"12px 16px",textAlign:"center"}}><div style={{fontSize:24,fontWeight:800,color:"#7C3AED"}}>{positiveRate}%</div><div style={{fontSize:10,color:"#7C3AED",fontWeight:700}}>SCREENING POSITIVE RATE</div></div>
+    </div>
+
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:14}}>
+
+      {/* Tomorrow's Interviews */}
+      <Card>
+        <CardHeader title={`Tomorrow's Interviews (${tomorrowInterviews.length})`} action={<span style={{fontSize:11,color:"#94A3B8"}}>{tomorrowStr}</span>}/>
+        <div style={{padding:"0 0 8px"}}>
+          {tomorrowInterviews.length===0&&<div style={{padding:"20px 16px",textAlign:"center",color:"#16A34A",fontSize:13,fontWeight:600}}>No interviews scheduled for tomorrow</div>}
+          {tomorrowInterviews.map(s=>{
+            const cand=allCandidates.find(c=>c.id===s.candidate_id);
+            const ic=getMember(s.user_id);
+            return <div key={s.id} style={{padding:"12px 16px",borderBottom:"1px solid #F1F5F9"}}>
+              <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
+                <div style={{fontSize:13,fontWeight:700}}>{cand?.name||"?"}</div>
+                <span style={{background:"#EFF6FF",color:"#2563EB",fontSize:11,padding:"2px 8px",borderRadius:99,fontWeight:600}}>{ROUNDS[s.round]||s.round}</span>
+              </div>
+              {s.with_whom&&<div style={{fontSize:12,color:"#2563EB",marginBottom:4,fontWeight:600}}>{s.with_whom}</div>}
+              <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                <span style={{background:"#F1F5F9",color:"#475569",fontSize:11,padding:"2px 7px",borderRadius:99}}>{s.interview_mode==="virtual"?"Virtual":"In-person"}</span>
+                {s.tech_support_name&&<span style={{background:"#F0FDF4",color:"#16A34A",fontSize:11,padding:"2px 7px",borderRadius:99}}>Support: {s.tech_support_name}</span>}
+                {ic&&<span style={{background:"#FEF2F2",color:"#DC2626",fontSize:11,padding:"2px 7px",borderRadius:99}}>IC: {ic.name}</span>}
+              </div>
+            </div>;
+          })}
+          {todayInterviews.length>0&&<>
+            <div style={{padding:"8px 16px",fontSize:11,fontWeight:700,color:"#D97706",background:"#FFFBEB"}}>TODAY'S INTERVIEWS ({todayInterviews.length})</div>
+            {todayInterviews.map(s=>{
+              const cand=allCandidates.find(c=>c.id===s.candidate_id);
+              return <div key={s.id} style={{padding:"10px 16px",borderBottom:"1px solid #F8FAFC"}}>
+                <div style={{fontSize:13,fontWeight:600}}>{cand?.name||"?"} — {ROUNDS[s.round]||s.round}</div>
+                {s.with_whom&&<div style={{fontSize:11,color:"#2563EB"}}>{s.with_whom}</div>}
+              </div>;
+            })}
+          </>}
+        </div>
+      </Card>
+
+      {/* Daily Checklist + Floor Issues */}
+      <div style={{display:"grid",gap:14}}>
+        <Card>
+          <CardHeader title="Today's Checklist"/>
+          <div style={{padding:"10px 16px"}}>
+            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
+              <div style={{flex:1,background:"#F1F5F9",borderRadius:99,height:6,overflow:"hidden"}}>
+                <div style={{height:"100%",borderRadius:99,background:pct===100?"#16A34A":"#D97706",width:`${pct}%`}}/>
+              </div>
+              <span style={{fontSize:12,fontWeight:700,color:pct===100?"#16A34A":"#D97706"}}>{pct}%</span>
+            </div>
+            {checklist.map((item,i)=><div key={i} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 0",borderBottom:"1px solid #F8FAFC"}}>
+              <div style={{width:20,height:20,borderRadius:"50%",background:item.done?"#F0FDF4":"#FEF2F2",border:`1.5px solid ${item.done?"#16A34A":"#FECACA"}`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                {item.done?<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#16A34A" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>:<svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>}
+              </div>
+              <span style={{fontSize:12,color:item.done?"#0F172A":"#94A3B8"}}>{item.label}</span>
+            </div>)}
+            {!todayLog&&<button onClick={()=>onNav("daily_log")} style={{width:"100%",marginTop:10,padding:"7px",borderRadius:8,background:"#D97706",color:"#fff",border:"none",fontSize:12,fontWeight:600,cursor:"pointer"}}>Submit Today's Log →</button>}
+          </div>
+        </Card>
+
+        <Card>
+          <CardHeader title={`Screening Stats (${totalCalls} calls)`}/>
+          <div style={{padding:"12px 16px"}}>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,marginBottom:10}}>
+              <div style={{textAlign:"center"}}><div style={{fontSize:18,fontWeight:800,color:"#16A34A"}}>{positiveCalls}</div><div style={{fontSize:10,color:"#16A34A",fontWeight:600}}>POSITIVE</div></div>
+              <div style={{textAlign:"center"}}><div style={{fontSize:18,fontWeight:800,color:"#DC2626"}}>{myCalls.filter(c=>c.outcome==="negative").length}</div><div style={{fontSize:10,color:"#DC2626",fontWeight:600}}>NEGATIVE</div></div>
+              <div style={{textAlign:"center"}}><div style={{fontSize:18,fontWeight:800,color:"#D97706"}}>{myCalls.filter(c=>c.outcome==="pending"||c.outcome==="no_show").length}</div><div style={{fontSize:10,color:"#D97706",fontWeight:600}}>PENDING</div></div>
+            </div>
+            <div style={{background:"#F1F5F9",borderRadius:99,height:8,overflow:"hidden"}}>
+              <div style={{height:"100%",borderRadius:99,background:"#16A34A",width:`${positiveRate}%`}}/>
+            </div>
+            <div style={{fontSize:11,color:"#94A3B8",marginTop:6,textAlign:"center"}}>{positiveRate}% positive rate</div>
+          </div>
+        </Card>
+      </div>
+    </div>
+
+    {/* Floor Issues History */}
+    <Card>
+      <CardHeader title={`Floor Issue History (${floorIssues.length} total · ${openIssues.length} open)`} action={<button onClick={()=>onNav("daily_log")} style={{background:"none",border:"1px solid #E2E8F0",borderRadius:8,padding:"4px 10px",fontSize:12,cursor:"pointer",color:"#475569"}}>Add today's log</button>}/>
+      <div>
+        {openIssues.length>0&&<>
+          <div style={{padding:"8px 16px",fontSize:11,fontWeight:700,color:"#D97706",background:"#FFFBEB"}}>OPEN ISSUES ({openIssues.length})</div>
+          {openIssues.slice(0,4).map((i,idx)=><div key={idx} style={{padding:"12px 16px",borderBottom:"1px solid #F8FAFC"}}>
+            <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
+              <div style={{fontSize:13,fontWeight:600,color:"#D97706"}}>{i.candidate?.name||"General"}</div>
+              <span style={{fontSize:11,color:"#94A3B8"}}>{fmtDate(i.date)}</span>
+            </div>
+            <div style={{fontSize:12,color:"#334155"}}>{i.issue}</div>
+            <div style={{fontSize:11,color:"#D97706",marginTop:4}}>Status: {i.status||"Not resolved"}</div>
+          </div>)}
+        </>}
+        {resolvedIssues.length>0&&<>
+          <div style={{padding:"8px 16px",fontSize:11,fontWeight:700,color:"#16A34A",background:"#F0FDF4"}}>RECENTLY RESOLVED ({resolvedIssues.length})</div>
+          {resolvedIssues.slice(0,3).map((i,idx)=><div key={idx} style={{padding:"12px 16px",borderBottom:"1px solid #F8FAFC",opacity:0.7}}>
+            <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
+              <div style={{fontSize:13,fontWeight:500}}>{i.candidate?.name||"General"}</div>
+              <span style={{fontSize:11,color:"#94A3B8"}}>{fmtDate(i.date)}</span>
+            </div>
+            <div style={{fontSize:12,color:"#475569"}}>{i.issue}</div>
+          </div>)}
+        </>}
+        {floorIssues.length===0&&<div style={{padding:"24px",textAlign:"center",color:"#16A34A",fontSize:13,fontWeight:600}}>No floor issues reported!</div>}
       </div>
     </Card>
   </div>;
