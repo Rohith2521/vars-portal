@@ -942,6 +942,8 @@ function DashPage({user,rc,candidates,allCandidates,logs,getMember,onNav,onRefre
       ? <RLeadDashboard user={user} candidates={candidates} allCandidates={allCands||candidates} logs={logs} members={members||[]} getMember={getMember} onNav={onNav} token={token}/>
       : user.role==="c_lead"
       ? <CLeadDashboard user={user} candidates={candidates} allCandidates={allCands||candidates} logs={logs} members={members||[]} getMember={getMember} onNav={onNav} token={token}/>
+      : user.role==="interview_coord"
+      ? <ICDashboard user={user} candidates={candidates} allCandidates={allCands||candidates} logs={logs} members={members||[]} getMember={getMember} onNav={onNav} token={token}/>
       : <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14 }}>
           <Card>
             <CardHeader title="My Candidates" action={<Btn variant="outline" onClick={()=>onNav("candidates")} style={{ fontSize:12, padding:"5px 10px" }}>View all</Btn>}/>
@@ -5911,5 +5913,238 @@ function CLeadDashboard({user,candidates,allCandidates,logs,members,getMember,on
         {floorIssues.length===0&&<div style={{padding:"24px",textAlign:"center",color:"#16A34A",fontSize:13,fontWeight:600}}>No floor issues reported!</div>}
       </div>
     </Card>
+  </div>;
+}
+
+// ─── IC DASHBOARD ─────────────────────────────────────────────────────────────
+function ICDashboard({user,candidates,allCandidates,logs,members,getMember,onNav,token}){
+  const [sessions,setSessions]=useState([]);
+  const [loading,setLoading]=useState(true);
+
+  useEffect(()=>{
+    if(token){
+      sb.get("interview_sessions","select=*&order=interview_date.desc",token).then(r=>{
+        if(Array.isArray(r))setSessions(r);
+        setLoading(false);
+      });
+    }
+  },[token]);
+
+  const todayStr=today();
+  const tomorrow=new Date();tomorrow.setDate(tomorrow.getDate()+1);
+  const tomorrowStr=tomorrow.toISOString().split("T")[0];
+  const weekAgo=new Date();weekAgo.setDate(weekAgo.getDate()-6);
+  const weekAgoStr=weekAgo.toISOString().split("T")[0];
+
+  // My candidates
+  const myCands=allCandidates.filter(c=>c.interview_coord_id===user.id&&c.status==="Active");
+  const myPlaced=allCandidates.filter(c=>c.interview_coord_id===user.id&&c.status==="Placed");
+
+  // My sessions
+  const mySessions=sessions.filter(s=>myCands.some(c=>c.id===s.candidate_id));
+  const todayLog=logs.find(l=>l.user_id===user.id&&l.log_date===todayStr&&l.type==="interview_coord");
+
+  // Tomorrow's interviews (from IC log tmr_with_whom)
+  const tmrLogs=logs.filter(l=>l.user_id===user.id&&l.log_date===todayStr&&l.tmr_with_whom);
+  // Also from sessions scheduled tomorrow
+  const tomorrowSessions=mySessions.filter(s=>s.interview_date===tomorrowStr);
+  const todaySessions=mySessions.filter(s=>s.interview_date===todayStr);
+  const weekSessions=mySessions.filter(s=>s.interview_date>=weekAgoStr);
+
+  // Mock sessions stats
+  const myIcLogs=logs.filter(l=>l.user_id===user.id&&l.type==="interview_coord");
+  const totalMocks=myIcLogs.reduce((s,l)=>s+(l.sessions_done||0),0);
+  const weekMocks=myIcLogs.filter(l=>l.log_date>=weekAgoStr).reduce((s,l)=>s+(l.sessions_done||0),0);
+
+  // Per candidate mock count
+  const candMocks=myCands.map(c=>{
+    const cLogs=myIcLogs.filter(l=>l.candidate_id===c.id);
+    const mocks=cLogs.reduce((s,l)=>s+(l.sessions_done||0),0);
+    const lastMock=cLogs.filter(l=>l.sessions_done>0).sort((a,b)=>b.log_date.localeCompare(a.log_date))[0];
+    return {...c,mocks,lastMock:lastMock?.log_date};
+  });
+
+  // Late joining tracker
+  const lateJoins=mySessions.filter(s=>s.joined_on_time==="no");
+  const lateByCandidate=myCands.map(c=>({
+    ...c,
+    lateCount:mySessions.filter(s=>s.candidate_id===c.id&&s.joined_on_time==="no").length,
+    totalInt:mySessions.filter(s=>s.candidate_id===c.id).length,
+  })).filter(c=>c.totalInt>0);
+
+  // Interview feedback waiting
+  const waitingFeedback=mySessions.filter(s=>!s.feedback_received);
+
+  // Session types breakdown this week
+  const sessionTypes=["Sync","Otter","Prompt","Otter+Prompt","Mixed"];
+  const typeBreakdown=sessionTypes.map(t=>({
+    type:t,
+    count:myIcLogs.filter(l=>l.log_date>=weekAgoStr&&l.session_type===t).reduce((s,l)=>s+(l.sessions_done||0),0)
+  })).filter(t=>t.count>0);
+
+  const ROUNDS={round_1:"Round 1",round_2:"Round 2",round_3:"Round 3",round_4:"Round 4",round_5:"Round 5",round_6:"Round 6",final:"Final"};
+
+  // Checklist
+  const checklist=[
+    {label:"Daily log submitted",done:!!todayLog},
+    {label:"Tomorrow's interviews scheduled",done:tomorrowSessions.length>0||tmrLogs.length>0},
+    {label:"No feedback pending (7 days)",done:waitingFeedback.filter(s=>s.interview_date>=weekAgoStr).length===0},
+  ];
+  const pct=Math.round(checklist.filter(i=>i.done).length/checklist.length*100);
+
+  return <div>
+    <div style={{fontSize:20,fontWeight:700,marginBottom:4}}>Welcome back, {user.name.split(" ")[0]}!</div>
+    <div style={{fontSize:13,color:"#94A3B8",marginBottom:20}}>{myCands.length} active candidates · {totalMocks} total mocks · {myPlaced.length} placed</div>
+
+    {/* Stats */}
+    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:20}}>
+      <div style={{background:"#FEF2F2",borderRadius:10,padding:"12px 16px",textAlign:"center"}}><div style={{fontSize:24,fontWeight:800,color:"#DC2626"}}>{tomorrowSessions.length||tmrLogs.length}</div><div style={{fontSize:10,color:"#DC2626",fontWeight:700}}>TOMORROW'S INTERVIEWS</div></div>
+      <div style={{background:"#EFF6FF",borderRadius:10,padding:"12px 16px",textAlign:"center"}}><div style={{fontSize:24,fontWeight:800,color:"#2563EB"}}>{weekSessions.length}</div><div style={{fontSize:10,color:"#2563EB",fontWeight:700}}>INTERVIEWS THIS WEEK</div></div>
+      <div style={{background:"#F5F3FF",borderRadius:10,padding:"12px 16px",textAlign:"center"}}><div style={{fontSize:24,fontWeight:800,color:"#7C3AED"}}>{weekMocks}</div><div style={{fontSize:10,color:"#7C3AED",fontWeight:700}}>MOCKS THIS WEEK</div></div>
+      <div style={{background:"#FFFBEB",borderRadius:10,padding:"12px 16px",textAlign:"center"}}><div style={{fontSize:24,fontWeight:800,color:"#D97706"}}>{waitingFeedback.length}</div><div style={{fontSize:10,color:"#D97706",fontWeight:700}}>FEEDBACK PENDING</div></div>
+    </div>
+
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:14}}>
+
+      {/* Tomorrow's Interviews */}
+      <Card>
+        <CardHeader title={`Tomorrow's Interviews (${tomorrowSessions.length})`} action={<span style={{fontSize:11,color:"#94A3B8"}}>{tomorrowStr}</span>}/>
+        <div style={{padding:"0 0 8px"}}>
+          {tomorrowSessions.length===0&&tmrLogs.length===0&&<div style={{padding:"20px 16px",textAlign:"center",color:"#94A3B8",fontSize:13}}>No interviews scheduled for tomorrow.</div>}
+          {tomorrowSessions.map(s=>{
+            const cand=allCandidates.find(c=>c.id===s.candidate_id);
+            return <div key={s.id} style={{padding:"12px 16px",borderBottom:"1px solid #F1F5F9"}}>
+              <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
+                <div style={{fontSize:13,fontWeight:700}}>{cand?.name||"?"}</div>
+                <span style={{background:"#EFF6FF",color:"#2563EB",fontSize:11,padding:"2px 8px",borderRadius:99,fontWeight:600}}>{ROUNDS[s.round]||s.round}</span>
+              </div>
+              {s.with_whom&&<div style={{fontSize:12,color:"#2563EB",fontWeight:600,marginBottom:4}}>{s.with_whom}</div>}
+              <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                <span style={{background:"#F1F5F9",color:"#475569",fontSize:11,padding:"2px 7px",borderRadius:99}}>{s.interview_mode==="virtual"?"Virtual":"In-person"}</span>
+                {s.tech_support_name&&<span style={{background:"#F0FDF4",color:"#16A34A",fontSize:11,padding:"2px 7px",borderRadius:99}}>Support: {s.tech_support_name}</span>}
+                {s.support_mode&&<span style={{background:"#FFFBEB",color:"#D97706",fontSize:11,padding:"2px 7px",borderRadius:99}}>{s.support_mode}</span>}
+              </div>
+            </div>;
+          })}
+          {/* From IC log tomorrow field */}
+          {tmrLogs.map((l,i)=>{
+            const cand=allCandidates.find(c=>c.id===l.candidate_id);
+            return <div key={i} style={{padding:"12px 16px",borderBottom:"1px solid #F1F5F9",background:"#FAFAFA"}}>
+              <div style={{fontSize:13,fontWeight:700,marginBottom:4}}>{cand?.name||"?"}</div>
+              <div style={{fontSize:12,color:"#475569"}}>With: {l.tmr_with_whom} · {l.tmr_time} · {l.tmr_mode}</div>
+              {l.tmr_tech_support&&<div style={{fontSize:11,color:"#16A34A",marginTop:2}}>Support: {l.tmr_tech_support}</div>}
+            </div>;
+          })}
+        </div>
+      </Card>
+
+      {/* Mock Session Tracker per candidate */}
+      <Card>
+        <CardHeader title="Mock Session Tracker"/>
+        <div style={{padding:"0 0 8px"}}>
+          {candMocks.map(c=>{
+            const bar=Math.min(c.mocks/10*100,100);
+            return <div key={c.id} style={{padding:"10px 16px",borderBottom:"1px solid #F8FAFC"}}>
+              <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
+                <div style={{fontSize:13,fontWeight:600}}>{c.name}</div>
+                <span style={{fontSize:13,fontWeight:800,color:"#7C3AED"}}>{c.mocks} mocks</span>
+              </div>
+              <div style={{background:"#F1F5F9",borderRadius:99,height:5,overflow:"hidden",marginBottom:4}}>
+                <div style={{height:"100%",borderRadius:99,background:c.mocks>=8?"#16A34A":c.mocks>=4?"#7C3AED":"#D97706",width:`${bar}%`}}/>
+              </div>
+              <div style={{fontSize:10,color:"#94A3B8"}}>
+                {c.mocks>=8?"Ready for interviews":c.mocks>=4?"Good progress":"Needs more practice"}
+                {c.lastMock&&` · Last: ${fmtDate(c.lastMock)}`}
+              </div>
+            </div>;
+          })}
+          {candMocks.length===0&&<div style={{padding:"20px 16px",textAlign:"center",color:"#94A3B8",fontSize:13}}>No candidates assigned.</div>}
+          <div style={{padding:"10px 16px",borderTop:"1px solid #F1F5F9",display:"flex",justifyContent:"space-between"}}>
+            <span style={{fontSize:12,color:"#94A3B8"}}>Total mocks this week</span>
+            <span style={{fontSize:13,fontWeight:700,color:"#7C3AED"}}>{weekMocks}</span>
+          </div>
+        </div>
+      </Card>
+    </div>
+
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:14}}>
+
+      {/* Late Joining Tracker */}
+      <Card>
+        <CardHeader title="Late Joining Tracker"/>
+        <div style={{padding:"0 0 8px"}}>
+          {lateByCandidate.filter(c=>c.lateCount>0).length===0&&<div style={{padding:"20px 16px",textAlign:"center",color:"#16A34A",fontSize:13,fontWeight:600}}>No late joins recorded!</div>}
+          {lateByCandidate.filter(c=>c.lateCount>0).map(c=>{
+            const rate=Math.round(c.lateCount/c.totalInt*100);
+            return <div key={c.id} style={{padding:"10px 16px",borderBottom:"1px solid #F8FAFC"}}>
+              <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
+                <div style={{fontSize:13,fontWeight:600}}>{c.name}</div>
+                <span style={{background:rate>30?"#FEF2F2":"#FFFBEB",color:rate>30?"#DC2626":"#D97706",fontSize:11,padding:"2px 8px",borderRadius:99,fontWeight:700}}>{c.lateCount}/{c.totalInt} late</span>
+              </div>
+              <div style={{background:"#F1F5F9",borderRadius:99,height:5,overflow:"hidden"}}>
+                <div style={{height:"100%",borderRadius:99,background:rate>30?"#DC2626":"#D97706",width:`${rate}%`}}/>
+              </div>
+              <div style={{fontSize:10,color:"#94A3B8",marginTop:3}}>{rate}% late joining rate</div>
+            </div>;
+          })}
+          {lateJoins.length>0&&<div style={{padding:"8px 16px",fontSize:11,color:"#94A3B8",borderTop:"1px solid #F1F5F9"}}>Total late joins: {lateJoins.length} across all interviews</div>}
+        </div>
+      </Card>
+
+      {/* Checklist + Session type breakdown */}
+      <div style={{display:"grid",gap:14}}>
+        <Card>
+          <CardHeader title="Today's Checklist"/>
+          <div style={{padding:"10px 16px"}}>
+            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
+              <div style={{flex:1,background:"#F1F5F9",borderRadius:99,height:6,overflow:"hidden"}}>
+                <div style={{height:"100%",borderRadius:99,background:pct===100?"#16A34A":"#D97706",width:`${pct}%`}}/>
+              </div>
+              <span style={{fontSize:12,fontWeight:700,color:pct===100?"#16A34A":"#D97706"}}>{pct}%</span>
+            </div>
+            {checklist.map((item,i)=><div key={i} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 0"}}>
+              <div style={{width:20,height:20,borderRadius:"50%",background:item.done?"#F0FDF4":"#FEF2F2",border:`1.5px solid ${item.done?"#16A34A":"#FECACA"}`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                {item.done?<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#16A34A" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>:<svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>}
+              </div>
+              <span style={{fontSize:12,color:item.done?"#0F172A":"#94A3B8"}}>{item.label}</span>
+            </div>)}
+            {!todayLog&&<button onClick={()=>onNav("daily_log")} style={{width:"100%",marginTop:8,padding:"7px",borderRadius:8,background:"#DC2626",color:"#fff",border:"none",fontSize:12,fontWeight:600,cursor:"pointer"}}>Submit Today's Log →</button>}
+          </div>
+        </Card>
+
+        <Card>
+          <CardHeader title="Session Types This Week"/>
+          <div style={{padding:"10px 16px"}}>
+            {typeBreakdown.length===0&&<div style={{fontSize:13,color:"#94A3B8"}}>No sessions logged this week.</div>}
+            {typeBreakdown.map(t=><div key={t.type} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"5px 0",borderBottom:"1px solid #F8FAFC"}}>
+              <span style={{fontSize:12,color:"#475569"}}>{t.type}</span>
+              <span style={{fontSize:13,fontWeight:700,color:"#7C3AED"}}>{t.count}</span>
+            </div>)}
+            <div style={{display:"flex",justifyContent:"space-between",padding:"8px 0 0",borderTop:"1px solid #E2E8F0",marginTop:4}}>
+              <span style={{fontSize:12,fontWeight:600,color:"#475569"}}>Total</span>
+              <span style={{fontSize:13,fontWeight:800,color:"#7C3AED"}}>{typeBreakdown.reduce((s,t)=>s+t.count,0)}</span>
+            </div>
+          </div>
+        </Card>
+      </div>
+    </div>
+
+    {/* Feedback Pending */}
+    {waitingFeedback.length>0&&<Card>
+      <CardHeader title={`Interview Feedback Pending (${waitingFeedback.length})`}/>
+      <div style={{padding:"0 0 8px"}}>
+        {waitingFeedback.slice(0,5).map(s=>{
+          const cand=allCandidates.find(c=>c.id===s.candidate_id);
+          const daysAgo=Math.floor((new Date()-new Date(s.interview_date))/86400000);
+          return <div key={s.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 16px",borderBottom:"1px solid #F8FAFC"}}>
+            <div>
+              <div style={{fontSize:13,fontWeight:600}}>{cand?.name||"?"} — {ROUNDS[s.round]||s.round}</div>
+              <div style={{fontSize:11,color:"#94A3B8"}}>{s.with_whom&&`${s.with_whom} · `}{fmtDate(s.interview_date)}</div>
+            </div>
+            <span style={{background:daysAgo>7?"#FEF2F2":"#FFFBEB",color:daysAgo>7?"#DC2626":"#D97706",fontSize:11,padding:"2px 8px",borderRadius:99,fontWeight:600}}>{daysAgo}d ago</span>
+          </div>;
+        })}
+      </div>
+    </Card>}
   </div>;
 }
