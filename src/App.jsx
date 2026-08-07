@@ -938,6 +938,8 @@ function DashPage({user,rc,candidates,allCandidates,logs,getMember,onNav,onRefre
       ? <ManagerDashboardSection allCandidates={allCands||candidates} members={members||[]} logs={logs} getMember={getMember} interviewSessions={interviewSessions} onNav={onNav}/>
       : user.role==="recruiter"
       ? <RecruiterDashboard user={user} candidates={candidates} logs={logs} onNav={onNav}/>
+      : user.role==="r_lead"
+      ? <RLeadDashboard user={user} candidates={candidates} allCandidates={allCands||candidates} logs={logs} members={members||[]} getMember={getMember} onNav={onNav} token={token}/>
       : <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14 }}>
           <Card>
             <CardHeader title="My Candidates" action={<Btn variant="outline" onClick={()=>onNav("candidates")} style={{ fontSize:12, padding:"5px 10px" }}>View all</Btn>}/>
@@ -5492,6 +5494,222 @@ function RecruiterDashboard({user,candidates,logs,onNav}){
           <StatusBadge status={c.status}/>
         </div>)}
         {myCands.length===0&&<div style={{padding:"24px",textAlign:"center",color:"#94A3B8",fontSize:13}}>No active candidates assigned.</div>}
+      </div>
+    </Card>
+  </div>;
+}
+
+// ─── R LEAD DASHBOARD ────────────────────────────────────────────────────────
+function RLeadDashboard({user,candidates,allCandidates,logs,members,getMember,onNav,token}){
+  const [selRec,setSelRec]=useState(null);
+  const [copyMsg,setCopyMsg]=useState("");
+
+  // My team recruiters
+  const myRecruiters=members.filter(m=>m.role==="recruiter"&&m.r_lead_team===user.id&&m.is_active!==false);
+  // My candidates
+  const myCands=allCandidates.filter(c=>c.r_lead_id===user.id&&c.status==="Active");
+  const myPlaced=allCandidates.filter(c=>c.r_lead_id===user.id&&c.status==="Placed");
+
+  const todayStr=today();
+  const weekAgo=new Date();weekAgo.setDate(weekAgo.getDate()-6);
+  const weekAgoStr=weekAgo.toISOString().split("T")[0];
+
+  // Today's submission status per recruiter
+  const recStats=myRecruiters.map(r=>{
+    const submittedToday=logs.some(l=>l.user_id===r.id&&l.log_date===todayStr&&l.type==="recruiter");
+    const wLogs=logs.filter(l=>l.user_id===r.id&&l.type==="recruiter"&&l.log_date>=weekAgoStr);
+    const wEmails=wLogs.reduce((s,l)=>s+(l.emails_sent||0),0);
+    const wSubs=wLogs.reduce((s,l)=>s+(l.submissions||0),0);
+    const rCands=allCandidates.filter(c=>c.recruiter_id===r.id&&c.status==="Active");
+    return {...r,submittedToday,wLogs,wEmails,wSubs,rCands};
+  });
+
+  const submitted=recStats.filter(r=>r.submittedToday);
+  const pending=recStats.filter(r=>!r.submittedToday);
+
+  // Total team this week
+  const totalEmails=recStats.reduce((s,r)=>s+r.wEmails,0);
+  const totalSubs=recStats.reduce((s,r)=>s+r.wSubs,0);
+
+  // WhatsApp format copy
+  const copyWhatsApp=(rec)=>{
+    const rLogs=logs.filter(l=>l.user_id===rec.id&&l.type==="recruiter"&&l.log_date>=weekAgoStr).sort((a,b)=>a.log_date.localeCompare(b.log_date));
+    const emails=rLogs.reduce((s,l)=>s+(l.emails_sent||0),0);
+    const subs=rLogs.reduce((s,l)=>s+(l.submissions||0),0);
+    const rCands=allCandidates.filter(c=>c.recruiter_id===rec.id&&c.status==="Active");
+
+    let text=`*${rec.name} — Weekly Update*\n`;
+    text+=`Candidates: ${rCands.map(c=>c.name).join(", ")}\n\n`;
+    text+=`*This Week:*\n`;
+    text+=`Emails: ${emails}\nSubmissions: ${subs}\n`;
+    text+=`Logs submitted: ${rLogs.length}/5 days\n\n`;
+    if(rLogs.length>0){
+      text+=`*Daily breakdown:*\n`;
+      rLogs.forEach(l=>{text+=`${l.log_date}: ${l.emails_sent||0} emails, ${l.submissions||0} subs\n`;});
+    }
+    navigator.clipboard.writeText(text).then(()=>{
+      setCopyMsg(rec.id);
+      setTimeout(()=>setCopyMsg(""),2000);
+    });
+  };
+
+  // Chart data — team emails last 7 days
+  const chartDays=Array.from({length:7},(_,i)=>{
+    const d=new Date();d.setDate(d.getDate()-(6-i));
+    const str=d.toISOString().split("T")[0];
+    const dayEmails=myRecruiters.reduce((s,r)=>{
+      const l=logs.find(lg=>lg.user_id===r.id&&lg.log_date===str&&lg.type==="recruiter");
+      return s+(l?.emails_sent||0);
+    },0);
+    const daySubs=myRecruiters.reduce((s,r)=>{
+      const l=logs.find(lg=>lg.user_id===r.id&&lg.log_date===str&&lg.type==="recruiter");
+      return s+(l?.submissions||0);
+    },0);
+    return {date:str,label:d.toLocaleDateString("en-US",{weekday:"short"}),emails:dayEmails,subs:daySubs};
+  });
+  const maxE=Math.max(...chartDays.map(d=>d.emails),1);
+
+  return <div>
+    <div style={{fontSize:20,fontWeight:700,marginBottom:4}}>Welcome back, {user.name.split(" ")[0]}!</div>
+    <div style={{fontSize:13,color:"#94A3B8",marginBottom:20}}>{myRecruiters.length} recruiters · {myCands.length} active candidates · {myPlaced.length} placed</div>
+
+    {/* Stats */}
+    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:20}}>
+      <div style={{background:"#EFF6FF",borderRadius:10,padding:"12px 16px",textAlign:"center"}}><div style={{fontSize:24,fontWeight:800,color:"#2563EB"}}>{totalEmails}</div><div style={{fontSize:10,color:"#2563EB",fontWeight:700}}>TEAM EMAILS/WEEK</div></div>
+      <div style={{background:"#F5F3FF",borderRadius:10,padding:"12px 16px",textAlign:"center"}}><div style={{fontSize:24,fontWeight:800,color:"#7C3AED"}}>{totalSubs}</div><div style={{fontSize:10,color:"#7C3AED",fontWeight:700}}>TEAM SUBS/WEEK</div></div>
+      <div style={{background:"#F0FDF4",borderRadius:10,padding:"12px 16px",textAlign:"center"}}><div style={{fontSize:24,fontWeight:800,color:"#16A34A"}}>{submitted.length}</div><div style={{fontSize:10,color:"#16A34A",fontWeight:700}}>SUBMITTED TODAY</div></div>
+      <div style={{background:"#FEF2F2",borderRadius:10,padding:"12px 16px",textAlign:"center"}}><div style={{fontSize:24,fontWeight:800,color:"#DC2626"}}>{pending.length}</div><div style={{fontSize:10,color:"#DC2626",fontWeight:700}}>PENDING TODAY</div></div>
+    </div>
+
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:14}}>
+
+      {/* Team Attendance Today */}
+      <Card>
+        <CardHeader title={`Team Attendance — ${todayStr}`}/>
+        <div style={{padding:"0 0 8px"}}>
+          {submitted.length>0&&<>
+            <div style={{padding:"8px 16px",fontSize:11,fontWeight:700,color:"#16A34A",background:"#F0FDF4",borderBottom:"1px solid #F1F5F9"}}>SUBMITTED ({submitted.length})</div>
+            {submitted.map(r=><div key={r.id} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 16px",borderBottom:"1px solid #F8FAFC"}}>
+              <div style={{display:"flex",alignItems:"center",gap:10}}>
+                <div style={{width:8,height:8,borderRadius:"50%",background:"#16A34A",flexShrink:0}}/>
+                <Av name={r.name} role="recruiter" size={28}/>
+                <div>
+                  <div style={{fontSize:13,fontWeight:500}}>{r.name}</div>
+                  <div style={{fontSize:11,color:"#94A3B8"}}>{r.rCands.length} candidates</div>
+                </div>
+              </div>
+              <div style={{display:"flex",alignItems:"center",gap:8}}>
+                <span style={{fontSize:11,color:"#2563EB",fontWeight:600}}>{r.wEmails}e</span>
+                <span style={{fontSize:11,color:"#7C3AED",fontWeight:600}}>{r.wSubs}s</span>
+                <button onClick={()=>copyWhatsApp(r)} style={{padding:"3px 8px",borderRadius:6,fontSize:11,cursor:"pointer",background:copyMsg===r.id?"#F0FDF4":"#F8FAFC",color:copyMsg===r.id?"#16A34A":"#475569",border:"1px solid #E2E8F0",fontWeight:600}}>{copyMsg===r.id?"Copied!":"Copy WA"}</button>
+              </div>
+            </div>)}
+          </>}
+          {pending.length>0&&<>
+            <div style={{padding:"8px 16px",fontSize:11,fontWeight:700,color:"#DC2626",background:"#FEF2F2",borderBottom:"1px solid #F1F5F9",marginTop:pending.length>0&&submitted.length>0?4:0}}>PENDING ({pending.length})</div>
+            {pending.map(r=><div key={r.id} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 16px",borderBottom:"1px solid #F8FAFC"}}>
+              <div style={{display:"flex",alignItems:"center",gap:10}}>
+                <div style={{width:8,height:8,borderRadius:"50%",background:"#DC2626",flexShrink:0}}/>
+                <Av name={r.name} role="recruiter" size={28}/>
+                <div>
+                  <div style={{fontSize:13,fontWeight:500,color:"#DC2626"}}>{r.name}</div>
+                  <div style={{fontSize:11,color:"#94A3B8"}}>{r.rCands.length} candidates</div>
+                </div>
+              </div>
+              <button onClick={()=>copyWhatsApp(r)} style={{padding:"3px 8px",borderRadius:6,fontSize:11,cursor:"pointer",background:"#F8FAFC",color:"#475569",border:"1px solid #E2E8F0",fontWeight:600}}>Copy WA</button>
+            </div>)}
+          </>}
+          {myRecruiters.length===0&&<div style={{padding:24,textAlign:"center",color:"#94A3B8",fontSize:13}}>No recruiters in your team.</div>}
+        </div>
+      </Card>
+
+      {/* Team Performance Chart */}
+      <Card>
+        <CardHeader title="Team Emails — Last 7 Days"/>
+        <div style={{padding:"8px 16px 16px"}}>
+          <div style={{display:"flex",alignItems:"flex-end",gap:6,height:110,marginBottom:8}}>
+            {chartDays.map(d=><div key={d.date} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
+              <div style={{fontSize:9,color:"#94A3B8"}}>{d.emails>0?d.emails:""}</div>
+              <div style={{width:"100%",background:d.date===todayStr?"#2563EB":"#93C5FD",borderRadius:"3px 3px 0 0",height:`${Math.max(d.emails/maxE*90,d.emails>0?6:2)}px`}}/>
+              <div style={{fontSize:9,color:"#94A3B8"}}>{d.label}</div>
+            </div>)}
+          </div>
+          <div style={{borderTop:"1px solid #F1F5F9",paddingTop:10}}>
+            <div style={{fontSize:11,color:"#94A3B8",marginBottom:6}}>Team submissions per day:</div>
+            <div style={{display:"flex",gap:6}}>
+              {chartDays.map(d=><div key={d.date} style={{flex:1,textAlign:"center"}}>
+                <div style={{background:d.subs>0?"#7C3AED":"#F1F5F9",color:d.subs>0?"#fff":"#94A3B8",borderRadius:4,padding:"2px 0",fontSize:10,fontWeight:d.subs>0?700:400}}>{d.subs||"—"}</div>
+              </div>)}
+            </div>
+          </div>
+        </div>
+      </Card>
+    </div>
+
+    {/* Recruiter Comparison Table */}
+    <Card style={{marginBottom:14}}>
+      <CardHeader title="Recruiter Comparison — This Week"/>
+      <div style={{overflowX:"auto"}}>
+        <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+          <thead><tr style={{background:"#F8FAFC"}}>
+            {["Recruiter","Candidates","Logs/5","Emails","Subs","Avg Emails","Today","WhatsApp"].map(h=><th key={h} style={{padding:"8px 12px",textAlign:"left",fontWeight:600,color:"#475569",borderBottom:"1px solid #E2E8F0",fontSize:11}}>{h}</th>)}
+          </tr></thead>
+          <tbody>
+            {recStats.sort((a,b)=>b.wEmails-a.wEmails).map((r,i)=>{
+              const avg=r.wLogs.length>0?(r.wEmails/r.wLogs.length).toFixed(1):0;
+              return <tr key={r.id} style={{borderBottom:"1px solid #F8FAFC",background:i===0?"#FAFFFE":"transparent"}}>
+                <td style={{padding:"10px 12px"}}>
+                  <div style={{display:"flex",alignItems:"center",gap:8}}>
+                    {i===0&&<span style={{fontSize:14}}>🥇</span>}
+                    <Av name={r.name} role="recruiter" size={26}/>
+                    <span style={{fontWeight:600}}>{r.name}</span>
+                  </div>
+                </td>
+                <td style={{padding:"10px 12px",color:"#475569"}}>{r.rCands.length}</td>
+                <td style={{padding:"10px 12px",color:"#475569"}}>{r.wLogs.length}/5</td>
+                <td style={{padding:"10px 12px",fontWeight:700,color:"#2563EB"}}>{r.wEmails}</td>
+                <td style={{padding:"10px 12px",fontWeight:700,color:"#7C3AED"}}>{r.wSubs}</td>
+                <td style={{padding:"10px 12px",color:avg>=15?"#16A34A":"#D97706",fontWeight:600}}>{avg}</td>
+                <td style={{padding:"10px 12px"}}>
+                  <span style={{background:r.submittedToday?"#F0FDF4":"#FEF2F2",color:r.submittedToday?"#16A34A":"#DC2626",fontSize:11,padding:"2px 8px",borderRadius:99,fontWeight:600}}>{r.submittedToday?"Done":"Pending"}</span>
+                </td>
+                <td style={{padding:"10px 12px"}}>
+                  <button onClick={()=>copyWhatsApp(r)} style={{padding:"4px 10px",borderRadius:6,fontSize:11,cursor:"pointer",background:copyMsg===r.id?"#F0FDF4":"#fff",color:copyMsg===r.id?"#16A34A":"#475569",border:"1px solid #E2E8F0",fontWeight:600}}>
+                    {copyMsg===r.id?"Copied!":"Copy"}
+                  </button>
+                </td>
+              </tr>;
+            })}
+          </tbody>
+        </table>
+        {myRecruiters.length===0&&<div style={{padding:24,textAlign:"center",color:"#94A3B8"}}>No recruiters in your team yet.</div>}
+      </div>
+    </Card>
+
+    {/* Quick notes section */}
+    <Card>
+      <CardHeader title="My Candidates — Quick View" action={<button onClick={()=>onNav("candidates")} style={{background:"none",border:"1px solid #E2E8F0",borderRadius:8,padding:"4px 10px",fontSize:12,cursor:"pointer",color:"#475569"}}>View all</button>}/>
+      <div style={{display:"grid",gap:6,padding:"8px 16px 12px"}}>
+        {myCands.slice(0,4).map(c=>{
+          const rec=getMember(c.recruiter_id);
+          const wLogs=logs.filter(l=>l.user_id===c.recruiter_id&&l.candidate_id===c.id&&l.log_date>=weekAgoStr);
+          const emails=wLogs.reduce((s,l)=>s+(l.emails_sent||0),0);
+          const subs=wLogs.reduce((s,l)=>s+(l.submissions||0),0);
+          return <div key={c.id} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 0",borderBottom:"1px solid #F8FAFC"}}>
+            <div style={{display:"flex",alignItems:"center",gap:10}}>
+              <Av name={c.name} role="r_lead" size={30}/>
+              <div>
+                <div style={{fontSize:13,fontWeight:600}}>{c.name}</div>
+                <div style={{fontSize:11,color:"#94A3B8"}}>{c.tech} · Rec: {rec?.name||"?"}</div>
+              </div>
+            </div>
+            <div style={{display:"flex",gap:8,fontSize:11}}>
+              <span style={{background:"#EFF6FF",color:"#2563EB",padding:"2px 8px",borderRadius:99,fontWeight:600}}>{emails}e</span>
+              <span style={{background:"#F5F3FF",color:"#7C3AED",padding:"2px 8px",borderRadius:99,fontWeight:600}}>{subs}s</span>
+            </div>
+          </div>;
+        })}
+        {myCands.length===0&&<div style={{padding:"12px 0",textAlign:"center",color:"#94A3B8",fontSize:13}}>No active candidates.</div>}
       </div>
     </Card>
   </div>;
