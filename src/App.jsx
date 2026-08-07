@@ -778,6 +778,7 @@ function DashPage({user,rc,candidates,allCandidates,logs,getMember,onNav,onRefre
 
     {user.role==="president"&&<PresidentDashboard user={user} allCandidates={allCands||candidates} members={members||[]} logs={logs} getMember={getMember} interviewSessions={interviewSessions} onNav={onNav} thisYear={thisYear} monthlyClosures={monthlyClosures} totalClosures={totalClosures} placedThisMonth={placedThisMonth}/>}
 
+      {user.role==="president"
       ? <TeamPerformanceSection allCandidates={allCands} members={members||[]} getMember={getMember}/>
       : user.role==="manager"
       ? <ManagerDashboardSection allCandidates={allCands||candidates} members={members||[]} logs={logs} getMember={getMember} interviewSessions={interviewSessions} onNav={onNav} token={token} user={user}/>
@@ -789,6 +790,9 @@ function DashPage({user,rc,candidates,allCandidates,logs,getMember,onNav,onRefre
       ? <CLeadDashboard user={user} candidates={candidates} allCandidates={allCands||candidates} logs={logs} members={members||[]} getMember={getMember} onNav={onNav} token={token}/>
       : user.role==="interview_coord"
       ? <ICDashboard user={user} candidates={candidates} allCandidates={allCands||candidates} logs={logs} members={members||[]} getMember={getMember} onNav={onNav} token={token}/>
+      : null
+      : user.role==="president"
+      ? null
       : <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14 }}>
           <Card>
             <CardHeader title="My Candidates" action={<Btn variant="outline" onClick={()=>onNav("candidates")} style={{ fontSize:12, padding:"5px 10px" }}>View all</Btn>}/>
@@ -6371,14 +6375,14 @@ function PresidentDashboard({user,allCandidates,members,logs,getMember,interview
         <CardHeader title={`Stale Candidates — No log ${staleThreshold}+ days (${riskCands.length})`}/>
         {riskCands.map(c=>{
           const lastLog=logs.filter(l=>l.candidate_id===c.id&&l.type==="recruiter").sort((a,b)=>b.log_date.localeCompare(a.log_date))[0];
-          const daysSince=lastLog?Math.floor((new Date()-new Date(lastLog.log_date))/86400000):"Never";
+          const daysSince=lastLog?Math.floor((new Date()-new Date(lastLog.log_date))/86400000):null;
           const rec=getMember(c.recruiter_id);
-          return <div key={c.id} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"12px 16px",borderBottom:"1px solid #F8FAFC",borderLeft:`3px solid ${typeof daysSince==="number"&&daysSince>10?"#DC2626":"#D97706"}`}}>
+          return <div key={c.id} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"12px 16px",borderBottom:"1px solid #F8FAFC",borderLeft:`3px solid ${!daysSince||daysSince>10?"#DC2626":"#D97706"}`}}>
             <div>
               <div style={{fontSize:13,fontWeight:600}}>{c.name} · {c.tech}</div>
-              <div style={{fontSize:11,color:"#94A3B8"}}>Rec: {rec?.name||"?"} · Last log: {lastLog?fmtDate(lastLog.log_date):"Never"}</div>
+              <div style={{fontSize:11,color:"#94A3B8"}}>Rec: {rec?.name||"?"} · Last log: {lastLog?fmtDate(lastLog.log_date):"Never logged"}</div>
             </div>
-            <span style={{background:typeof daysSince==="number"&&daysSince>10?"#FEF2F2":"#FFFBEB",color:typeof daysSince==="number"&&daysSince>10?"#DC2626":"#D97706",fontSize:12,padding:"3px 10px",borderRadius:99,fontWeight:700}}>{daysSince}d ago</span>
+            <span style={{background:!daysSince||daysSince>10?"#FEF2F2":"#FFFBEB",color:!daysSince||daysSince>10?"#DC2626":"#D97706",fontSize:12,padding:"3px 10px",borderRadius:99,fontWeight:700}}>{daysSince?`${daysSince}d ago`:"No logs"}</span>
           </div>;
         })}
       </Card>}
